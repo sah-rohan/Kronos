@@ -45,7 +45,7 @@ type SolutionRow struct {
 	Lang      string `json:"lang"`
 	Code      string `json:"code"`
 	RuntimeMs int    `json:"runtimeMs"`
-	RuntimePct float64 `json:"runtimePct"`
+	RuntimePct float64 `json:"runtimePct"` 
 	Optimal   bool   `json:"optimal"`
 }
 
