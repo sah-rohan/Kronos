@@ -28,3 +28,4 @@ backend/dist
 terraform/.terraform
 *.tfstate*
 .env*
+.terraform*
