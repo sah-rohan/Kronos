@@ -2,9 +2,11 @@ import { API_URL } from "./env";
 
 export type TokenFn = () => Promise<string | null>;
 
+const base = (API_URL ?? "").replace(/\/$/, "");
+
 async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Promise<T> {
   const token = await getToken();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
       ...(init?.headers ?? {}),

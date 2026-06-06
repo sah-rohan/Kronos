@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { api, type MeResponse, type TokenFn } from "../lib/api";
 import { DataProvider } from "../data/source";
 import App from "../App";
@@ -8,6 +8,7 @@ import { OnboardingScreen } from "./OnboardingScreen";
 
 export function AuthGate() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const token: TokenFn = useCallback(() => getToken(), [getToken]);
   const [me, setMe] = useState<MeResponse | "loading" | "error">("loading");
 
@@ -26,9 +27,10 @@ export function AuthGate() {
   if (!me.username) {
     return <OnboardingScreen token={token} onDone={load} />;
   }
+  const name = user?.fullName || user?.username || me.username || "You";
   return (
     <DataProvider getToken={token}>
-      <App isAdmin={me.role === "admin"} />
+      <App isAdmin={me.role === "admin"} userName={name} />
     </DataProvider>
   );
 }

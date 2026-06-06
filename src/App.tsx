@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { greeting } from "./lib/greeting";
+import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
 import type { Friend, Month, ProblemRef } from "./types";
@@ -22,7 +23,7 @@ import { FriendSolutionModal } from "./modals/FriendSolutionModal";
 import { ChangeUsernameModal } from "./modals/ChangeUsernameModal";
 import { AdminModal } from "./modals/AdminModal";
 
-function App({ isAdmin = false }: { isAdmin?: boolean }) {
+function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; userName?: string }) {
   const { removeFriend } = useData();
   const [modal, setModal] = useState<string | null>(null);
   const [dark, setDark] = useState(false);
@@ -51,13 +52,15 @@ function App({ isAdmin = false }: { isAdmin?: boolean }) {
 
       <div className="relative mx-auto max-w-[1400px] space-y-8">
         <TopBar
+          name={userName}
+          initials={initialsOf(userName)}
           dark={dark}
           onToggleDark={toggleDark}
           onChangeUsername={() => setChangeUsername(true)}
           isAdmin={isAdmin}
           onAdmin={() => setAdminOpen(true)}
         />
-        <Greeting hello={hello} />
+        <Greeting hello={hello} name={userName.split(" ")[0]} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <MyProgressCard onOpen={() => setModal("me")} />

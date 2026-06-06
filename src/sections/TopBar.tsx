@@ -4,12 +4,16 @@ import { SignOutButton } from "@clerk/clerk-react";
 import { useClerk } from "../lib/env";
 
 export function TopBar({
+  name,
+  initials,
   dark,
   onToggleDark,
   onChangeUsername,
   isAdmin,
   onAdmin,
 }: {
+  name: string;
+  initials: string;
   dark: boolean;
   onToggleDark: () => void;
   onChangeUsername: () => void;
@@ -31,9 +35,9 @@ export function TopBar({
           className="flex items-center gap-2.5 rounded-full border border-border bg-white/50 py-1.5 pl-1.5 pr-3 backdrop-blur-sm transition hover:bg-white/80"
         >
           <div className="grid h-8 w-8 place-items-center rounded-full bg-[#111] text-xs font-medium text-white">
-            JD
+            {initials}
           </div>
-          <span className="text-sm font-medium text-foreground">Jordan Dev</span>
+          <span className="text-sm font-medium text-foreground">{name}</span>
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition ${open ? "rotate-180" : ""}`} />
         </button>
 

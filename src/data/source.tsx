@@ -106,6 +106,7 @@ function groupByCategory(problems: { slug: string; title: string; difficulty: st
 export function DataProvider({ getToken, children }: { getToken: TokenFn; children: ReactNode }) {
   const [friends, setFriends] = useState<Friend[]>(initialFriends);
   const [remote, setRemote] = useState<Data | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     const [progress, leaders, recents, friendRows] = await Promise.all([
@@ -156,9 +157,26 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
   };
 
   useEffect(() => {
-    if (useApi) refresh().catch(() => setRemote(null));
+    if (useApi) refresh().catch((e) => setError(String(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (useApi && error) {
+    return (
+      <div className="grid min-h-screen place-items-center px-6">
+        <div className="max-w-lg rounded-2xl border border-border bg-card p-6 text-center">
+          <div className="font-display text-xl">Couldn't load your data</div>
+          <p className="mt-2 break-words text-sm text-muted-foreground">{error}</p>
+          <button
+            onClick={() => { setError(null); refresh().catch((e) => setError(String(e))); }}
+            className="mt-4 rounded-full bg-coral px-4 py-2 text-sm font-medium text-coral-foreground"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (useApi && !remote) {
     return (
