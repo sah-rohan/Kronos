@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@source "./";
+@source "../index.html";
+
+/*
+  Theme tokens used by the dashboard. Colors picked to echo Craft.do:
+  a soft sky blue up top fading into white below.
+*/
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+
+  --color-background: #f7fbff;
+  --color-foreground: #1a2b3c;
+  --color-card: rgba(255, 255, 255, 0.72);
+  --color-border: rgba(7, 55, 129, 0.1);
+  --color-muted: #eaf3fb;
+  --color-muted-foreground: #6b7e91;
+
+  --color-coral: #e66960;
+  --color-coral-foreground: #ffffff;
+
+  --color-sky: #d1eef9;
+  --color-sky-foreground: #0b4a6b;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-foreground);
+  /*
+    Craft-style sky: deep blue at the very top, lots of blue across the upper
+    band, easing into our near-white at the bottom. Fixed so it spans the page.
+  */
+  background:
+    linear-gradient(
+      to bottom,
+      #6db4e0 0%,
+      #8fc8ea 12%,
+      #aed8f1 26%,
+      #cbe7f7 42%,
+      #e3f1fb 58%,
+      #f1f8fd 72%,
+      #f7fbff 88%,
+      #ffffff 100%
+    )
+    fixed;
+}
+
+/* Night mode: deep midnight-blue sky, glassy dark cards. */
+.dark {
+  --color-background: #0a1826;
+  --color-foreground: #e8eef5;
+  --color-card: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-muted: rgba(255, 255, 255, 0.08);
+  --color-muted-foreground: #93a4b5;
+
+  --color-sky: #2a6f93;
+  --color-sky-foreground: #d3ecfa;
+}
+
+.dark .clouds {
+  opacity: 0.18;
+}
+
+.dark body {
+  background:
+    linear-gradient(
+      to bottom,
+      #0e3a5c 0%,
+      #0c3050 14%,
+      #0b2640 32%,
+      #0a1e34 52%,
+      #0a1826 74%,
+      #08131f 100%
+    )
+    fixed;
+}
+
+/* Solid, readable modal surface in both themes. */
+.modal-surface {
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px);
+}
+.dark .modal-surface {
+  background: #16273b;
+  backdrop-filter: blur(20px);
+}
+
+/* Thin, rounded scrollbar; the rounded parent clips it at the corners. */
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.modal-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--color-muted-foreground) 45%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--color-muted-foreground) 70%, transparent);
+}
+
+/* Editorial serif headings, exactly like Craft's display type. */
+.font-display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+
+/* Drifting clouds layered over the blue band. */
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-6%);
+  }
+  to {
+    transform: translateX(6%);
+  }
+}
