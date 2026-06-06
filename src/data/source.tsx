@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useApi } from "../lib/env";
-import { api, type TokenFn } from "../lib/api";
+import { api } from "../lib/api";
+import type { TokenFn } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { categories as mockCategories } from "./problems";
 import { members as mockMembers, recent as mockRecent, avatarColor, nameByInitials } from "./members";
@@ -19,6 +20,7 @@ type Data = {
   friendsDifficulty: { label: string; val: number }[];
   addFriend: (username: string) => Promise<void>;
   removeFriend: (id: string) => Promise<void>;
+  getToken: TokenFn;
 };
 
 const DataContext = createContext<Data | null>(null);
@@ -52,7 +54,7 @@ function friendsDifficulty(categories: Category[], friends: Friend[]) {
   });
 }
 
-function mockData(friends: Friend[], setFriends: (f: Friend[]) => void): Data {
+function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken: TokenFn): Data {
   const recent: RecentItem[] = mockRecent.map((r) => ({
     n: r.n,
     name: r.name,
@@ -78,6 +80,7 @@ function mockData(friends: Friend[], setFriends: (f: Friend[]) => void): Data {
     async removeFriend(id) {
       setFriends(friends.filter((f) => f.username !== id && f.name !== id));
     },
+    getToken,
   };
 }
 
@@ -148,6 +151,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
         await api.removeFriend(getToken, id);
         await refresh();
       },
+      getToken,
     });
   };
 
@@ -162,6 +166,6 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     );
   }
 
-  const value = useApi && remote ? remote : mockData(friends, setFriends);
+  const value = useApi && remote ? remote : mockData(friends, setFriends, getToken);
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

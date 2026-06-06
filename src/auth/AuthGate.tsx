@@ -28,7 +28,7 @@ export function AuthGate() {
   }
   return (
     <DataProvider getToken={token}>
-      <App />
+      <App isAdmin={me.role === "admin"} />
     </DataProvider>
   );
 }

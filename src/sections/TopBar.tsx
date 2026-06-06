@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Moon, Sun, AtSign, LogOut } from "lucide-react";
+import { ChevronDown, Moon, Sun, AtSign, LogOut, ShieldCheck } from "lucide-react";
 import { SignOutButton } from "@clerk/clerk-react";
 import { useClerk } from "../lib/env";
 
@@ -7,10 +7,14 @@ export function TopBar({
   dark,
   onToggleDark,
   onChangeUsername,
+  isAdmin,
+  onAdmin,
 }: {
   dark: boolean;
   onToggleDark: () => void;
   onChangeUsername: () => void;
+  isAdmin?: boolean;
+  onAdmin?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const item = "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted";
@@ -45,6 +49,12 @@ export function TopBar({
                 <AtSign className="h-4 w-4" />
                 Change LeetCode username
               </button>
+              {isAdmin && onAdmin && (
+                <button onClick={() => { onAdmin(); setOpen(false); }} className={item}>
+                  <ShieldCheck className="h-4 w-4" />
+                  Approve members
+                </button>
+              )}
               <div className="my-1 h-px bg-border" />
               {useClerk ? (
                 <SignOutButton>

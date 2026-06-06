@@ -31,6 +31,12 @@ export const api = {
   friendProgress: (t: TokenFn, id: string) => call<ApiProblem[]>(`/friends/${id}/progress`, t),
   friendSolutions: (t: TokenFn, id: string, slug: string) =>
     call<ApiSolution[]>(`/friends/${id}/problem/${slug}`, t),
+  adminPending: (t: TokenFn) => call<MeResponse[]>("/admin/pending", t),
+  adminApprove: (t: TokenFn, id: string) =>
+    call("/admin/approve", t, { method: "POST", body: JSON.stringify({ id }) }),
+  adminSetUsername: (t: TokenFn, id: string, username: string) =>
+    call("/admin/username", t, { method: "POST", body: JSON.stringify({ id, username }) }),
+  adminRemove: (t: TokenFn, id: string) => call(`/admin/users/${id}`, t, { method: "DELETE" }),
 };
 
 export type MeResponse = {

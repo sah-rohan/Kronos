@@ -20,8 +20,9 @@ import { FriendsModal } from "./modals/FriendsModal";
 import { FriendProgressModal } from "./modals/FriendProgressModal";
 import { FriendSolutionModal } from "./modals/FriendSolutionModal";
 import { ChangeUsernameModal } from "./modals/ChangeUsernameModal";
+import { AdminModal } from "./modals/AdminModal";
 
-function App() {
+function App({ isAdmin = false }: { isAdmin?: boolean }) {
   const { removeFriend } = useData();
   const [modal, setModal] = useState<string | null>(null);
   const [dark, setDark] = useState(false);
@@ -30,6 +31,7 @@ function App() {
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
   const [myProblem, setMyProblem] = useState<ProblemRef | null>(null);
   const [changeUsername, setChangeUsername] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const hello = greeting(new Date());
 
   const openCalendar = () => {
@@ -48,7 +50,13 @@ function App() {
       <Clouds />
 
       <div className="relative mx-auto max-w-[1400px] space-y-8">
-        <TopBar dark={dark} onToggleDark={toggleDark} onChangeUsername={() => setChangeUsername(true)} />
+        <TopBar
+          dark={dark}
+          onToggleDark={toggleDark}
+          onChangeUsername={() => setChangeUsername(true)}
+          isAdmin={isAdmin}
+          onAdmin={() => setAdminOpen(true)}
+        />
         <Greeting hello={hello} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -65,6 +73,7 @@ function App() {
       )}
       {myProblem && <MySolutionModal problem={myProblem} onClose={() => setMyProblem(null)} />}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} />}
+      {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
       {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} />}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} />}
       {modal === "recent" && <RecentActivityModal onClose={() => setModal(null)} />}
