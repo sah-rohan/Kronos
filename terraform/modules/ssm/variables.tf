@@ -1,12 +1,8 @@
-variable "prefix" {
+variable "name" {
   type = string
 }
 
-variable "keys" {
-  type = list(string)
-}
-
-variable "secrets" {
-  type      = map(string)
+variable "value" {
+  type      = string
   sensitive = true
 }
