@@ -207,14 +207,6 @@ for (const c of categories) {
 
 export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
-export const SOLVED = flatProblems.filter((p) => p.done).length;
-
-export const difficultyBars = (["Easy", "Medium", "Hard"] as const).map((label) => ({
-  label,
-  color: label === "Easy" ? "bg-sky" : label === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
-  done: flatProblems.filter((p) => p.diff === label && p.done).length,
-  total: flatProblems.filter((p) => p.diff === label).length,
-}));
 
 export const diffStyles: Record<string, string> = {
   Easy: "bg-sky text-sky-foreground",

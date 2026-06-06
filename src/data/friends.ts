@@ -67,13 +67,3 @@ export function mySolutions(slug: string): Solution[] {
 export function friendSolvedCount(f: Friend): number {
   return flatProblems.reduce((n, p) => (friendSolved(f, p.name) ? n + 1 : n), 0);
 }
-
-const recentTimes = ["2h ago", "5h ago", "1d ago", "3h ago", "yesterday"];
-
-export function friendRecent(f: Friend) {
-  const h = hash(f.username);
-  return {
-    problem: flatProblems[h % flatProblems.length].name,
-    when: recentTimes[h % recentTimes.length],
-  };
-}

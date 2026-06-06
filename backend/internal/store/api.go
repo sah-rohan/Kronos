@@ -64,18 +64,6 @@ func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName string) 
 	return u, err
 }
 
-func (p *Postgres) UserByClerk(ctx context.Context, clerkID string) (User, error) {
-	var u User
-	err := p.pool.QueryRow(ctx, `
-		select id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role
-		from users where clerk_id = $1`, clerkID,
-	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return User{}, ErrNotFound
-	}
-	return u, err
-}
-
 func (p *Postgres) SetUsername(ctx context.Context, userID, leetcodeUser string) error {
 	_, err := p.pool.Exec(ctx, `update users set leetcode_user = $2 where id = $1`, userID, leetcodeUser)
 	if isUniqueViolation(err) {
