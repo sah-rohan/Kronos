@@ -317,7 +317,7 @@ function Avatar({ initials, size = 28 }: { initials: string; size?: number }) {
   return (
     <div
       title={nameByInitials[initials] ?? initials}
-      className={`inline-flex items-center justify-center rounded-full text-[11px] font-medium ring-2 ring-white ${avatarColor[initials] ?? "bg-muted"}`}
+      className={`stack-ring inline-flex items-center justify-center rounded-full text-[11px] font-medium ${avatarColor[initials] ?? "bg-muted"}`}
       style={{ width: size, height: size }}
     >
       {initials}
@@ -337,7 +337,7 @@ function AvatarStack({ who, cap }: { who: string[]; cap: number }) {
       {rest.length > 0 && (
         <span
           title={rest.map((w) => nameByInitials[w] ?? w).join(", ")}
-          className="inline-flex h-7 items-center justify-center rounded-full bg-muted px-2 text-[11px] font-medium text-muted-foreground ring-2 ring-white"
+          className="count-chip stack-ring inline-flex h-7 items-center justify-center rounded-full px-2 text-[11px] font-semibold"
         >
           +{rest.length}
         </span>
@@ -400,9 +400,13 @@ function CircleChart({
           return (
             <div
               key={d.label}
-              className={`absolute left-1/2 -translate-x-1/2 rounded-full ${shades[i]}`}
+              className={`group/ring absolute left-1/2 -translate-x-1/2 cursor-default rounded-full transition hover:brightness-105 ${shades[i]}`}
               style={{ width: size, height: size, bottom: 0 }}
-            />
+            >
+              <span className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border bg-foreground px-2.5 py-1 text-[11px] font-semibold text-background opacity-0 shadow-lg transition group-hover/ring:opacity-100">
+                {d.label}: {d.val} solved
+              </span>
+            </div>
           );
         })}
       </div>
@@ -529,7 +533,7 @@ function App() {
           <h1 className="font-display text-[52px] leading-[1.02] tracking-tight text-foreground md:text-[64px]">
             {hello}, Jordan<span className="text-coral">.</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-[15px] text-sky-foreground/80">
+          <p className="mx-auto mt-4 max-w-md text-[15px] text-foreground/75">
             Progress syncs automatically each morning, or grab the latest right now.
           </p>
           <button
@@ -537,7 +541,7 @@ function App() {
               setSyncing(true);
               setTimeout(() => setSyncing(false), 1100);
             }}
-            className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-white/50 px-4 py-2 text-sm font-medium text-sky-foreground backdrop-blur-sm transition hover:bg-white/70 disabled:opacity-70"
+            className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm backdrop-blur-md transition hover:bg-muted disabled:opacity-70"
             disabled={syncing}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
@@ -567,7 +571,7 @@ function App() {
               {upNext.map((p) => (
                 <li
                   key={p.name}
-                  className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-muted"
+                  className="flex items-center gap-2.5 px-2 py-1.5"
                 >
                   <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-border text-[9px] text-transparent">
                     ✓
@@ -610,10 +614,10 @@ function App() {
                       <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
                     )}
                   </div>
-                  <div className="w-36">
-                    <div className="text-sm font-medium">{m.name}</div>
+                  <div className="w-36 min-w-0">
+                    <div className="truncate text-sm font-medium">{m.name}</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <Flame className="h-3 w-3 text-coral" />
+                      <Flame className="h-3 w-3 shrink-0 text-coral" />
                       {m.streak}-day streak
                     </div>
                   </div>
@@ -687,10 +691,6 @@ function App() {
                 />
               ))}
             </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>14 weeks ago</span>
-              <span>Today</span>
-            </div>
           </Card>
 
           {/* Recent activity */}
@@ -705,9 +705,9 @@ function App() {
                   <div className="w-10 text-xs text-muted-foreground tabular-nums">
                     #{r.n}
                   </div>
-                  <div className="flex-1 text-sm">{r.name}</div>
+                  <div className="min-w-0 flex-1 truncate text-sm">{r.name}</div>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}
                   >
                     {r.diff}
                   </span>
@@ -862,10 +862,10 @@ function App() {
                     <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
                   )}
                 </div>
-                <div className="w-44">
-                  <div className="text-[15px] font-medium">{m.name}</div>
+                <div className="w-44 min-w-0">
+                  <div className="truncate text-[15px] font-medium">{m.name}</div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Flame className="h-3 w-3 text-coral" />
+                    <Flame className="h-3 w-3 shrink-0 text-coral" />
                     {m.streak}-day streak
                   </div>
                 </div>
@@ -925,8 +925,8 @@ function App() {
             {recent.map((r) => (
               <li key={r.n} className="flex items-center gap-4 py-3">
                 <div className="w-10 text-xs text-muted-foreground tabular-nums">#{r.n}</div>
-                <div className="flex-1 text-sm">{r.name}</div>
-                <div className="w-20">
+                <div className="min-w-0 flex-1 truncate text-sm">{r.name}</div>
+                <div className="w-20 shrink-0">
                   <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}>
                     {r.diff}
                   </span>

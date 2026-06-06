@@ -115,6 +115,24 @@ body {
   background-color: color-mix(in oklab, var(--color-muted-foreground) 70%, transparent);
 }
 
+/* "+N" overflow chip on avatar stacks — readable in both themes. */
+.count-chip {
+  background: #d4dde8;
+  color: #1a2b3c;
+}
+.dark .count-chip {
+  background: #3a4f66;
+  color: #eef3f8;
+}
+
+/* Separating ring around overlapping avatars — matches the surface per theme. */
+.stack-ring {
+  box-shadow: 0 0 0 2px #ffffff;
+}
+.dark .stack-ring {
+  box-shadow: 0 0 0 2px #16273b;
+}
+
 /* Editorial serif headings, exactly like Craft's display type. */
 .font-display {
   font-family: var(--font-serif);
