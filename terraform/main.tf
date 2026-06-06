@@ -55,10 +55,9 @@ locals {
 }
 
 module "ssm" {
-  source  = "./modules/ssm"
-  prefix  = "/${var.project}"
-  keys    = ["DATABASE_URL"]
-  secrets = { DATABASE_URL = local.database_url }
+  source = "./modules/ssm"
+  name   = "/${var.project}/DATABASE_URL"
+  value  = local.database_url
 }
 
 data "aws_ssm_parameter" "clerk_secret" {
@@ -70,10 +69,11 @@ data "aws_ssm_parameter" "leetcode_session" {
 }
 
 locals {
-  secret_arns = concat(module.ssm.arns, [
+  secret_arns = [
+    module.ssm.arn,
     data.aws_ssm_parameter.clerk_secret.arn,
     data.aws_ssm_parameter.leetcode_session.arn,
-  ])
+  ]
 }
 
 module "api" {
@@ -82,7 +82,7 @@ module "api" {
   zip_path           = var.api_zip
   ssm_parameter_arns = local.secret_arns
   environment = {
-    DATABASE_URL_SSM     = module.ssm.names["DATABASE_URL"]
+    DATABASE_URL_SSM     = module.ssm.name
     CLERK_SECRET_KEY_SSM = data.aws_ssm_parameter.clerk_secret.name
   }
 }
@@ -93,7 +93,7 @@ module "sync" {
   zip_path           = var.sync_zip
   ssm_parameter_arns = local.secret_arns
   environment = {
-    DATABASE_URL_SSM = module.ssm.names["DATABASE_URL"]
+    DATABASE_URL_SSM = module.ssm.name
     SEASON_START     = var.season_start
   }
 }
@@ -104,7 +104,7 @@ module "enrich" {
   zip_path           = var.enrich_zip
   ssm_parameter_arns = local.secret_arns
   environment = {
-    DATABASE_URL_SSM     = module.ssm.names["DATABASE_URL"]
+    DATABASE_URL_SSM     = module.ssm.name
     LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
   }
 }
