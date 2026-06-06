@@ -1,0 +1,144 @@
+package store
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"kronos/internal/leetcode"
+	"kronos/internal/poller"
+)
+
+type Postgres struct {
+	pool *pgxpool.Pool
+}
+
+func NewPostgres(ctx context.Context, dsn string) (*Postgres, error) {
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &Postgres{pool: pool}, nil
+}
+
+func (p *Postgres) Close() { p.pool.Close() }
+
+func (p *Postgres) Catalog(ctx context.Context) (poller.Catalog, error) {
+	rows, err := p.pool.Query(ctx, `select slug, id from problems`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	catalog := poller.Catalog{}
+	for rows.Next() {
+		var slug string
+		var id int
+		if err := rows.Scan(&slug, &id); err != nil {
+			return nil, err
+		}
+		catalog[slug] = id
+	}
+	return catalog, rows.Err()
+}
+
+func (p *Postgres) DueMembers(ctx context.Context, limit int) ([]poller.Member, error) {
+	rows, err := p.pool.Query(ctx, `
+		select u.id, u.leetcode_user
+		from users u
+		join sync_state s on s.user_id = u.id
+		where s.next_poll_at <= now()
+		order by s.next_poll_at
+		limit $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var members []poller.Member
+	for rows.Next() {
+		var member poller.Member
+		if err := rows.Scan(&member.UserID, &member.LeetCodeUser); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+	return members, rows.Err()
+}
+
+func (p *Postgres) LoadState(ctx context.Context, userID string) (poller.State, error) {
+	var state poller.State
+	err := p.pool.QueryRow(ctx,
+		`select last_ac_count, last_seen_ac_ts, next_poll_at from sync_state where user_id = $1`, userID).
+		Scan(&state.LastCount, &state.LastSeenAt, &state.NextPollAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return poller.State{}, nil
+	}
+	return state, err
+}
+
+func (p *Postgres) SaveState(ctx context.Context, userID string, state poller.State) error {
+	_, err := p.pool.Exec(ctx, `
+		insert into sync_state (user_id, last_ac_count, last_seen_ac_ts, next_poll_at, last_polled_at)
+		values ($1, $2, $3, $4, now())
+		on conflict (user_id) do update set
+			last_ac_count = excluded.last_ac_count,
+			last_seen_ac_ts = excluded.last_seen_ac_ts,
+			next_poll_at = excluded.next_poll_at,
+			last_polled_at = now()`,
+		userID, state.LastCount, state.LastSeenAt, state.NextPollAt)
+	return err
+}
+
+func (p *Postgres) RecordSolve(ctx context.Context, solve poller.Solve) error {
+	_, err := p.pool.Exec(ctx, `
+		insert into solves (user_id, problem_id, first_season_ac_at, season_ac_count, submission_id)
+		values ($1, $2, to_timestamp($3), 1, $4)
+		on conflict (user_id, problem_id) do update set
+			first_season_ac_at = least(solves.first_season_ac_at, excluded.first_season_ac_at),
+			season_ac_count = solves.season_ac_count + 1,
+			submission_id = excluded.submission_id,
+			optimal_checked = false`,
+		solve.UserID, solve.ProblemID, solve.SolvedAt, solve.SubmissionID)
+	return err
+}
+
+func (p *Postgres) FlagOverflow(ctx context.Context, userID string, missing int) error {
+	_, err := p.pool.Exec(ctx,
+		`insert into pending_confirmations (user_id, missing_count) values ($1, $2)`,
+		userID, missing)
+	return err
+}
+
+func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.Pending, error) {
+	rows, err := p.pool.Query(ctx, `
+		select user_id, problem_id, submission_id
+		from solves
+		where not optimal_checked and submission_id is not null
+		limit $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var pending []poller.Pending
+	for rows.Next() {
+		var item poller.Pending
+		if err := rows.Scan(&item.UserID, &item.ProblemID, &item.SubmissionID); err != nil {
+			return nil, err
+		}
+		pending = append(pending, item)
+	}
+	return pending, rows.Err()
+}
+
+func (p *Postgres) SaveDetail(ctx context.Context, pending poller.Pending, detail leetcode.SubmissionDetail) error {
+	_, err := p.pool.Exec(ctx, `
+		update solves set
+			lang = $3, code = $4, runtime_ms = $5, memory_kb = $6,
+			runtime_pct = $7, memory_pct = $8, is_optimal = $9, optimal_checked = true
+		where user_id = $1 and problem_id = $2`,
+		pending.UserID, pending.ProblemID,
+		detail.Language, detail.Code, detail.Runtime, detail.Memory,
+		detail.RuntimePercentile, detail.MemoryPercentile, leetcode.IsOptimal(detail.RuntimePercentile))
+	return err
+}
