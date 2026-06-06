@@ -753,18 +753,22 @@ function App() {
                           ✓
                         </span>
                         <span
-                          className={`flex-1 truncate text-sm ${
+                          className={`min-w-0 flex-1 truncate text-sm ${
                             p.done ? "text-muted-foreground" : "text-foreground"
                           }`}
                         >
                           {p.name}
                         </span>
-                        {p.done && p.optimal && <OptimalTag />}
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}
-                        >
-                          {p.diff}
-                        </span>
+                        <div className="flex w-20 justify-end">
+                          {p.done && p.optimal && <OptimalTag />}
+                        </div>
+                        <div className="flex w-16 justify-end">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}
+                          >
+                            {p.diff}
+                          </span>
+                        </div>
                       </li>
                     ))}
                   </ul>
