@@ -15,6 +15,7 @@ type User struct {
 	DisplayName  string `json:"name"`
 	Status       string `json:"status"`
 	Role         string `json:"role"`
+	Theme        string `json:"theme"`
 }
 
 type LeaderRow struct {
@@ -59,10 +60,18 @@ func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName string) 
 		values ($1, coalesce(nullif($2, ''), $1))
 		on conflict (clerk_id) do update set
 			display_name = case when nullif($2, '') is not null then $2 else users.display_name end
-		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role`,
+		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, theme`,
 		clerkID, displayName,
-	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role)
+	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role, &u.Theme)
 	return u, err
+}
+
+func (p *Postgres) SetTheme(ctx context.Context, userID, theme string) error {
+	if theme != "dark" {
+		theme = "light"
+	}
+	_, err := p.pool.Exec(ctx, `update users set theme = $2 where id = $1`, userID, theme)
+	return err
 }
 
 func (p *Postgres) SetUsername(ctx context.Context, userID, leetcodeUser string) error {
@@ -167,19 +176,26 @@ func (p *Postgres) Progress(ctx context.Context, userID string) ([]ProblemRow, e
 
 type RecentRow struct {
 	Number     int      `json:"n"`
+	Slug       string   `json:"slug"`
 	Name       string   `json:"name"`
 	Difficulty string   `json:"diff"`
 	Who        []string `json:"who"`
 }
 
+type DifficultyTotal struct {
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
 func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 	rows, err := p.pool.Query(ctx, `
-		select pr.id, pr.title, pr.difficulty, array_agg(u.display_name order by s.first_season_ac_at desc)
+		select pr.id, pr.slug, pr.title, pr.difficulty,
+		       array_agg(u.display_name order by s.first_season_ac_at asc)
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
 		where s.first_season_ac_at is not null and u.status = 'approved'
-		group by pr.id, pr.title, pr.difficulty
+		group by pr.id, pr.slug, pr.title, pr.difficulty
 		order by max(s.first_season_ac_at) desc
 		limit $1`, limit)
 	if err != nil {
@@ -189,12 +205,43 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 	out := []RecentRow{}
 	for rows.Next() {
 		var r RecentRow
-		if err := rows.Scan(&r.Number, &r.Name, &r.Difficulty, &r.Who); err != nil {
+		if err := rows.Scan(&r.Number, &r.Slug, &r.Name, &r.Difficulty, &r.Who); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+func (p *Postgres) GroupDifficulty(ctx context.Context) ([]DifficultyTotal, error) {
+	rows, err := p.pool.Query(ctx, `
+		select pr.difficulty, count(*)
+		from solves s
+		join problems pr on pr.id = s.problem_id
+		join users u on u.id = s.user_id
+		where s.first_season_ac_at is not null and u.status = 'approved'
+		group by pr.difficulty`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	totals := map[string]int{"Easy": 0, "Medium": 0, "Hard": 0}
+	for rows.Next() {
+		var label string
+		var count int
+		if err := rows.Scan(&label, &count); err != nil {
+			return nil, err
+		}
+		totals[label] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return []DifficultyTotal{
+		{Label: "Easy", Count: totals["Easy"]},
+		{Label: "Medium", Count: totals["Medium"]},
+		{Label: "Hard", Count: totals["Hard"]},
+	}, nil
 }
 
 type DayCount struct {
