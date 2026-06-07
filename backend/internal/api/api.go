@@ -49,10 +49,10 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 		return reply(403, map[string]string{"error": "pending approval"})
 	}
 
-	return a.member(ctx, method, path, user, req.Body)
+	return a.member(ctx, method, path, user, req.Body, req.QueryStringParameters)
 }
 
-func (a *API) member(ctx context.Context, method, path string, user store.User, body string) (response, error) {
+func (a *API) member(ctx context.Context, method, path string, user store.User, body string, query map[string]string) (response, error) {
 	parts := segments(path)
 
 	switch {
@@ -86,7 +86,7 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		return dataOrError(rows, err)
 
 	case method == "GET" && len(parts) == 3 && parts[0] == "me" && parts[1] == "problem":
-		rows, err := a.Store.MySolution(ctx, user.ID, parts[2])
+		rows, err := a.Store.MySolution(ctx, user.ID, parts[2], query["recent"] == "1")
 		return dataOrError(rows, err)
 
 	case method == "GET" && path == "/leaderboard":
