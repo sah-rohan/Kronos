@@ -10,16 +10,18 @@ export function FriendSolutionModal({
   friend,
   problem,
   onClose,
+  onBack,
 }: {
   friend: Friend;
   problem: ProblemRef;
   onClose: () => void;
+  onBack?: () => void;
 }) {
   const solutions = useFriendSolutions(friend.username, problem.slug, friendSolutions(friend, problem.name));
   return (
-    <Modal title={problem.name} onClose={onClose}>
+    <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">
-        <div className={`grid h-9 w-9 place-items-center rounded-full text-xs font-medium ${friend.color}`}>
+        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-medium ${friend.color}`}>
           {friend.initials}
         </div>
         <div className="flex-1 text-sm font-medium">{friend.name}</div>
