@@ -1,23 +1,78 @@
-import { Crown, Flame } from "lucide-react";
+import { useState } from "react";
+import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
 
+const barColor: Record<string, string> = {
+  Easy: "bg-sky",
+  Medium: "bg-[#f5c26b]",
+  Hard: "bg-coral",
+};
+
 export function LeaderboardModal({ onClose }: { onClose: () => void }) {
-  const { members } = useData();
+  const { members, groupTotals, friendsDifficulty } = useData();
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  const totals = groupTotals.length > 0
+    ? groupTotals
+    : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
+  const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
+
+  const ranked = members
+    .map((m, i) => ({ m, rank: i + 1 }))
+    .filter(({ m }) => !q || m.name.toLowerCase().includes(q) || (m.username ?? "").toLowerCase().includes(q));
+
+  const footer = (
+    <>
+      <div className="flex items-baseline justify-between">
+        <div className="text-sm font-medium">Total solved by everyone</div>
+        <div className="text-sm font-semibold tabular-nums">{groupSolved}</div>
+      </div>
+      <div className="mt-3 flex h-3.5 w-full overflow-hidden rounded-full bg-muted">
+        {totals.map((t) => (
+          <div
+            key={t.label}
+            className={barColor[t.label] ?? "bg-sky"}
+            style={{ width: groupSolved > 0 ? `${(t.count / groupSolved) * 100}%` : "0%" }}
+          />
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+        {totals.map((t) => (
+          <div key={t.label} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-2.5 rounded-full ${barColor[t.label] ?? "bg-sky"}`} />
+            {t.label} <span className="font-medium text-foreground tabular-nums">{t.count}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
   return (
-    <Modal title="Summer 2026 Leaderboard" onClose={onClose}>
+    <Modal title="Summer 2026 Leaderboard" onClose={onClose} footer={footer}>
+      <div className="relative mb-4">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search people…"
+          className="w-full rounded-xl border border-border bg-transparent py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-coral"
+        />
+      </div>
+
       <ul className="space-y-3">
-        {members.map((m, i) => (
-          <li key={m.name} className="flex items-center gap-5 rounded-2xl border border-border px-5 py-4">
-            <div className="w-6 text-base font-medium text-muted-foreground tabular-nums">{i + 1}</div>
-            <div className={`relative grid h-12 w-12 place-items-center rounded-full text-sm font-medium ${m.color}`}>
+        {ranked.map(({ m, rank }) => (
+          <li key={m.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5 sm:gap-5 sm:px-5 sm:py-4">
+            <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums sm:text-base">{rank}</div>
+            <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium sm:h-12 sm:w-12 ${m.color}`}>
               {m.initials}
-              {i === 0 && (
+              {rank === 1 && (
                 <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
               )}
             </div>
-            <div className="w-44 min-w-0">
-              <div className="truncate text-[15px] font-medium">{m.name}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium sm:text-[15px]">{m.name}</div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 {m.streak != null ? (
                   <>
@@ -29,20 +84,21 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             </div>
-            <div className="flex-1">
+            <div className="hidden flex-1 sm:block">
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className={i === 0 ? "h-full bg-coral" : "h-full bg-sky"}
+                  className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
                   style={{ width: `${(m.solved / 150) * 100}%` }}
                 />
               </div>
             </div>
-            <div className="w-20 text-right text-base font-semibold tabular-nums">
+            <div className="shrink-0 text-right text-sm font-semibold tabular-nums sm:text-base">
               {m.solved}
-              <span className="text-sm text-muted-foreground"> /150</span>
+              <span className="text-muted-foreground"> /150</span>
             </div>
           </li>
         ))}
+        {ranked.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">No people match “{query}”.</li>}
       </ul>
     </Modal>
   );
