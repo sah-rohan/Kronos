@@ -23,7 +23,7 @@ export function ProgressModal({
     <Modal title="My Progress" onClose={onClose}>
       <p className="text-sm text-muted-foreground">
         <b className="text-foreground">{solved} of {total}</b> solved across the
-        NeetCode 150 roadmap. Tap a solved problem to see your best solutions.
+        NeetCode 150 roadmap. Tap a solved problem to see your solution.
       </p>
       <div className="relative mt-5">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
