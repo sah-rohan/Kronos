@@ -45,6 +45,8 @@ create table if not exists problems (
 );
 
 -- One row per (user, problem) once it counts for the season.
+alter table users add column if not exists theme text not null default 'light';
+
 create table if not exists solves (
   user_id            uuid not null references users(id) on delete cascade,
   problem_id         integer not null references problems(id),
