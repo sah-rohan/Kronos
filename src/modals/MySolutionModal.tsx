@@ -6,10 +6,10 @@ import { diffStyles, leetcodeUrl } from "../data/problems";
 import { useMySolutions } from "../lib/useSolutions";
 import type { ProblemRef } from "../types";
 
-export function MySolutionModal({ problem, onClose }: { problem: ProblemRef; onClose: () => void }) {
+export function MySolutionModal({ problem, onClose, onBack }: { problem: ProblemRef; onClose: () => void; onBack?: () => void }) {
   const solutions = useMySolutions(problem.slug, mySolutions(problem.slug));
   return (
-    <Modal title={problem.name} onClose={onClose}>
+    <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">
         <div className="flex-1 text-sm font-medium">Your best solutions</div>
         <a
