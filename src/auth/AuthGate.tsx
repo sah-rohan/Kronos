@@ -27,6 +27,12 @@ export function AuthGate() {
 
   useEffect(load, [load]);
 
+  useEffect(() => {
+    if (me && typeof me === "object") {
+      document.documentElement.classList.toggle("dark", me.theme === "dark");
+    }
+  }, [me]);
+
   if (me === "loading") {
     return <LoadingScreen message="Signing you in…" />;
   }
@@ -37,11 +43,9 @@ export function AuthGate() {
     return <OnboardingScreen token={token} onDone={load} />;
   }
   const name = clerkName || me.username || "You";
-  const dark = me.theme === "dark";
-  document.documentElement.classList.toggle("dark", dark);
   return (
     <DataProvider getToken={token}>
-      <App isAdmin={me.role === "admin"} userName={name} initialDark={dark} />
+      <App isAdmin={me.role === "admin"} userName={name} initialDark={me.theme === "dark"} />
     </DataProvider>
   );
 }
