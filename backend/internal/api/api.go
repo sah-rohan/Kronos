@@ -41,6 +41,21 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 		return reply(200, user)
 	}
 
+	if method == "POST" && path == "/me/profile" {
+		var in struct {
+			Username string `json:"username"`
+			Github   string `json:"github"`
+		}
+		json.Unmarshal([]byte(req.Body), &in)
+		if err := a.Store.SetProfile(ctx, user.ID, in.Username, in.Github); err != nil {
+			if errors.Is(err, store.ErrUsernameTaken) {
+				return reply(409, map[string]string{"error": "username taken"})
+			}
+			return reply(500, map[string]string{"error": err.Error()})
+		}
+		return reply(200, map[string]bool{"ok": true})
+	}
+
 	if user.Role == "admin" && strings.HasPrefix(path, "/admin/") {
 		return a.admin(ctx, method, path, req.Body)
 	}
@@ -56,20 +71,6 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 	parts := segments(path)
 
 	switch {
-	case method == "POST" && path == "/me/profile":
-		var in struct {
-			Username string `json:"username"`
-			Github   string `json:"github"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if err := a.Store.SetProfile(ctx, user.ID, in.Username, in.Github); err != nil {
-			if errors.Is(err, store.ErrUsernameTaken) {
-				return reply(409, map[string]string{"error": "username taken"})
-			}
-			return reply(500, map[string]string{"error": err.Error()})
-		}
-		return reply(200, map[string]bool{"ok": true})
-
 	case method == "POST" && path == "/me/theme":
 		var in struct {
 			Theme string `json:"theme"`
