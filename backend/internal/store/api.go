@@ -354,11 +354,15 @@ func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug st
 
 func (p *Postgres) solutions(ctx context.Context, ownerID, slug string) ([]SolutionRow, error) {
 	rows, err := p.pool.Query(ctx, `
-		select pr.slug, s.lang, s.code, s.runtime_ms, s.runtime_pct, s.is_optimal
-		from solutions s
-		join problems pr on pr.id = s.problem_id
-		where s.user_id = $1 and pr.slug = $2
-		order by s.is_optimal desc, s.runtime_pct desc, s.lang`, ownerID, slug)
+		select slug, lang, code, runtime_ms, runtime_pct, is_optimal from (
+			select distinct on (s.code)
+				pr.slug, s.lang, s.code, s.runtime_ms, s.runtime_pct, s.is_optimal, s.solved_at
+			from solutions s
+			join problems pr on pr.id = s.problem_id
+			where s.user_id = $1 and pr.slug = $2
+			order by s.code, s.solved_at desc
+		) t
+		order by t.solved_at desc`, ownerID, slug)
 	if err != nil {
 		return nil, err
 	}
