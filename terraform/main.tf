@@ -84,6 +84,7 @@ module "api" {
   environment = {
     DATABASE_URL_SSM     = module.ssm.name
     CLERK_SECRET_KEY_SSM = data.aws_ssm_parameter.clerk_secret.name
+    ADMIN_CLERK_ID       = var.admin_clerk_id
   }
 }
 

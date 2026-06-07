@@ -15,7 +15,7 @@ variable "db_username" {
 
 variable "season_start" {
   type    = string
-  default = "1780790400"
+  default = "1780874902"
 }
 
 variable "api_zip" {
@@ -31,4 +31,9 @@ variable "sync_zip" {
 variable "enrich_zip" {
   type    = string
   default = "../backend/dist/enrich.zip"
+}
+
+variable "admin_clerk_id" {
+  type    = string
+  default = "user_3EmSENtZcQZXU9q9ptLa7uedUGK"
 }
