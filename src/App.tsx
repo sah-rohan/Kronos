@@ -69,7 +69,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
           <LeaderboardCard onOpen={() => setModal("leaderboard")} />
           <MyFriendsCard onOpen={() => setModal("friends")} />
           <CurrentStreakCard onOpen={openCalendar} />
-          <RecentActivityCard onOpen={() => setModal("recent")} />
+          <RecentActivityCard onOpen={() => setModal("recent")} userName={userName} />
         </div>
       </div>
 
