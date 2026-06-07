@@ -70,6 +70,13 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		}
 		return reply(200, map[string]bool{"ok": true})
 
+	case method == "POST" && path == "/me/theme":
+		var in struct {
+			Theme string `json:"theme"`
+		}
+		json.Unmarshal([]byte(body), &in)
+		return okOrError(a.Store.SetTheme(ctx, user.ID, in.Theme))
+
 	case method == "GET" && path == "/me/progress":
 		rows, err := a.Store.Progress(ctx, user.ID)
 		return dataOrError(rows, err)
@@ -88,6 +95,10 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 
 	case method == "GET" && path == "/recent":
 		rows, err := a.Store.Recent(ctx, 25)
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/group/difficulty":
+		rows, err := a.Store.GroupDifficulty(ctx)
 		return dataOrError(rows, err)
 
 	case method == "GET" && path == "/friends":
