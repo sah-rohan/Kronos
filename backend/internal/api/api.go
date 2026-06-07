@@ -13,7 +13,8 @@ import (
 )
 
 type API struct {
-	Store *store.Postgres
+	Store        *store.Postgres
+	AdminClerkID string
 }
 
 type request = events.APIGatewayV2HTTPRequest
@@ -35,6 +36,14 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req))
 	if err != nil {
 		return reply(500, map[string]string{"error": err.Error()})
+	}
+
+	if a.AdminClerkID != "" && clerkID == a.AdminClerkID &&
+		(user.Role != "admin" || user.Status != "approved") {
+		if err := a.Store.MakeAdmin(ctx, user.ID); err == nil {
+			user.Role = "admin"
+			user.Status = "approved"
+		}
 	}
 
 	if method == "GET" && path == "/me" {

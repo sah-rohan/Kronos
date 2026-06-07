@@ -22,6 +22,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := &api.API{Store: db}
+	handler := &api.API{Store: db, AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID")}
 	lambda.Start(handler.Handle)
 }

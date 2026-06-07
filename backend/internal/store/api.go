@@ -116,6 +116,11 @@ func (p *Postgres) Approve(ctx context.Context, userID string) error {
 	return err
 }
 
+func (p *Postgres) MakeAdmin(ctx context.Context, userID string) error {
+	_, err := p.pool.Exec(ctx, `update users set status = 'approved', role = 'admin' where id = $1`, userID)
+	return err
+}
+
 func (p *Postgres) DeleteUser(ctx context.Context, userID string) error {
 	_, err := p.pool.Exec(ctx, `delete from users where id = $1`, userID)
 	return err
