@@ -16,7 +16,7 @@ export function LeaderboardCard({ onOpen }: { onOpen: () => void }) {
         {members.slice(0, 4).map((m, i) => (
           <li key={m.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
             <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{i + 1}</div>
-            <div className={`relative grid h-11 w-11 place-items-center rounded-full text-sm font-medium ${m.color}`}>
+            <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${m.color}`}>
               {m.initials}
               {i === 0 && (
                 <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
