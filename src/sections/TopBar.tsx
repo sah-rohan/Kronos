@@ -34,7 +34,7 @@ export function TopBar({
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-2.5 rounded-full border border-border bg-white/50 py-1.5 pl-1.5 pr-3 backdrop-blur-sm transition hover:bg-white/80"
         >
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-[#111] text-xs font-medium text-white">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#111] text-xs font-medium text-white">
             {initials}
           </div>
           <span className="text-sm font-medium text-foreground">{name}</span>
