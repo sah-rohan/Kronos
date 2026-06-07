@@ -41,6 +41,7 @@ type Pending struct {
 	UserID       string
 	ProblemID    int
 	SubmissionID int64
+	SolvedAt     int64
 }
 
 type Result struct {
