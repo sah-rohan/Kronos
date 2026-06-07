@@ -36,11 +36,14 @@ export function AuthGate() {
   if (me === "loading") {
     return <LoadingScreen message="Signing you in…" />;
   }
-  if (me === "error" || me.status !== "approved") {
+  if (me === "error") {
     return <PendingScreen />;
   }
   if (!me.username) {
     return <OnboardingScreen token={token} onDone={load} />;
+  }
+  if (me.status !== "approved") {
+    return <PendingScreen />;
   }
   const name = clerkName || me.username || "You";
   return (
