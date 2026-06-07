@@ -337,8 +337,8 @@ func (p *Postgres) FriendProgress(ctx context.Context, userID, friendID string) 
 	return p.Progress(ctx, friendID)
 }
 
-func (p *Postgres) MySolution(ctx context.Context, userID, slug string) ([]SolutionRow, error) {
-	return p.solutions(ctx, userID, slug)
+func (p *Postgres) MySolution(ctx context.Context, userID, slug string, recent bool) ([]SolutionRow, error) {
+	return p.solutions(ctx, userID, slug, recent)
 }
 
 func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug string) ([]SolutionRow, error) {
@@ -349,20 +349,33 @@ func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug st
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return p.solutions(ctx, friendID, slug)
+	return p.solutions(ctx, friendID, slug, false)
 }
 
-func (p *Postgres) solutions(ctx context.Context, ownerID, slug string) ([]SolutionRow, error) {
-	rows, err := p.pool.Query(ctx, `
+func (p *Postgres) solutions(ctx context.Context, ownerID, slug string, recent bool) ([]SolutionRow, error) {
+	query := `
 		select slug, lang, code, runtime_ms, runtime_pct, is_optimal from (
-			select distinct on (s.code)
+			select distinct on (s.lang)
 				pr.slug, s.lang, s.code, s.runtime_ms, s.runtime_pct, s.is_optimal, s.solved_at
 			from solutions s
 			join problems pr on pr.id = s.problem_id
 			where s.user_id = $1 and pr.slug = $2
-			order by s.code, s.solved_at desc
+			order by s.lang, s.is_optimal desc, s.runtime_pct desc
 		) t
-		order by t.solved_at desc`, ownerID, slug)
+		order by t.is_optimal desc, t.runtime_pct desc`
+	if recent {
+		query = `
+			select slug, lang, code, runtime_ms, runtime_pct, is_optimal from (
+				select distinct on (s.code)
+					pr.slug, s.lang, s.code, s.runtime_ms, s.runtime_pct, s.is_optimal, s.solved_at
+				from solutions s
+				join problems pr on pr.id = s.problem_id
+				where s.user_id = $1 and pr.slug = $2
+				order by s.code, s.solved_at desc
+			) t
+			order by t.solved_at desc`
+	}
+	rows, err := p.pool.Query(ctx, query, ownerID, slug)
 	if err != nil {
 		return nil, err
 	}
