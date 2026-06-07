@@ -8,7 +8,7 @@ import { categories as mockCategories } from "./problems";
 import { members as mockMembers, recent as mockRecent, avatarColor, nameByInitials } from "./members";
 import { initialFriends, friendSolved } from "./friends";
 import { monthCounts, CAL_START, CAL_END } from "./calendar";
-import type { Category, Friend, Member, Problem, RecentItem } from "../types";
+import type { Category, DifficultyTotal, Friend, Member, Problem, RecentItem } from "../types";
 
 export type Calendar = { byDate: Record<string, number>; streak: number };
 
@@ -46,6 +46,7 @@ type Data = {
   recent: RecentItem[];
   friends: Friend[];
   friendsDifficulty: { label: string; val: number }[];
+  groupTotals: DifficultyTotal[];
   calendar: Calendar;
   addFriend: (username: string) => Promise<void>;
   removeFriend: (id: string) => Promise<void>;
@@ -86,21 +87,24 @@ function friendsDifficulty(categories: Category[], friends: Friend[]) {
 function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken: TokenFn): Data {
   const recent: RecentItem[] = mockRecent.map((r) => ({
     n: r.n,
+    slug: r.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     name: r.name,
     diff: r.diff,
     who: r.who.map((i) => ({ name: nameByInitials[i] ?? i, initials: i, color: avatarColor[i] ?? "bg-muted" })),
   }));
   const all = mockCategories.flatMap((c) => c.items);
+  const bars = difficultyBars(mockCategories);
   return {
     loading: false,
     categories: mockCategories,
     solved: all.filter((p) => p.done).length,
     total: all.length,
-    difficultyBars: difficultyBars(mockCategories),
+    difficultyBars: bars,
     members: mockMembers,
     recent,
     friends,
     friendsDifficulty: friendsDifficulty(mockCategories, friends),
+    groupTotals: bars.map((b) => ({ label: b.label, count: b.done })),
     calendar: { byDate: mockByDate(), streak: 13 },
     async addFriend(username) {
       if (!username || friends.some((f) => f.username === username)) return;
@@ -146,6 +150,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       api.friends(getToken),
     ]);
     const days = await api.calendar(getToken).catch(() => []);
+    const groupTotals = await api.groupDifficulty(getToken).catch(() => []);
     const byDate: Record<string, number> = {};
     for (const d of days ?? []) byDate[d.date] = d.count;
     const categories = groupByCategory(progress ?? []);
@@ -171,12 +176,14 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       })),
       recent: (recents ?? []).map((r) => ({
         n: r.n,
+        slug: r.slug,
         name: r.name,
         diff: r.diff,
         who: r.who.map((name) => ({ name, initials: initialsOf(name), color: colorFor(name) })),
       })),
       friends: apiFriends,
       friendsDifficulty: friendsDifficulty(categories, apiFriends),
+      groupTotals: groupTotals ?? [],
       calendar: { byDate, streak: computeStreak(byDate) },
       async addFriend(username) {
         await api.addFriend(getToken, username);
