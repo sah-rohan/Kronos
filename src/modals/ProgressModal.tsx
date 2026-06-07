@@ -50,43 +50,42 @@ export function ProgressModal({
               </div>
               <ul className="mt-2 space-y-1">
                 {c.items.map((p) => (
-                  <li key={p.name} className="flex items-center gap-3 rounded-xl px-3 py-1.5">
-                    <span
-                      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] ${
-                        p.done ? "bg-coral text-white" : "border border-border text-transparent"
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <span
-                      className={`min-w-0 flex-1 truncate text-sm ${
-                        p.done ? "text-muted-foreground" : "text-foreground"
-                      }`}
-                    >
-                      {p.name}
-                    </span>
-                    <a
-                      href={leetcodeUrl(p.slug)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
-                      title="Open on LeetCode"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                    <div className="flex w-24 justify-end">
+                  <li
+                    key={p.name}
+                    className="flex flex-col gap-2 rounded-xl px-3 py-2 sm:flex-row sm:items-center sm:gap-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] ${
+                          p.done ? "bg-coral text-white" : "border border-border text-transparent"
+                        }`}
+                      >
+                        ✓
+                      </span>
+                      <span className={`min-w-0 flex-1 truncate text-sm ${p.done ? "text-muted-foreground" : "text-foreground"}`}>
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+                      <a
+                        href={leetcodeUrl(p.slug)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
+                        title="Open on LeetCode"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
                       {p.done && (
                         <button
                           onClick={() => onOpenProblem({ name: p.name, slug: p.slug, diff: p.diff })}
-                          className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                          className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground transition hover:bg-muted"
                         >
                           Solutions
                         </button>
                       )}
-                    </div>
-                    <div className="flex w-20 justify-end">{p.done && p.optimal && <OptimalTag />}</div>
-                    <div className="flex w-16 justify-end">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}>
+                      {p.done && p.optimal && <OptimalTag />}
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}>
                         {p.diff}
                       </span>
                     </div>
