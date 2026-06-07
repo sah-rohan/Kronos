@@ -198,7 +198,20 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
   };
 
   useEffect(() => {
-    if (useApi) refresh().catch((e) => setError(String(e)));
+    if (!useApi) return;
+    refresh().catch((e) => setError(String(e)));
+    const quiet = () => refresh().catch(() => {});
+    const id = setInterval(quiet, 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") quiet();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", quiet);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", quiet);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
