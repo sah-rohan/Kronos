@@ -75,19 +75,20 @@ create table if not exists submissions (
   enriched      boolean not null default false
 );
 
--- Best solution per language, keyed (user, problem, lang). The enricher keeps
--- the highest-percentile submission for each language a user has actually used.
+-- One row per enriched submission, so a user's solution history is preserved.
+-- The UI slides through them most-recent-first (deduped by identical code).
 create table if not exists solutions (
-  user_id     uuid not null references users(id) on delete cascade,
-  problem_id  integer not null references problems(id),
-  lang        text not null,
-  code        text not null,
-  runtime_ms  integer not null default 0,
-  memory_kb   integer not null default 0,
-  runtime_pct real not null default 0,
-  is_optimal  boolean not null default false,
-  updated_at  timestamptz not null default now(),
-  primary key (user_id, problem_id, lang)
+  user_id       uuid not null references users(id) on delete cascade,
+  problem_id    integer not null references problems(id),
+  submission_id bigint not null,
+  lang          text not null,
+  code          text not null,
+  runtime_ms    integer not null default 0,
+  memory_kb     integer not null default 0,
+  runtime_pct   real not null default 0,
+  is_optimal    boolean not null default false,
+  solved_at     timestamptz not null,
+  primary key (user_id, problem_id, submission_id)
 );
 
 -- Per-user polling state for the accepted-submission-count delta guard.
