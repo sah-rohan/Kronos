@@ -29,9 +29,9 @@ export function useSolutions(fallback: Solution[], fetcher: () => Promise<ApiSol
   return rows;
 }
 
-export function useMySolutions(slug: string, fallback: Solution[]): Solution[] {
+export function useMySolutions(slug: string, fallback: Solution[], recent = false): Solution[] {
   const { getToken } = useData();
-  return useSolutions(fallback, () => api.mySolutions(getToken, slug));
+  return useSolutions(fallback, () => api.mySolutions(getToken, slug, recent));
 }
 
 export function useFriendSolutions(friendId: string, slug: string, fallback: Solution[]): Solution[] {
