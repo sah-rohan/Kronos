@@ -11,34 +11,34 @@ export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
   }
   return (
     <div>
-      <div className="mt-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${langStyles[s.lang]}`}>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${langStyles[s.lang]}`}>
             {s.lang}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
             {s.runtimeMs} ms · beats {s.runtimePct}%
           </span>
           {s.optimal && (
-            <span className="rounded-full bg-[#d5f0db] px-2.5 py-1 text-[11px] font-medium text-[#2f7d46]">
+            <span className="shrink-0 rounded-full bg-[#d5f0db] px-2.5 py-1 text-[11px] font-medium text-[#2f7d46]">
               Optimal
             </span>
           )}
         </div>
         {solutions.length > 1 && (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={() => setIndex((index - 1 + solutions.length) % solutions.length)}
-              className="grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="w-12 shrink-0 whitespace-nowrap text-center text-xs text-muted-foreground tabular-nums">
               {index + 1} / {solutions.length}
             </span>
             <button
               onClick={() => setIndex((index + 1) % solutions.length)}
-              className="grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
