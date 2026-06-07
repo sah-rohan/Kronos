@@ -88,7 +88,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
           onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblem(p); }}
         />
       )}
-      {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} />}
+      {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
       {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} />}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} />}
