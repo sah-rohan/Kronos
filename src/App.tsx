@@ -3,6 +3,7 @@ import { greeting } from "./lib/greeting";
 import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
+import { api } from "./lib/api";
 import type { Friend, Month, ProblemRef } from "./types";
 import { Clouds } from "./components/Clouds";
 import { TopBar } from "./sections/TopBar";
@@ -23,10 +24,10 @@ import { FriendSolutionModal } from "./modals/FriendSolutionModal";
 import { ChangeUsernameModal } from "./modals/ChangeUsernameModal";
 import { AdminModal } from "./modals/AdminModal";
 
-function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; userName?: string }) {
-  const { removeFriend } = useData();
+function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: { isAdmin?: boolean; userName?: string; initialDark?: boolean }) {
+  const { removeFriend, getToken } = useData();
   const [modal, setModal] = useState<string | null>(null);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(initialDark);
   const [cal, setCal] = useState<Month>(CAL_START);
   const [friendView, setFriendView] = useState<Friend | null>(null);
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
@@ -44,6 +45,7 @@ function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; 
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
+    api.setTheme(getToken, next ? "dark" : "light").catch(() => {});
   };
 
   return (
@@ -74,12 +76,17 @@ function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; 
       {modal === "me" && (
         <ProgressModal onClose={() => setModal(null)} onOpenProblem={(p) => setMyProblem(p)} />
       )}
-      {myProblem && <MySolutionModal problem={myProblem} onClose={() => setMyProblem(null)} />}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
       {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} />}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} />}
-      {modal === "recent" && <RecentActivityModal onClose={() => setModal(null)} />}
+      {modal === "recent" && (
+        <RecentActivityModal
+          onClose={() => setModal(null)}
+          userName={userName}
+          onOpenProblem={(p) => setMyProblem(p)}
+        />
+      )}
 
       {modal === "friends" && (
         <FriendsModal
@@ -94,9 +101,14 @@ function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; 
       {friendView && (
         <FriendProgressModal
           friend={friendView}
-          onClose={() => {
+          onBack={() => {
             setFriendView(null);
             setModal("friends");
+          }}
+          onClose={() => {
+            setFriendView(null);
+            setFriendProblem(null);
+            setModal(null);
           }}
           onOpenProblem={(p) => setFriendProblem(p)}
           onRemove={() => {
@@ -112,7 +124,23 @@ function App({ isAdmin = false, userName = "Jordan Dev" }: { isAdmin?: boolean; 
         <FriendSolutionModal
           friend={friendView}
           problem={friendProblem}
-          onClose={() => setFriendProblem(null)}
+          onBack={() => setFriendProblem(null)}
+          onClose={() => {
+            setFriendProblem(null);
+            setFriendView(null);
+            setModal(null);
+          }}
+        />
+      )}
+
+      {myProblem && (
+        <MySolutionModal
+          problem={myProblem}
+          onBack={() => setMyProblem(null)}
+          onClose={() => {
+            setMyProblem(null);
+            setModal(null);
+          }}
         />
       )}
     </div>
