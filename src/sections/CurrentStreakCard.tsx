@@ -2,6 +2,8 @@ import { Calendar, Flame } from "lucide-react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 
+const WEEKS = 14;
+
 function key(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -9,11 +11,20 @@ function key(d: Date): string {
 export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
   const { calendar } = useData();
   const today = new Date();
-  const cells = Array.from({ length: 7 * 14 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (7 * 14 - 1 - i));
-    return calendar.byDate[key(d)] ?? 0;
-  });
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(today.getDate() - today.getDay() - (WEEKS - 1) * 7);
+
+  const cells = [];
+  for (let w = 0; w < WEEKS; w++) {
+    for (let day = 0; day < 7; day++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + w * 7 + day);
+      cells.push({ future: d > today, count: calendar.byDate[key(d)] ?? 0 });
+    }
+  }
+
   const todayLabel = today.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" });
 
   return (
@@ -33,12 +44,27 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-1.5" style={{ gridTemplateColumns: "repeat(14, minmax(0,1fr))" }}>
-        {cells.map((count, i) => (
+      <div
+        className="mt-6 grid gap-1.5"
+        style={{
+          gridTemplateColumns: `repeat(${WEEKS}, minmax(0,1fr))`,
+          gridTemplateRows: "repeat(7, auto)",
+          gridAutoFlow: "column",
+        }}
+      >
+        {cells.map((cell, i) => (
           <div
             key={i}
-            className={`aspect-square rounded-[4px] ${
-              count >= 3 ? "bg-coral" : count === 2 ? "bg-sky" : count === 1 ? "bg-sky/40" : "bg-muted"
+            className={`aspect-square rounded-lg ${
+              cell.future
+                ? "bg-transparent"
+                : cell.count >= 3
+                ? "bg-coral"
+                : cell.count === 2
+                ? "bg-coral/55"
+                : cell.count === 1
+                ? "bg-coral/25"
+                : "bg-muted"
             }`}
           />
         ))}

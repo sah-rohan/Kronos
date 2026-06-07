@@ -5,7 +5,7 @@ import { useData } from "../data/source";
 export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const { members } = useData();
   return (
-    <Modal title="Summer 2026 Leaderboard" maxW="max-w-5xl" onClose={onClose}>
+    <Modal title="Summer 2026 Leaderboard" onClose={onClose}>
       <ul className="space-y-3">
         {members.map((m, i) => (
           <li key={m.name} className="flex items-center gap-5 rounded-2xl border border-border px-5 py-4">

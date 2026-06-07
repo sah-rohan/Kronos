@@ -24,7 +24,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Approve members" onClose={onClose} maxW="max-w-2xl">
+    <Modal title="Approve members" onClose={onClose}>
       <p className="text-sm text-muted-foreground">
         New sign-ups wait here until you verify their LeetCode username and approve them.
       </p>
