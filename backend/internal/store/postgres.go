@@ -120,7 +120,7 @@ func (p *Postgres) FlagOverflow(ctx context.Context, userID string, missing int)
 
 func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.Pending, error) {
 	rows, err := p.pool.Query(ctx, `
-		select user_id, problem_id, submission_id
+		select user_id, problem_id, submission_id, extract(epoch from solved_at)::bigint
 		from submissions
 		where not enriched
 		order by solved_at
@@ -132,7 +132,7 @@ func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.P
 	var pending []poller.Pending
 	for rows.Next() {
 		var item poller.Pending
-		if err := rows.Scan(&item.UserID, &item.ProblemID, &item.SubmissionID); err != nil {
+		if err := rows.Scan(&item.UserID, &item.ProblemID, &item.SubmissionID, &item.SolvedAt); err != nil {
 			return nil, err
 		}
 		pending = append(pending, item)
@@ -143,15 +143,14 @@ func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.P
 func (p *Postgres) SaveDetail(ctx context.Context, pending poller.Pending, detail leetcode.SubmissionDetail) error {
 	if detail.Language != "" {
 		if _, err := p.pool.Exec(ctx, `
-			insert into solutions (user_id, problem_id, lang, code, runtime_ms, memory_kb, runtime_pct, is_optimal)
-			values ($1, $2, $3, $4, $5, $6, $7, $8)
-			on conflict (user_id, problem_id, lang) do update set
+			insert into solutions (user_id, problem_id, submission_id, lang, code, runtime_ms, memory_kb, runtime_pct, is_optimal, solved_at)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9, to_timestamp($10))
+			on conflict (user_id, problem_id, submission_id) do update set
 				code = excluded.code, runtime_ms = excluded.runtime_ms, memory_kb = excluded.memory_kb,
-				runtime_pct = excluded.runtime_pct, is_optimal = excluded.is_optimal, updated_at = now()
-			where excluded.runtime_pct >= solutions.runtime_pct`,
-			pending.UserID, pending.ProblemID, detail.Language, detail.Code,
+				runtime_pct = excluded.runtime_pct, is_optimal = excluded.is_optimal`,
+			pending.UserID, pending.ProblemID, pending.SubmissionID, detail.Language, detail.Code,
 			detail.Runtime, detail.Memory, detail.RuntimePercentile,
-			leetcode.IsOptimal(detail.RuntimePercentile)); err != nil {
+			leetcode.IsOptimal(detail.RuntimePercentile), pending.SolvedAt); err != nil {
 			return err
 		}
 	}
