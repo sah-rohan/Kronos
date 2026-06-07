@@ -2,33 +2,23 @@ import { Calendar, Flame } from "lucide-react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 
-const WEEKS = 14;
-
-function key(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
   const { calendar } = useData();
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadPad = new Date(year, month, 1).getDay();
 
-  const start = new Date(today);
-  start.setDate(today.getDate() - today.getDay() - (WEEKS - 1) * 7);
-
-  const cells = [];
-  for (let w = 0; w < WEEKS; w++) {
-    for (let day = 0; day < 7; day++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + w * 7 + day);
-      cells.push({ future: d > today, count: calendar.byDate[key(d)] ?? 0 });
-    }
-  }
+  const counts = Array.from({ length: daysInMonth }, (_, i) => {
+    const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
+    return calendar.byDate[k] ?? 0;
+  });
 
   const todayLabel = today.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" });
 
   return (
-    <Card className="lg:col-span-1" onClick={onOpen}>
+    <Card className="flex h-full flex-col lg:col-span-1" onClick={onOpen}>
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -44,30 +34,36 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
         </div>
       </div>
 
-      <div
-        className="mt-6 grid gap-1.5"
-        style={{
-          gridTemplateColumns: `repeat(${WEEKS}, minmax(0,1fr))`,
-          gridTemplateRows: "repeat(7, auto)",
-          gridAutoFlow: "column",
-        }}
-      >
-        {cells.map((cell, i) => (
-          <div
-            key={i}
-            className={`aspect-square rounded-lg ${
-              cell.future
-                ? "bg-transparent"
-                : cell.count >= 3
-                ? "bg-coral"
-                : cell.count === 2
-                ? "bg-coral/55"
-                : cell.count === 1
-                ? "bg-coral/25"
-                : "bg-muted"
-            }`}
-          />
-        ))}
+      <div className="mt-5 flex flex-1 items-center justify-center">
+        <div className="grid grid-cols-7 gap-1.5">
+          {/* day grid */}
+          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+            <div key={i} className="grid h-6 w-9 place-items-center text-[10px] font-medium text-muted-foreground">
+              {d}
+            </div>
+          ))}
+          {Array.from({ length: leadPad }, (_, i) => (
+            <div key={`pad-${i}`} className="h-9 w-9" />
+          ))}
+          {counts.map((count, i) => {
+            const tone =
+              count >= 3
+                ? "bg-coral text-white"
+                : count === 2
+                ? "bg-coral/55 text-white"
+                : count === 1
+                ? "bg-coral/25 text-coral"
+                : "bg-muted text-muted-foreground";
+            return (
+              <div
+                key={i}
+                className={`grid h-9 w-9 place-items-center rounded-md text-[11px] font-medium ${tone}`}
+              >
+                {i + 1}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </Card>
   );
