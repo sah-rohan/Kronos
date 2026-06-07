@@ -27,7 +27,13 @@ export function AuthGate() {
   if (!me.username) {
     return <OnboardingScreen token={token} onDone={load} />;
   }
-  const name = user?.fullName || user?.username || me.username || "You";
+  const name =
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    me.username ||
+    "You";
   return (
     <DataProvider getToken={token}>
       <App isAdmin={me.role === "admin"} userName={name} />

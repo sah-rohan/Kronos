@@ -6,7 +6,34 @@ import { initialsOf, colorFor } from "../lib/avatar";
 import { categories as mockCategories } from "./problems";
 import { members as mockMembers, recent as mockRecent, avatarColor, nameByInitials } from "./members";
 import { initialFriends, friendSolved } from "./friends";
+import { monthCounts, CAL_START, CAL_END } from "./calendar";
 import type { Category, Friend, Member, Problem, RecentItem } from "../types";
+
+export type Calendar = { byDate: Record<string, number>; streak: number };
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function computeStreak(byDate: Record<string, number>): number {
+  let streak = 0;
+  const d = new Date();
+  while ((byDate[fmtDate(d)] ?? 0) > 0) {
+    streak++;
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+function mockByDate(): Record<string, number> {
+  const byDate: Record<string, number> = {};
+  for (let m = CAL_START.month; m <= CAL_END.month; m++) {
+    monthCounts(CAL_START.year, m).forEach((count, i) => {
+      if (count > 0) byDate[`${CAL_START.year}-${String(m + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`] = count;
+    });
+  }
+  return byDate;
+}
 
 type Data = {
   loading: boolean;
@@ -18,6 +45,7 @@ type Data = {
   recent: RecentItem[];
   friends: Friend[];
   friendsDifficulty: { label: string; val: number }[];
+  calendar: Calendar;
   addFriend: (username: string) => Promise<void>;
   removeFriend: (id: string) => Promise<void>;
   getToken: TokenFn;
@@ -72,6 +100,7 @@ function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken
     recent,
     friends,
     friendsDifficulty: friendsDifficulty(mockCategories, friends),
+    calendar: { byDate: mockByDate(), streak: 13 },
     async addFriend(username) {
       if (!username || friends.some((f) => f.username === username)) return;
       const palette = ["bg-coral text-white", "bg-sky text-sky-foreground", "bg-[#f5c26b] text-[#5a3a0a]", "bg-[#111] text-white"];
@@ -115,8 +144,11 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       api.recent(getToken),
       api.friends(getToken),
     ]);
-    const categories = groupByCategory(progress);
-    const apiFriends: Friend[] = friendRows.map((f) => ({
+    const days = await api.calendar(getToken).catch(() => []);
+    const byDate: Record<string, number> = {};
+    for (const d of days ?? []) byDate[d.date] = d.count;
+    const categories = groupByCategory(progress ?? []);
+    const apiFriends: Friend[] = (friendRows ?? []).map((f) => ({
       name: f.name,
       initials: initialsOf(f.name),
       username: f.id,
@@ -129,14 +161,14 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       solved: all.filter((p) => p.done).length,
       total: all.length,
       difficultyBars: difficultyBars(categories),
-      members: leaders.map((m) => ({
+      members: (leaders ?? []).map((m) => ({
         name: m.name,
         initials: initialsOf(m.name),
         color: colorFor(m.username || m.name),
         solved: m.solved,
         username: m.username,
       })),
-      recent: recents.map((r) => ({
+      recent: (recents ?? []).map((r) => ({
         n: r.n,
         name: r.name,
         diff: r.diff,
@@ -144,6 +176,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       })),
       friends: apiFriends,
       friendsDifficulty: friendsDifficulty(categories, apiFriends),
+      calendar: { byDate, streak: computeStreak(byDate) },
       async addFriend(username) {
         await api.addFriend(getToken, username);
         await refresh();

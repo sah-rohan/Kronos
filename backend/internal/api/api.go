@@ -74,6 +74,10 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		rows, err := a.Store.Progress(ctx, user.ID)
 		return dataOrError(rows, err)
 
+	case method == "GET" && path == "/me/calendar":
+		rows, err := a.Store.Calendar(ctx, user.ID)
+		return dataOrError(rows, err)
+
 	case method == "GET" && path == "/leaderboard":
 		rows, err := a.Store.Leaderboard(ctx, 100)
 		return dataOrError(rows, err)

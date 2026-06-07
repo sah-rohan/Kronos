@@ -26,6 +26,7 @@ export const api = {
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
+  calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
   addFriend: (t: TokenFn, username: string) =>
     call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),
@@ -59,6 +60,7 @@ export type ApiProblem = {
 };
 export type ApiLeader = { rank: number; name: string; username: string; solved: number };
 export type ApiRecent = { n: number; name: string; diff: string; who: string[] };
+export type ApiDay = { date: string; count: number };
 export type ApiFriend = { id: string; name: string; username: string; solved: number };
 export type ApiSolution = {
   slug: string;

@@ -45,11 +45,13 @@ func (p *Postgres) Catalog(ctx context.Context) (poller.Catalog, error) {
 
 func (p *Postgres) DueMembers(ctx context.Context, limit int) ([]poller.Member, error) {
 	rows, err := p.pool.Query(ctx, `
-		select u.id, u.leetcode_user
+		select u.id, u.leetcode_user::text
 		from users u
-		join sync_state s on s.user_id = u.id
-		where s.next_poll_at <= now()
-		order by s.next_poll_at
+		left join sync_state s on s.user_id = u.id
+		where u.leetcode_user is not null
+		  and u.status = 'approved'
+		  and (s.next_poll_at is null or s.next_poll_at <= now())
+		order by s.next_poll_at nulls first
 		limit $1`, limit)
 	if err != nil {
 		return nil, err

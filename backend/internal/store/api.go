@@ -90,7 +90,7 @@ func (p *Postgres) ListPending(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var users []User
+	users := []User{}
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role); err != nil {
@@ -125,7 +125,7 @@ func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, err
 		return nil, err
 	}
 	defer rows.Close()
-	var out []LeaderRow
+	out := []LeaderRow{}
 	rank := 0
 	for rows.Next() {
 		rank++
@@ -150,7 +150,7 @@ func (p *Postgres) Progress(ctx context.Context, userID string) ([]ProblemRow, e
 		return nil, err
 	}
 	defer rows.Close()
-	var out []ProblemRow
+	out := []ProblemRow{}
 	for rows.Next() {
 		var r ProblemRow
 		if err := rows.Scan(&r.Slug, &r.Title, &r.Difficulty, &r.Category, &r.Done, &r.Optimal); err != nil {
@@ -182,13 +182,40 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []RecentRow
+	out := []RecentRow{}
 	for rows.Next() {
 		var r RecentRow
 		if err := rows.Scan(&r.Number, &r.Name, &r.Difficulty, &r.Who); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+type DayCount struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+func (p *Postgres) Calendar(ctx context.Context, userID string) ([]DayCount, error) {
+	rows, err := p.pool.Query(ctx, `
+		select to_char(first_season_ac_at, 'YYYY-MM-DD') as d, count(*)
+		from solves
+		where user_id = $1 and first_season_ac_at is not null
+		group by d
+		order by d`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []DayCount{}
+	for rows.Next() {
+		var c DayCount
+		if err := rows.Scan(&c.Date, &c.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
 	}
 	return out, rows.Err()
 }
@@ -207,7 +234,7 @@ func (p *Postgres) Friends(ctx context.Context, userID string) ([]FriendRow, err
 		return nil, err
 	}
 	defer rows.Close()
-	var out []FriendRow
+	out := []FriendRow{}
 	for rows.Next() {
 		var r FriendRow
 		if err := rows.Scan(&r.ID, &r.Name, &r.LeetcodeUser, &r.Solved); err != nil {

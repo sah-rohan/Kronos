@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Modal } from "../components/Modal";
-import { monthCounts, CAL_START, CAL_END } from "../data/calendar";
+import { CAL_START, CAL_END } from "../data/calendar";
+import { useData } from "../data/source";
 import type { Month } from "../types";
 
 export function CalendarModal({
@@ -12,7 +13,12 @@ export function CalendarModal({
   setCal: (m: Month) => void;
   onClose: () => void;
 }) {
-  const calCounts = monthCounts(cal.year, cal.month);
+  const { calendar } = useData();
+  const daysInMonth = new Date(cal.year, cal.month + 1, 0).getDate();
+  const calCounts = Array.from({ length: daysInMonth }, (_, i) => {
+    const k = `${cal.year}-${String(cal.month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
+    return calendar.byDate[k] ?? 0;
+  });
   const calLabel = new Date(cal.year, cal.month, 1).toLocaleString("en-US", {
     month: "long",
     year: "numeric",
