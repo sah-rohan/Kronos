@@ -37,7 +37,8 @@ export const api = {
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
   groupDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/group/difficulty", t),
   calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
-  mySolutions: (t: TokenFn, slug: string) => call<ApiSolution[]>(`/me/problem/${slug}`, t),
+  mySolutions: (t: TokenFn, slug: string, recent = false) =>
+    call<ApiSolution[]>(`/me/problem/${slug}${recent ? "?recent=1" : ""}`, t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
   addFriend: (t: TokenFn, username: string) =>
     call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),
