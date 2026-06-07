@@ -7,12 +7,14 @@ export function Modal({
   onBack,
   children,
   footer,
+  fitContent = false,
 }: {
   title: string;
   onClose: () => void;
   onBack?: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  fitContent?: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -20,7 +22,7 @@ export function Modal({
         className="absolute inset-0 bg-sky-foreground/25 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="modal-surface relative flex h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] border border-border shadow-[0_30px_80px_-20px_rgba(7,55,129,0.55)]">
+      <div className={`modal-surface relative flex w-full max-w-3xl flex-col overflow-hidden rounded-[24px] border border-border shadow-[0_30px_80px_-20px_rgba(7,55,129,0.55)] ${fitContent ? "max-h-[88dvh]" : "h-[88dvh]"}`}>
         {onBack && (
           <button
             onClick={onBack}
