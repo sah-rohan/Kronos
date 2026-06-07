@@ -31,7 +31,7 @@ export function CalendarModal({
   };
 
   return (
-    <Modal title={calLabel} onClose={onClose}>
+    <Modal title={calLabel} onClose={onClose} fitContent>
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           Problems solved each day. Hover a square for the count.
