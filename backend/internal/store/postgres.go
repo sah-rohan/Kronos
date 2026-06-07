@@ -93,15 +93,21 @@ func (p *Postgres) SaveState(ctx context.Context, userID string, state poller.St
 }
 
 func (p *Postgres) RecordSolve(ctx context.Context, solve poller.Solve) error {
-	_, err := p.pool.Exec(ctx, `
+	if _, err := p.pool.Exec(ctx, `
 		insert into solves (user_id, problem_id, first_season_ac_at, season_ac_count, submission_id)
 		values ($1, $2, to_timestamp($3), 1, $4)
 		on conflict (user_id, problem_id) do update set
 			first_season_ac_at = least(solves.first_season_ac_at, excluded.first_season_ac_at),
 			season_ac_count = solves.season_ac_count + 1,
-			submission_id = excluded.submission_id,
-			optimal_checked = false`,
-		solve.UserID, solve.ProblemID, solve.SolvedAt, solve.SubmissionID)
+			submission_id = excluded.submission_id`,
+		solve.UserID, solve.ProblemID, solve.SolvedAt, solve.SubmissionID); err != nil {
+		return err
+	}
+	_, err := p.pool.Exec(ctx, `
+		insert into submissions (submission_id, user_id, problem_id, solved_at)
+		values ($1, $2, $3, to_timestamp($4))
+		on conflict (submission_id) do nothing`,
+		solve.SubmissionID, solve.UserID, solve.ProblemID, solve.SolvedAt)
 	return err
 }
 
@@ -115,8 +121,9 @@ func (p *Postgres) FlagOverflow(ctx context.Context, userID string, missing int)
 func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.Pending, error) {
 	rows, err := p.pool.Query(ctx, `
 		select user_id, problem_id, submission_id
-		from solves
-		where not optimal_checked and submission_id is not null
+		from submissions
+		where not enriched
+		order by solved_at
 		limit $1`, limit)
 	if err != nil {
 		return nil, err
@@ -134,13 +141,21 @@ func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.P
 }
 
 func (p *Postgres) SaveDetail(ctx context.Context, pending poller.Pending, detail leetcode.SubmissionDetail) error {
-	_, err := p.pool.Exec(ctx, `
-		update solves set
-			lang = $3, code = $4, runtime_ms = $5, memory_kb = $6,
-			runtime_pct = $7, memory_pct = $8, is_optimal = $9, optimal_checked = true
-		where user_id = $1 and problem_id = $2`,
-		pending.UserID, pending.ProblemID,
-		detail.Language, detail.Code, detail.Runtime, detail.Memory,
-		detail.RuntimePercentile, detail.MemoryPercentile, leetcode.IsOptimal(detail.RuntimePercentile))
+	if detail.Language != "" {
+		if _, err := p.pool.Exec(ctx, `
+			insert into solutions (user_id, problem_id, lang, code, runtime_ms, memory_kb, runtime_pct, is_optimal)
+			values ($1, $2, $3, $4, $5, $6, $7, $8)
+			on conflict (user_id, problem_id, lang) do update set
+				code = excluded.code, runtime_ms = excluded.runtime_ms, memory_kb = excluded.memory_kb,
+				runtime_pct = excluded.runtime_pct, is_optimal = excluded.is_optimal, updated_at = now()
+			where excluded.runtime_pct >= solutions.runtime_pct`,
+			pending.UserID, pending.ProblemID, detail.Language, detail.Code,
+			detail.Runtime, detail.Memory, detail.RuntimePercentile,
+			leetcode.IsOptimal(detail.RuntimePercentile)); err != nil {
+			return err
+		}
+	}
+	_, err := p.pool.Exec(ctx,
+		`update submissions set enriched = true where submission_id = $1`, pending.SubmissionID)
 	return err
 }

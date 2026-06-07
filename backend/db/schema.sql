@@ -63,6 +63,31 @@ create table if not exists solves (
   primary key (user_id, problem_id)
 );
 
+-- Every captured accepted submission, queued for the enricher. One row per
+-- LeetCode submission id so distinct languages are never lost.
+create table if not exists submissions (
+  submission_id bigint primary key,
+  user_id       uuid not null references users(id) on delete cascade,
+  problem_id    integer not null references problems(id),
+  solved_at     timestamptz not null,
+  enriched      boolean not null default false
+);
+
+-- Best solution per language, keyed (user, problem, lang). The enricher keeps
+-- the highest-percentile submission for each language a user has actually used.
+create table if not exists solutions (
+  user_id     uuid not null references users(id) on delete cascade,
+  problem_id  integer not null references problems(id),
+  lang        text not null,
+  code        text not null,
+  runtime_ms  integer not null default 0,
+  memory_kb   integer not null default 0,
+  runtime_pct real not null default 0,
+  is_optimal  boolean not null default false,
+  updated_at  timestamptz not null default now(),
+  primary key (user_id, problem_id, lang)
+);
+
 -- Per-user polling state for the accepted-submission-count delta guard.
 create table if not exists sync_state (
   user_id            uuid primary key references users(id) on delete cascade,
@@ -84,5 +109,7 @@ create table if not exists pending_confirmations (
 );
 
 create index if not exists idx_solves_user on solves(user_id);
+create index if not exists idx_submissions_pending on submissions(enriched) where not enriched;
+create index if not exists idx_solutions_user_problem on solutions(user_id, problem_id);
 create index if not exists idx_members_user on group_members(user_id);
 create index if not exists idx_sync_next_poll on sync_state(next_poll_at) where true;

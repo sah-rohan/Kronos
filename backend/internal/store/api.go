@@ -143,7 +143,10 @@ func (p *Postgres) Progress(ctx context.Context, userID string) ([]ProblemRow, e
 	rows, err := p.pool.Query(ctx, `
 		select pr.slug, pr.title, pr.difficulty, pr.category,
 		       (s.first_season_ac_at is not null) as done,
-		       coalesce(s.is_optimal, false) as optimal
+		       exists (
+		         select 1 from solutions so
+		         where so.user_id = $1 and so.problem_id = pr.id and so.is_optimal
+		       ) as optimal
 		from problems pr
 		left join solves s on s.problem_id = pr.id and s.user_id = $1
 		order by pr.id`, userID)
@@ -304,12 +307,11 @@ func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug st
 
 func (p *Postgres) solutions(ctx context.Context, ownerID, slug string) ([]SolutionRow, error) {
 	rows, err := p.pool.Query(ctx, `
-		select pr.slug, coalesce(s.lang, ''), coalesce(s.code, ''),
-		       coalesce(s.runtime_ms, 0), coalesce(s.runtime_pct, 0), coalesce(s.is_optimal, false)
-		from solves s
+		select pr.slug, s.lang, s.code, s.runtime_ms, s.runtime_pct, s.is_optimal
+		from solutions s
 		join problems pr on pr.id = s.problem_id
 		where s.user_id = $1 and pr.slug = $2
-		order by s.is_optimal desc, s.runtime_pct desc`, ownerID, slug)
+		order by s.is_optimal desc, s.runtime_pct desc, s.lang`, ownerID, slug)
 	if err != nil {
 		return nil, err
 	}
