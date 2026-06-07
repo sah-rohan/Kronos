@@ -26,8 +26,8 @@ function cat(title: string, rows: string): { title: string; items: Problem[] } {
   return { title, items };
 }
 
-export function neetcodeUrl(slug: string): string {
-  return `https://neetcode.io/problems/${slug}`;
+export function leetcodeUrl(slug: string): string {
+  return `https://leetcode.com/problems/${slug}/`;
 }
 
 export const categories = [

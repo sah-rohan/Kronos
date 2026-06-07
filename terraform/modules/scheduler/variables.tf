@@ -25,5 +25,5 @@ variable "sync_schedule" {
 
 variable "enrich_schedule" {
   type    = string
-  default = "rate(5 minutes)"
+  default = "rate(1 minute)"
 }

@@ -1,7 +1,8 @@
-import { ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { OptimalTag } from "../components/OptimalTag";
-import { diffStyles, neetcodeUrl } from "../data/problems";
+import { diffStyles, leetcodeUrl } from "../data/problems";
 import { useData } from "../data/source";
 import type { ProblemRef } from "../types";
 
@@ -13,14 +14,31 @@ export function ProgressModal({
   onOpenProblem: (p: ProblemRef) => void;
 }) {
   const { categories, solved, total } = useData();
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = categories
+    .map((c) => ({ ...c, items: q ? c.items.filter((p) => p.name.toLowerCase().includes(q)) : c.items }))
+    .filter((c) => c.items.length > 0);
   return (
     <Modal title="My Progress" onClose={onClose}>
       <p className="text-sm text-muted-foreground">
         <b className="text-foreground">{solved} of {total}</b> solved across the
         NeetCode 150 roadmap. Tap a solved problem to see your best solutions.
       </p>
+      <div className="relative mt-5">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search problems…"
+          className="w-full rounded-xl border border-border bg-transparent py-2 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-coral"
+        />
+      </div>
       <div className="mt-6 space-y-6">
-        {categories.map((c) => {
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground">No problems match “{query}”.</p>
+        )}
+        {filtered.map((c) => {
           const done = c.items.filter((p) => p.done).length;
           return (
             <div key={c.title}>
@@ -48,11 +66,11 @@ export function ProgressModal({
                       {p.name}
                     </span>
                     <a
-                      href={neetcodeUrl(p.slug)}
+                      href={leetcodeUrl(p.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-muted"
-                      title="Open on NeetCode"
+                      title="Open on LeetCode"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
