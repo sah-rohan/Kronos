@@ -32,6 +32,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
   const [friendView, setFriendView] = useState<Friend | null>(null);
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
   const [myProblem, setMyProblem] = useState<ProblemRef | null>(null);
+  const [myProblemRecent, setMyProblemRecent] = useState(false);
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const hello = greeting(new Date());
@@ -82,7 +83,10 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
       </div>
 
       {modal === "me" && (
-        <ProgressModal onClose={() => setModal(null)} onOpenProblem={(p) => setMyProblem(p)} />
+        <ProgressModal
+          onClose={() => setModal(null)}
+          onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblem(p); }}
+        />
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
@@ -92,7 +96,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
         <RecentActivityModal
           onClose={() => setModal(null)}
           userName={userName}
-          onOpenProblem={(p) => setMyProblem(p)}
+          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
         />
       )}
 
@@ -144,6 +148,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
       {myProblem && (
         <MySolutionModal
           problem={myProblem}
+          recent={myProblemRecent}
           onBack={() => setMyProblem(null)}
           onClose={() => {
             setMyProblem(null);
