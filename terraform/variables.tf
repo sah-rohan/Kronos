@@ -15,7 +15,7 @@ variable "db_username" {
 
 variable "season_start" {
   type    = string
-  default = "1749081600"
+  default = "1780790400"
 }
 
 variable "api_zip" {
