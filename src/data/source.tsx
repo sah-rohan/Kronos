@@ -3,6 +3,7 @@ import { useApi } from "../lib/env";
 import { api } from "../lib/api";
 import type { TokenFn } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
+import { LoadingScreen } from "../components/LoadingScreen";
 import { categories as mockCategories } from "./problems";
 import { members as mockMembers, recent as mockRecent, avatarColor, nameByInitials } from "./members";
 import { initialFriends, friendSolved } from "./friends";
@@ -212,9 +213,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
   }
 
   if (useApi && !remote) {
-    return (
-      <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Loading…</div>
-    );
+    return <LoadingScreen />;
   }
 
   const value = useApi && remote ? remote : mockData(friends, setFriends, getToken);

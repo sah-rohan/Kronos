@@ -3,6 +3,7 @@ import { useAuth, useUser } from "@clerk/clerk-react";
 import { api, setDisplayName, type MeResponse, type TokenFn } from "../lib/api";
 import { DataProvider } from "../data/source";
 import App from "../App";
+import { LoadingScreen } from "../components/LoadingScreen";
 import { PendingScreen } from "./PendingScreen";
 import { OnboardingScreen } from "./OnboardingScreen";
 
@@ -27,7 +28,7 @@ export function AuthGate() {
   useEffect(load, [load]);
 
   if (me === "loading") {
-    return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Loading…</div>;
+    return <LoadingScreen message="Signing you in…" />;
   }
   if (me === "error" || me.status !== "approved") {
     return <PendingScreen />;
