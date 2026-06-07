@@ -2,8 +2,9 @@ import { Card } from "../components/Card";
 import { useData } from "../data/source";
 import { diffStyles } from "../data/problems";
 
-export function RecentActivityCard({ onOpen }: { onOpen: () => void }) {
+export function RecentActivityCard({ onOpen, userName }: { onOpen: () => void; userName: string }) {
   const { recent } = useData();
+  const mine = recent.filter((r) => r.who.some((p) => p.name === userName));
   return (
     <Card className="lg:col-span-1" onClick={onOpen}>
       <div className="flex items-center justify-between">
@@ -11,7 +12,10 @@ export function RecentActivityCard({ onOpen }: { onOpen: () => void }) {
         <span className="text-xs text-muted-foreground">See all</span>
       </div>
       <ul className="mt-4 divide-y divide-border">
-        {recent.slice(0, 5).map((r) => (
+        {mine.length === 0 && (
+          <li className="py-3 text-sm text-muted-foreground">No solves yet.</li>
+        )}
+        {mine.slice(0, 5).map((r) => (
           <li key={r.n} className="flex items-center gap-4 py-3.5">
             <div className="w-10 text-xs text-muted-foreground tabular-nums">#{r.n}</div>
             <div className="min-w-0 flex-1 truncate text-sm">{r.name}</div>
