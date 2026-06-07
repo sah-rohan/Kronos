@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { api, type MeResponse, type TokenFn } from "../lib/api";
+import { api, setDisplayName, type MeResponse, type TokenFn } from "../lib/api";
 import { DataProvider } from "../data/source";
 import App from "../App";
 import { PendingScreen } from "./PendingScreen";
@@ -12,9 +12,17 @@ export function AuthGate() {
   const token: TokenFn = useCallback(() => getToken(), [getToken]);
   const [me, setMe] = useState<MeResponse | "loading" | "error">("loading");
 
+  const clerkName =
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    "";
+
   const load = useCallback(() => {
+    setDisplayName(clerkName);
     api.me(token).then(setMe).catch(() => setMe("error"));
-  }, [token]);
+  }, [token, clerkName]);
 
   useEffect(load, [load]);
 
@@ -27,13 +35,7 @@ export function AuthGate() {
   if (!me.username) {
     return <OnboardingScreen token={token} onDone={load} />;
   }
-  const name =
-    user?.fullName ||
-    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-    user?.username ||
-    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
-    me.username ||
-    "You";
+  const name = clerkName || me.username || "You";
   return (
     <DataProvider getToken={token}>
       <App isAdmin={me.role === "admin"} userName={name} />

@@ -56,8 +56,9 @@ func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName string) 
 	var u User
 	err := p.pool.QueryRow(ctx, `
 		insert into users (clerk_id, display_name)
-		values ($1, $2)
-		on conflict (clerk_id) do update set display_name = excluded.display_name
+		values ($1, coalesce(nullif($2, ''), $1))
+		on conflict (clerk_id) do update set
+			display_name = case when nullif($2, '') is not null then $2 else users.display_name end
 		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role`,
 		clerkID, displayName,
 	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role)

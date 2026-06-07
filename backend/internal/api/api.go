@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -32,7 +33,7 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 		return reply(401, map[string]string{"error": "unauthorized"})
 	}
 
-	user, err := a.Store.EnsureUser(ctx, clerkID, clerkID)
+	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req))
 	if err != nil {
 		return reply(500, map[string]string{"error": err.Error()})
 	}
@@ -179,6 +180,17 @@ func authenticate(ctx context.Context, req request) (string, bool) {
 	return claims.Subject, true
 }
 
+func displayName(req request) string {
+	raw := req.Headers["x-display-name"]
+	if raw == "" {
+		raw = req.Headers["X-Display-Name"]
+	}
+	if decoded, err := url.QueryUnescape(raw); err == nil {
+		return strings.TrimSpace(decoded)
+	}
+	return strings.TrimSpace(raw)
+}
+
 func segments(path string) []string {
 	return strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
 }
@@ -201,7 +213,7 @@ func reply(status int, body any) (response, error) {
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Headers": "authorization,content-type",
+		"Access-Control-Allow-Headers": "authorization,content-type,x-display-name",
 		"Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
 	}
 	if body == nil {

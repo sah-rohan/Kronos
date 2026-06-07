@@ -4,9 +4,16 @@ export type TokenFn = () => Promise<string | null>;
 
 const base = (API_URL ?? "").replace(/\/$/, "");
 
+let displayName = "";
+export function setDisplayName(name: string) {
+  displayName = name ?? "";
+}
+
 async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Promise<T> {
   const token = await getToken();
-  const res = await fetch(`${base}${path}`, {
+  const url = new URL(`${base}${path}`);
+  if (displayName) url.searchParams.set("name", displayName);
+  const res = await fetch(url.toString(), {
     ...init,
     headers: {
       ...(init?.headers ?? {}),
