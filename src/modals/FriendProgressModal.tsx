@@ -9,17 +9,19 @@ import type { Friend, ProblemRef } from "../types";
 export function FriendProgressModal({
   friend,
   onClose,
+  onBack,
   onOpenProblem,
   onRemove,
 }: {
   friend: Friend;
   onClose: () => void;
+  onBack?: () => void;
   onOpenProblem: (p: ProblemRef) => void;
   onRemove: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <Modal title={`${friend.name}'s progress`} onClose={onClose}>
+    <Modal title={`${friend.name}'s progress`} onClose={onClose} onBack={onBack}>
       <p className="text-sm text-muted-foreground">
         <b className="text-foreground">{friendSolvedCount(friend)} of {TOTAL}</b> solved. Tap a problem to see how they solved it.
       </p>
@@ -39,20 +41,20 @@ export function FriendProgressModal({
                     <li
                       key={p.name}
                       onClick={() => done && onOpenProblem({ name: p.name, slug: p.slug, diff: p.diff })}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-1.5 ${done ? "cursor-pointer transition hover:bg-muted" : ""}`}
+                      className={`flex flex-col gap-2 rounded-xl px-3 py-2 sm:flex-row sm:items-center sm:gap-3 ${done ? "cursor-pointer transition hover:bg-muted" : ""}`}
                     >
-                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] ${done ? "bg-coral text-white" : "border border-border text-transparent"}`}>
-                        ✓
-                      </span>
-                      <span className={`min-w-0 flex-1 truncate text-sm ${done ? "text-foreground" : "text-muted-foreground"}`}>
-                        {p.name}
-                      </span>
-                      {done && <span className="shrink-0 text-[11px] text-muted-foreground">view ›</span>}
-                      <div className="flex w-20 justify-end">
-                        {done && friendOptimal(friend, p.name) && <OptimalTag />}
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] ${done ? "bg-coral text-white" : "border border-border text-transparent"}`}>
+                          ✓
+                        </span>
+                        <span className={`min-w-0 flex-1 truncate text-sm ${done ? "text-foreground" : "text-muted-foreground"}`}>
+                          {p.name}
+                        </span>
                       </div>
-                      <div className="flex w-16 justify-end">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}>
+                      <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+                        {done && <span className="shrink-0 text-[11px] text-muted-foreground">view ›</span>}
+                        {done && friendOptimal(friend, p.name) && <OptimalTag />}
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${diffStyles[p.diff]}`}>
                           {p.diff}
                         </span>
                       </div>
