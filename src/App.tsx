@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { greeting } from "./lib/greeting";
 import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
@@ -35,6 +35,14 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const hello = greeting(new Date());
+
+  useEffect(() => {
+    document.querySelectorAll('meta[name="theme-color"]').forEach((el) => el.remove());
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.content = dark ? "#0a1826" : "#aed8f1";
+    document.head.appendChild(meta);
+  }, [dark]);
 
   const openCalendar = () => {
     setCal(CAL_START);
