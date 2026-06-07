@@ -30,9 +30,12 @@ export const api = {
   me: (t: TokenFn) => call<MeResponse>("/me", t),
   setProfile: (t: TokenFn, username: string, github: string) =>
     call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
+  setTheme: (t: TokenFn, theme: string) =>
+    call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
+  groupDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/group/difficulty", t),
   calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
   mySolutions: (t: TokenFn, slug: string) => call<ApiSolution[]>(`/me/problem/${slug}`, t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
@@ -57,6 +60,7 @@ export type MeResponse = {
   name: string;
   status: string;
   role: string;
+  theme: string;
 };
 export type ApiProblem = {
   slug: string;
@@ -67,7 +71,8 @@ export type ApiProblem = {
   optimal: boolean;
 };
 export type ApiLeader = { rank: number; name: string; username: string; solved: number };
-export type ApiRecent = { n: number; name: string; diff: string; who: string[] };
+export type ApiRecent = { n: number; slug: string; name: string; diff: string; who: string[] };
+export type ApiDifficultyTotal = { label: string; count: number };
 export type ApiDay = { date: string; count: number };
 export type ApiFriend = { id: string; name: string; username: string; solved: number };
 export type ApiSolution = {
