@@ -286,26 +286,42 @@ func (p *Postgres) FriendProgress(ctx context.Context, userID, friendID string) 
 	return p.Progress(ctx, friendID)
 }
 
-func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug string) (SolutionRow, error) {
+func (p *Postgres) MySolution(ctx context.Context, userID, slug string) ([]SolutionRow, error) {
+	return p.solutions(ctx, userID, slug)
+}
+
+func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug string) ([]SolutionRow, error) {
 	ok, err := p.areFriends(ctx, userID, friendID)
 	if err != nil {
-		return SolutionRow{}, err
+		return nil, err
 	}
 	if !ok {
-		return SolutionRow{}, ErrNotFound
+		return nil, ErrNotFound
 	}
-	var s SolutionRow
-	err = p.pool.QueryRow(ctx, `
+	return p.solutions(ctx, friendID, slug)
+}
+
+func (p *Postgres) solutions(ctx context.Context, ownerID, slug string) ([]SolutionRow, error) {
+	rows, err := p.pool.Query(ctx, `
 		select pr.slug, coalesce(s.lang, ''), coalesce(s.code, ''),
 		       coalesce(s.runtime_ms, 0), coalesce(s.runtime_pct, 0), coalesce(s.is_optimal, false)
 		from solves s
 		join problems pr on pr.id = s.problem_id
-		where s.user_id = $1 and pr.slug = $2`, friendID, slug,
-	).Scan(&s.Slug, &s.Lang, &s.Code, &s.RuntimeMs, &s.RuntimePct, &s.Optimal)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return SolutionRow{}, ErrNotFound
+		where s.user_id = $1 and pr.slug = $2
+		order by s.is_optimal desc, s.runtime_pct desc`, ownerID, slug)
+	if err != nil {
+		return nil, err
 	}
-	return s, err
+	defer rows.Close()
+	out := []SolutionRow{}
+	for rows.Next() {
+		var s SolutionRow
+		if err := rows.Scan(&s.Slug, &s.Lang, &s.Code, &s.RuntimeMs, &s.RuntimePct, &s.Optimal); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }
 
 func isUniqueViolation(err error) bool {

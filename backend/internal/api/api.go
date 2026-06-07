@@ -78,6 +78,10 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		rows, err := a.Store.Calendar(ctx, user.ID)
 		return dataOrError(rows, err)
 
+	case method == "GET" && len(parts) == 3 && parts[0] == "me" && parts[1] == "problem":
+		rows, err := a.Store.MySolution(ctx, user.ID, parts[2])
+		return dataOrError(rows, err)
+
 	case method == "GET" && path == "/leaderboard":
 		rows, err := a.Store.Leaderboard(ctx, 100)
 		return dataOrError(rows, err)

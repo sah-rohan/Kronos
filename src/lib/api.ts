@@ -27,6 +27,7 @@ export const api = {
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
   calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
+  mySolutions: (t: TokenFn, slug: string) => call<ApiSolution[]>(`/me/problem/${slug}`, t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
   addFriend: (t: TokenFn, username: string) =>
     call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),

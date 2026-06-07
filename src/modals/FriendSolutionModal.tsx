@@ -3,6 +3,7 @@ import { Modal } from "../components/Modal";
 import { SolutionSlider } from "../components/SolutionSlider";
 import { friendSolutions } from "../data/friends";
 import { diffStyles, neetcodeUrl } from "../data/problems";
+import { useFriendSolutions } from "../lib/useSolutions";
 import type { Friend, ProblemRef } from "../types";
 
 export function FriendSolutionModal({
@@ -14,6 +15,7 @@ export function FriendSolutionModal({
   problem: ProblemRef;
   onClose: () => void;
 }) {
+  const solutions = useFriendSolutions(friend.username, problem.slug, friendSolutions(friend, problem.name));
   return (
     <Modal title={problem.name} onClose={onClose}>
       <div className="flex items-center gap-3">
@@ -34,7 +36,7 @@ export function FriendSolutionModal({
         </span>
       </div>
 
-      <SolutionSlider solutions={friendSolutions(friend, problem.name)} />
+      <SolutionSlider solutions={solutions} />
     </Modal>
   );
 }

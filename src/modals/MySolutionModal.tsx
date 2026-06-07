@@ -3,9 +3,11 @@ import { Modal } from "../components/Modal";
 import { SolutionSlider } from "../components/SolutionSlider";
 import { mySolutions } from "../data/friends";
 import { diffStyles, neetcodeUrl } from "../data/problems";
+import { useMySolutions } from "../lib/useSolutions";
 import type { ProblemRef } from "../types";
 
 export function MySolutionModal({ problem, onClose }: { problem: ProblemRef; onClose: () => void }) {
+  const solutions = useMySolutions(problem.slug, mySolutions(problem.slug));
   return (
     <Modal title={problem.name} onClose={onClose}>
       <div className="flex items-center gap-3">
@@ -23,7 +25,7 @@ export function MySolutionModal({ problem, onClose }: { problem: ProblemRef; onC
         </span>
       </div>
 
-      <SolutionSlider solutions={mySolutions(problem.slug)} />
+      <SolutionSlider solutions={solutions} />
     </Modal>
   );
 }
