@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { SignOutButton } from "@clerk/clerk-react";
 import { api, type TokenFn } from "../lib/api";
+import { useClerk } from "../lib/env";
 
 export function OnboardingScreen({ token, onDone }: { token: TokenFn; onDone: () => void }) {
   const [username, setUsername] = useState("");
@@ -45,6 +47,14 @@ export function OnboardingScreen({ token, onDone }: { token: TokenFn; onDone: ()
         >
           {saving ? "Saving…" : "Continue"}
         </button>
+
+        {useClerk && (
+          <SignOutButton>
+            <button className="mt-3 w-full rounded-full border border-border py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted">
+              Back to sign in
+            </button>
+          </SignOutButton>
+        )}
       </div>
     </div>
   );
