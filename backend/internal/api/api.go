@@ -205,7 +205,7 @@ func reply(status int, body any) (response, error) {
 	headers := map[string]string{
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Headers": "authorization,content-type,x-display-name",
+		"Access-Control-Allow-Headers": "authorization,content-type",
 		"Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
 	}
 	if body == nil {
