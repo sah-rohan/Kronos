@@ -11,8 +11,8 @@ import (
 
 const (
 	window         = 20
-	activeInterval = time.Minute
-	idleInterval   = time.Hour
+	activeInterval = 30 * time.Second
+	idleInterval   = 30 * time.Second
 )
 
 var ErrSessionExpired = errors.New("leetcode session expired")
