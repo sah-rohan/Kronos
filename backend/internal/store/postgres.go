@@ -50,6 +50,7 @@ func (p *Postgres) DueMembers(ctx context.Context, limit int) ([]poller.Member, 
 		left join sync_state s on s.user_id = u.id
 		where u.leetcode_user is not null
 		  and u.status = 'approved'
+		  and u.active
 		  and (s.next_poll_at is null or s.next_poll_at <= now())
 		order by s.next_poll_at nulls first
 		limit $1`, limit)

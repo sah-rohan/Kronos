@@ -101,7 +101,7 @@ func (p *Postgres) SetProfile(ctx context.Context, userID, leetcodeUser, githubU
 func (p *Postgres) ListPending(ctx context.Context) ([]User, error) {
 	rows, err := p.pool.Query(ctx, `
 		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role
-		from users where status = 'pending' order by created_at`)
+		from users where status = 'pending' and active order by created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +121,7 @@ func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
 	rows, err := p.pool.Query(ctx, `
 		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role
 		from users
+		where active
 		order by (status = 'approved') desc, display_name`)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func (p *Postgres) MakeAdmin(ctx context.Context, userID string) error {
 }
 
 func (p *Postgres) DeleteUser(ctx context.Context, userID string) error {
-	_, err := p.pool.Exec(ctx, `delete from users where id = $1`, userID)
+	_, err := p.pool.Exec(ctx, `update users set active = false where id = $1`, userID)
 	return err
 }
 
@@ -162,7 +163,7 @@ func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, err
 		from users u
 		left join solves s on s.user_id = u.id and s.first_season_ac_at is not null
 		left join problems pr on pr.id = s.problem_id
-		where u.status = 'approved'
+		where u.status = 'approved' and u.active
 		group by u.id
 		order by n150 desc
 		limit $1`, limit)
@@ -228,7 +229,7 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
-		where s.first_season_ac_at is not null and u.status = 'approved'
+		where s.first_season_ac_at is not null and u.status = 'approved' and u.active
 		group by pr.id, pr.slug, pr.title, pr.difficulty
 		order by max(s.first_season_ac_at) desc
 		limit $1`, limit)
@@ -284,7 +285,7 @@ func (p *Postgres) GroupDifficulty(ctx context.Context) ([]DifficultyTotal, erro
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
-		where s.first_season_ac_at is not null and u.status = 'approved'
+		where s.first_season_ac_at is not null and u.status = 'approved' and u.active
 		group by pr.difficulty`)
 	if err != nil {
 		return nil, err
@@ -343,7 +344,7 @@ func (p *Postgres) Friends(ctx context.Context, userID string) ([]FriendRow, err
 		from friendships f
 		join users u on u.id = f.friend_id
 		left join solves s on s.user_id = f.friend_id
-		where f.user_id = $1
+		where f.user_id = $1 and u.active
 		group by f.friend_id, u.display_name, u.leetcode_user
 		order by solved desc`, userID)
 	if err != nil {
@@ -364,7 +365,7 @@ func (p *Postgres) Friends(ctx context.Context, userID string) ([]FriendRow, err
 func (p *Postgres) SendFriendRequest(ctx context.Context, userID, friendUsername string) error {
 	var targetID string
 	err := p.pool.QueryRow(ctx,
-		`select id::text from users where leetcode_user = $1 and status = 'approved'`, friendUsername,
+		`select id::text from users where leetcode_user = $1 and status = 'approved' and active`, friendUsername,
 	).Scan(&targetID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
@@ -400,7 +401,7 @@ func (p *Postgres) IncomingRequests(ctx context.Context, userID string) ([]Frien
 		from friend_requests fr
 		join users u on u.id = fr.requester_id
 		left join solves s on s.user_id = fr.requester_id
-		where fr.target_id = $1
+		where fr.target_id = $1 and u.active
 		group by u.id, u.display_name, u.leetcode_user
 		order by u.display_name`, userID)
 	if err != nil {
@@ -463,7 +464,7 @@ func (p *Postgres) Directory(ctx context.Context, userID string) ([]FriendRow, e
 		       count(s.problem_id) filter (where s.first_season_ac_at is not null) as solved
 		from users u
 		left join solves s on s.user_id = u.id
-		where u.status = 'approved' and u.id <> $1
+		where u.status = 'approved' and u.active and u.id <> $1
 		  and u.leetcode_user is not null
 		  and not exists (select 1 from friendships f where f.user_id = $1 and f.friend_id = u.id)
 		  and not exists (select 1 from friend_requests r where r.requester_id = $1 and r.target_id = u.id)

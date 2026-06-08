@@ -9,8 +9,11 @@ create table if not exists users (
   display_name    text not null,
   status          text not null default 'pending',  -- 'pending' | 'approved'
   role            text not null default 'member',   -- 'member' | 'admin'
+  active          boolean not null default true,    -- false = soft-deleted (kept for history)
   created_at      timestamptz not null default now()
 );
+
+alter table users add column if not exists active boolean not null default true;
 
 create table if not exists groups (
   id              uuid primary key default gen_random_uuid(),
