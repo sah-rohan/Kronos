@@ -10,12 +10,16 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/clerk/clerk-sdk-go/v2/jwt"
 
+	"kronos/internal/leetcode"
+	"kronos/internal/poller"
 	"kronos/internal/store"
 )
 
 type API struct {
 	Store        *store.Postgres
 	AdminClerkID string
+	Season       int64
+	Session      string
 }
 
 type request = events.APIGatewayV2HTTPRequest
@@ -81,6 +85,24 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 	parts := segments(path)
 
 	switch {
+	case method == "POST" && path == "/me/sync":
+		if user.LeetcodeUser == "" {
+			return reply(200, map[string]bool{"ok": true})
+		}
+		catalog, err := a.Store.Catalog(ctx)
+		if err != nil {
+			return serverError(err)
+		}
+		engine := &poller.Engine{Source: leetcode.New(), Store: a.Store, Catalog: catalog, Season: a.Season}
+		if _, err := engine.SyncMember(ctx, poller.Member{UserID: user.ID, LeetCodeUser: user.LeetcodeUser}); err != nil {
+			return serverError(err)
+		}
+		enricher := &poller.Enricher{Detailer: leetcode.New(), Store: a.Store, Session: a.Session}
+		if _, err := enricher.Run(ctx, 50); err != nil {
+			log.Printf("on-demand enrich error: %v", err)
+		}
+		return reply(200, map[string]bool{"ok": true})
+
 	case method == "POST" && path == "/me/theme":
 		var in struct {
 			Theme string `json:"theme"`
@@ -188,6 +210,10 @@ func (a *API) admin(ctx context.Context, method, path, body string) (response, e
 	switch {
 	case method == "GET" && path == "/admin/pending":
 		users, err := a.Store.ListPending(ctx)
+		return dataOrError(users, err)
+
+	case method == "GET" && path == "/admin/users":
+		users, err := a.Store.AllUsers(ctx)
 		return dataOrError(users, err)
 
 	case method == "POST" && path == "/admin/approve":
