@@ -98,6 +98,12 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     const byDate: Record<string, number> = {};
     for (const d of days ?? []) byDate[d.date] = d.count;
     const categories = groupByCategory(progress ?? []);
+    // Back-compat: if the API hasn't shipped the list flags yet, treat every
+    // problem as NeetCode 150 so Progress/leaderboard aren't empty pre-deploy.
+    const hasFlags = categories.some((c) => c.items.some((p) => p.neetcode150 || p.blind75 || p.neetcode250));
+    if (!hasFlags) {
+      for (const c of categories) for (const p of c.items) p.neetcode150 = true;
+    }
     const apiFriends: Friend[] = (friendRows ?? []).map((f) => ({
       id: f.id,
       name: f.name,

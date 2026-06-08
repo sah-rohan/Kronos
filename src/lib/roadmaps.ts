@@ -4,7 +4,6 @@ export const ROADMAPS: { key: ProblemList; label: string }[] = [
   { key: "blind75", label: "Blind 75" },
   { key: "neetcode150", label: "NeetCode 150" },
   { key: "neetcode250", label: "NeetCode 250" },
-  { key: "all", label: "All" },
 ];
 
 export const ROADMAP_LABEL: Record<ProblemList, string> = {
