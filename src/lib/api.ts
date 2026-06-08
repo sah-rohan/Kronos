@@ -79,8 +79,11 @@ export type ApiProblem = {
   category: string;
   done: boolean;
   optimal: boolean;
+  blind75: boolean;
+  neetcode150: boolean;
+  neetcode250: boolean;
 };
-export type ApiLeader = { rank: number; name: string; username: string; solved: number };
+export type ApiLeader = { name: string; username: string; blind75: number; neetcode150: number; neetcode250: number; all: number };
 export type ApiRecent = { n: number; slug: string; name: string; diff: string; who: string[] };
 export type ApiDifficultyTotal = { label: string; count: number };
 export type ApiDay = { date: string; count: number };

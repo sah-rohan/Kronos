@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "../lib/api";
-import type { TokenFn } from "../lib/api";
+import type { TokenFn, ApiProblem } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { LoadingScreen } from "../components/LoadingScreen";
 import type { Category, DifficultyTotal, Friend, Member, Problem, RecentItem } from "../types";
@@ -8,7 +8,7 @@ import type { Category, DifficultyTotal, Friend, Member, Problem, RecentItem } f
 export type Calendar = { byDate: Record<string, number>; streak: number };
 
 function fmtDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 function computeStreak(byDate: Record<string, number>): number {
@@ -16,7 +16,7 @@ function computeStreak(byDate: Record<string, number>): number {
   const d = new Date();
   while ((byDate[fmtDate(d)] ?? 0) > 0) {
     streak++;
-    d.setDate(d.getDate() - 1);
+    d.setUTCDate(d.getUTCDate() - 1);
   }
   return streak;
 }
@@ -59,7 +59,7 @@ function difficultyBars(categories: Category[]) {
   });
 }
 
-function groupByCategory(problems: { slug: string; title: string; difficulty: string; category: string; done: boolean; optimal: boolean }[]): Category[] {
+function groupByCategory(problems: ApiProblem[]): Category[] {
   const order: string[] = [];
   const map = new Map<string, Problem[]>();
   for (const p of problems) {
@@ -73,6 +73,9 @@ function groupByCategory(problems: { slug: string; title: string; difficulty: st
       diff: p.difficulty as Problem["diff"],
       done: p.done,
       optimal: p.optimal,
+      blind75: p.blind75,
+      neetcode150: p.neetcode150,
+      neetcode250: p.neetcode250,
     });
   }
   return order.map((title) => ({ title, items: map.get(title)! }));
@@ -102,22 +105,26 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       username: f.username,
       color: colorFor(f.username || f.name),
     }));
-    const all = categories.flatMap((c) => c.items);
-    const bars = difficultyBars(categories);
+    const n150cats = categories
+      .map((c) => ({ ...c, items: c.items.filter((p) => p.neetcode150) }))
+      .filter((c) => c.items.length > 0);
+    const n150all = n150cats.flatMap((c) => c.items);
+    const bars = difficultyBars(n150cats);
     const circleData = (circle ?? []).length
       ? (circle ?? []).map((d) => ({ label: d.label, val: d.count }))
       : bars.map((b) => ({ label: b.label, val: b.done }));
     setRemote({
       loading: false,
       categories,
-      solved: all.filter((p) => p.done).length,
-      total: all.length,
+      solved: n150all.filter((p) => p.done).length,
+      total: n150all.length,
       difficultyBars: bars,
       members: (leaders ?? []).map((m) => ({
         name: m.name,
         initials: initialsOf(m.name),
         color: colorFor(m.username || m.name),
-        solved: m.solved,
+        solved: m.neetcode150,
+        solvedByList: { blind75: m.blind75, neetcode150: m.neetcode150, neetcode250: m.neetcode250, all: m.all },
         username: m.username,
       })),
       recent: (recents ?? []).map((r) => ({

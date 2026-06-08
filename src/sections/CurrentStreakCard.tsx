@@ -5,17 +5,17 @@ import { useData } from "../data/source";
 export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
   const { calendar } = useData();
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const leadPad = new Date(year, month, 1).getDay();
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const leadPad = new Date(Date.UTC(year, month, 1)).getUTCDay();
 
   const counts = Array.from({ length: daysInMonth }, (_, i) => {
     const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
     return calendar.byDate[k] ?? 0;
   });
 
-  const todayLabel = today.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" });
+  const todayLabel = today.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", timeZone: "UTC" });
 
   return (
     <Card className="flex h-full flex-col lg:col-span-1" onClick={onOpen}>

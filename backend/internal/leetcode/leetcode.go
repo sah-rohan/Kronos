@@ -40,7 +40,7 @@ type SubmissionDetail struct {
 	MemoryPercentile  float64
 }
 
-func OptimalThreshold() float64 { return 85 }
+func OptimalThreshold() float64 { return 72 }
 
 func IsOptimal(runtimePercentile float64) bool {
 	return runtimePercentile >= OptimalThreshold()

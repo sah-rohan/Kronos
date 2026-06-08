@@ -19,10 +19,12 @@ type User struct {
 }
 
 type LeaderRow struct {
-	Rank         int    `json:"rank"`
 	Name         string `json:"name"`
 	LeetcodeUser string `json:"username"`
-	Solved       int    `json:"solved"`
+	Blind75      int    `json:"blind75"`
+	Neetcode150  int    `json:"neetcode150"`
+	Neetcode250  int    `json:"neetcode250"`
+	All          int    `json:"all"`
 }
 
 type FriendRow struct {
@@ -33,12 +35,15 @@ type FriendRow struct {
 }
 
 type ProblemRow struct {
-	Slug       string `json:"slug"`
-	Title      string `json:"title"`
-	Difficulty string `json:"difficulty"`
-	Category   string `json:"category"`
-	Done       bool   `json:"done"`
-	Optimal    bool   `json:"optimal"`
+	Slug        string `json:"slug"`
+	Title       string `json:"title"`
+	Difficulty  string `json:"difficulty"`
+	Category    string `json:"category"`
+	Done        bool   `json:"done"`
+	Optimal     bool   `json:"optimal"`
+	Blind75     bool   `json:"blind75"`
+	Neetcode150 bool   `json:"neetcode150"`
+	Neetcode250 bool   `json:"neetcode250"`
 }
 
 type SolutionRow struct {
@@ -150,23 +155,25 @@ func (p *Postgres) DeleteUser(ctx context.Context, userID string) error {
 func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, error) {
 	rows, err := p.pool.Query(ctx, `
 		select u.display_name, coalesce(u.leetcode_user::text, ''),
-		       count(s.problem_id) filter (where s.first_season_ac_at is not null) as solved
+		       count(*) filter (where pr.blind75) as b75,
+		       count(*) filter (where pr.neetcode150) as n150,
+		       count(*) filter (where pr.neetcode250) as n250,
+		       count(pr.id) as total
 		from users u
-		left join solves s on s.user_id = u.id
+		left join solves s on s.user_id = u.id and s.first_season_ac_at is not null
+		left join problems pr on pr.id = s.problem_id
 		where u.status = 'approved'
 		group by u.id
-		order by solved desc
+		order by n150 desc
 		limit $1`, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []LeaderRow{}
-	rank := 0
 	for rows.Next() {
-		rank++
-		r := LeaderRow{Rank: rank}
-		if err := rows.Scan(&r.Name, &r.LeetcodeUser, &r.Solved); err != nil {
+		var r LeaderRow
+		if err := rows.Scan(&r.Name, &r.LeetcodeUser, &r.Blind75, &r.Neetcode150, &r.Neetcode250, &r.All); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -181,7 +188,8 @@ func (p *Postgres) Progress(ctx context.Context, userID string) ([]ProblemRow, e
 		       exists (
 		         select 1 from solutions so
 		         where so.user_id = $1 and so.problem_id = pr.id and so.is_optimal
-		       ) as optimal
+		       ) as optimal,
+		       pr.blind75, pr.neetcode150, pr.neetcode250
 		from problems pr
 		left join solves s on s.problem_id = pr.id and s.user_id = $1
 		order by pr.id`, userID)
@@ -192,7 +200,7 @@ func (p *Postgres) Progress(ctx context.Context, userID string) ([]ProblemRow, e
 	out := []ProblemRow{}
 	for rows.Next() {
 		var r ProblemRow
-		if err := rows.Scan(&r.Slug, &r.Title, &r.Difficulty, &r.Category, &r.Done, &r.Optimal); err != nil {
+		if err := rows.Scan(&r.Slug, &r.Title, &r.Difficulty, &r.Category, &r.Done, &r.Optimal, &r.Blind75, &r.Neetcode150, &r.Neetcode250); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

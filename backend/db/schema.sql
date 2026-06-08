@@ -41,8 +41,15 @@ create table if not exists problems (
   slug            text unique not null,        -- titleSlug, e.g. "two-sum"
   title           text not null,
   difficulty      text not null check (difficulty in ('Easy','Medium','Hard')),
-  category        text not null                -- "Arrays & Hashing", etc.
+  category        text not null,               -- "Arrays & Hashing", etc.
+  blind75         boolean not null default false,
+  neetcode150     boolean not null default false,
+  neetcode250     boolean not null default false
 );
+
+alter table problems add column if not exists blind75 boolean not null default false;
+alter table problems add column if not exists neetcode150 boolean not null default false;
+alter table problems add column if not exists neetcode250 boolean not null default false;
 
 -- One row per (user, problem) once it counts for the season.
 alter table users add column if not exists theme text not null default 'light';

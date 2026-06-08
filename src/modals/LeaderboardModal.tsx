@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
+import { ROADMAPS, listTotal } from "../lib/roadmaps";
+import type { ProblemList } from "../types";
 
 const barColor: Record<string, string> = {
   Easy: "bg-sky",
@@ -9,17 +11,27 @@ const barColor: Record<string, string> = {
   Hard: "bg-coral",
 };
 
-export function LeaderboardModal({ onClose }: { onClose: () => void }) {
-  const { members, groupTotals, friendsDifficulty } = useData();
+export function LeaderboardModal({
+  onClose,
+  roadmap,
+  setRoadmap,
+}: {
+  onClose: () => void;
+  roadmap: ProblemList;
+  setRoadmap: (r: ProblemList) => void;
+}) {
+  const { members, categories, groupTotals, friendsDifficulty } = useData();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
+  const roadmapTotal = listTotal(categories, roadmap);
 
   const totals = groupTotals.length > 0
     ? groupTotals
     : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
 
-  const ranked = members
+  const ranked = [...members]
+    .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
     .map((m, i) => ({ m, rank: i + 1 }))
     .filter(({ m }) => !q || m.name.toLowerCase().includes(q) || (m.username ?? "").toLowerCase().includes(q));
 
@@ -51,6 +63,19 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title="Summer 2026 Leaderboard" onClose={onClose} footer={footer}>
+      <div className="mb-4 flex flex-wrap gap-1 rounded-full border border-border bg-background/60 p-1">
+        {ROADMAPS.map((r) => (
+          <button
+            key={r.key}
+            onClick={() => setRoadmap(r.key)}
+            className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              roadmap === r.key ? "bg-coral text-coral-foreground" : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -88,13 +113,13 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
-                  style={{ width: `${(m.solved / 150) * 100}%` }}
+                  style={{ width: `${roadmapTotal ? ((m.solvedByList[roadmap] ?? 0) / roadmapTotal) * 100 : 0}%` }}
                 />
               </div>
             </div>
             <div className="shrink-0 text-right text-sm font-semibold tabular-nums sm:text-base">
-              {m.solved}
-              <span className="text-muted-foreground"> /150</span>
+              {m.solvedByList[roadmap] ?? 0}
+              <span className="text-muted-foreground"> /{roadmapTotal}</span>
             </div>
           </li>
         ))}

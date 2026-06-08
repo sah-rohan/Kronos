@@ -1,5 +1,6 @@
 export type Diff = "Easy" | "Medium" | "Hard";
-export type Problem = { name: string; slug: string; diff: Diff; done: boolean; optimal: boolean };
+export type Problem = { name: string; slug: string; diff: Diff; done: boolean; optimal: boolean; blind75: boolean; neetcode150: boolean; neetcode250: boolean };
+export type ProblemList = "blind75" | "neetcode150" | "neetcode250" | "all";
 export type Friend = { id: string; name: string; initials: string; username: string; color: string };
 export type Solution = { lang: string; runtimeMs: number; runtimePct: number; optimal: boolean; code: string };
 export type Month = { year: number; month: number };
@@ -9,6 +10,7 @@ export type Member = {
   initials: string;
   color: string;
   solved: number;
+  solvedByList: Record<ProblemList, number>;
   streak?: number;
   username?: string;
 };

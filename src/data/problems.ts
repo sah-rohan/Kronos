@@ -21,6 +21,9 @@ function cat(title: string, rows: string): { title: string; items: Problem[] } {
         diff: DMAP[d.trim() as "E" | "M" | "H"],
         done: false,
         optimal: false,
+        blind75: false,
+        neetcode150: true,
+        neetcode250: true,
       };
     });
   return { title, items };

@@ -4,7 +4,7 @@ import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
 import { api } from "./lib/api";
-import type { Friend, Month, ProblemRef } from "./types";
+import type { Friend, Month, ProblemRef, ProblemList } from "./types";
 import { Clouds } from "./components/Clouds";
 import { TopBar } from "./sections/TopBar";
 import { Greeting } from "./sections/Greeting";
@@ -35,6 +35,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
   const [myProblemRecent, setMyProblemRecent] = useState(false);
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
   const hello = greeting(new Date());
 
   useEffect(() => {
@@ -74,8 +75,8 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
         <Greeting hello={hello} name={userName.split(" ")[0]} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <MyProgressCard onOpen={() => setModal("me")} />
-          <LeaderboardCard onOpen={() => setModal("leaderboard")} />
+          <MyProgressCard onOpen={() => setModal("me")} roadmap={roadmap} onRoadmap={setRoadmap} />
+          <LeaderboardCard onOpen={() => setModal("leaderboard")} roadmap={roadmap} />
           <MyFriendsCard onOpen={() => setModal("friends")} />
           <CurrentStreakCard onOpen={openCalendar} />
           <RecentActivityCard onOpen={() => setModal("recent")} userName={userName} />
@@ -91,7 +92,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
       {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} />}
-      {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} />}
+      {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} />}
       {modal === "recent" && (
         <RecentActivityModal
           onClose={() => setModal(null)}
