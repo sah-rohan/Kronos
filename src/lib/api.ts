@@ -30,6 +30,7 @@ export const api = {
   me: (t: TokenFn) => call<MeResponse>("/me", t),
   setProfile: (t: TokenFn, username: string, github: string) =>
     call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
+  syncNow: (t: TokenFn) => call("/me/sync", t, { method: "POST" }),
   setTheme: (t: TokenFn, theme: string) =>
     call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
@@ -54,6 +55,7 @@ export const api = {
   friendSolutions: (t: TokenFn, id: string, slug: string) =>
     call<ApiSolution[]>(`/friends/${id}/problem/${slug}`, t),
   adminPending: (t: TokenFn) => call<MeResponse[]>("/admin/pending", t),
+  adminUsers: (t: TokenFn) => call<MeResponse[]>("/admin/users", t),
   adminApprove: (t: TokenFn, id: string) =>
     call("/admin/approve", t, { method: "POST", body: JSON.stringify({ id }) }),
   adminSetUsername: (t: TokenFn, id: string, username: string) =>
