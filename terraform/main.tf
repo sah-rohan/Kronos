@@ -85,6 +85,8 @@ module "api" {
     DATABASE_URL_SSM     = module.ssm.name
     CLERK_SECRET_KEY_SSM = data.aws_ssm_parameter.clerk_secret.name
     ADMIN_CLERK_ID       = var.admin_clerk_id
+    SEASON_START         = var.season_start
+    LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
   }
 }
 
