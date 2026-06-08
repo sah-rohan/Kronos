@@ -53,6 +53,7 @@ alter table problems add column if not exists neetcode250 boolean not null defau
 
 -- One row per (user, problem) once it counts for the season.
 alter table users add column if not exists theme text not null default 'light';
+update users set theme = 'auto' where theme is null or theme = ''; 
 
 create table if not exists solves (
   user_id            uuid not null references users(id) on delete cascade,

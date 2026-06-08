@@ -22,14 +22,22 @@ export function AuthGate() {
 
   const load = useCallback(() => {
     setDisplayName(clerkName);
-    api.me(token).then(setMe).catch(() => setMe("error"));
+    api
+      .me(token)
+      .then(setMe)
+      .catch(() => setMe("error"));
   }, [token, clerkName]);
 
   useEffect(load, [load]);
 
   useEffect(() => {
     if (me && typeof me === "object") {
-      document.documentElement.classList.toggle("dark", me.theme === "dark");
+      const mode = me.theme || "auto";
+      const dark =
+        mode === "dark" ||
+        (mode === "auto" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.classList.toggle("dark", dark);
     }
   }, [me]);
 
@@ -48,7 +56,11 @@ export function AuthGate() {
   const name = clerkName || me.username || "You";
   return (
     <DataProvider getToken={token}>
-      <App isAdmin={me.role === "admin"} userName={name} initialDark={me.theme === "dark"} />
+      <App
+        isAdmin={me.role === "admin"}
+        userName={name}
+        initialTheme={(me.theme as "auto" | "light" | "dark") || "auto"}
+      />
     </DataProvider>
   );
 }

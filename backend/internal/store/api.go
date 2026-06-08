@@ -47,12 +47,12 @@ type ProblemRow struct {
 }
 
 type SolutionRow struct {
-	Slug      string `json:"slug"`
-	Lang      string `json:"lang"`
-	Code      string `json:"code"`
-	RuntimeMs int    `json:"runtimeMs"`
-	RuntimePct float64 `json:"runtimePct"` 
-	Optimal   bool   `json:"optimal"`
+	Slug       string  `json:"slug"`
+	Lang       string  `json:"lang"`
+	Code       string  `json:"code"`
+	RuntimeMs  int     `json:"runtimeMs"`
+	RuntimePct float64 `json:"runtimePct"`
+	Optimal    bool    `json:"optimal"`
 }
 
 var ErrNotFound = errors.New("not found")
@@ -66,15 +66,15 @@ func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName string) 
 		values ($1, coalesce(nullif($2, ''), $1))
 		on conflict (clerk_id) do update set
 			display_name = case when nullif($2, '') is not null then $2 else users.display_name end
-		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, theme`,
+		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, coalesce(theme, 'auto')`,
 		clerkID, displayName,
 	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role, &u.Theme)
 	return u, err
 }
 
 func (p *Postgres) SetTheme(ctx context.Context, userID, theme string) error {
-	if theme != "dark" {
-		theme = "light"
+	if theme != "auto" && theme != "light" && theme != "dark" {
+		theme = "auto"
 	}
 	_, err := p.pool.Exec(ctx, `update users set theme = $2 where id = $1`, userID, theme)
 	return err

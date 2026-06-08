@@ -24,10 +24,12 @@ import { FriendSolutionModal } from "./modals/FriendSolutionModal";
 import { ChangeUsernameModal } from "./modals/ChangeUsernameModal";
 import { AdminModal } from "./modals/AdminModal";
 
-function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: { isAdmin?: boolean; userName?: string; initialDark?: boolean }) {
+type ThemeMode = "auto" | "light" | "dark";
+
+function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }: { isAdmin?: boolean; userName?: string; initialTheme?: ThemeMode }) {
   const { removeFriend, getToken } = useData();
   const [modal, setModal] = useState<string | null>(null);
-  const [dark, setDark] = useState(initialDark);
+  const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const [cal, setCal] = useState<Month>(CAL_START);
   const [friendView, setFriendView] = useState<Friend | null>(null);
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
@@ -38,24 +40,33 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
   const hello = greeting(new Date());
 
+  // Apply the effective theme (auto follows the OS, live) + matching status-bar color.
   useEffect(() => {
-    document.querySelectorAll('meta[name="theme-color"]').forEach((el) => el.remove());
-    const meta = document.createElement("meta");
-    meta.name = "theme-color";
-    meta.content = dark ? "#0a1826" : "#aed8f1";
-    document.head.appendChild(meta);
-  }, [dark]);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = theme === "dark" || (theme === "auto" && mq.matches);
+      document.documentElement.classList.toggle("dark", dark);
+      document.querySelectorAll('meta[name="theme-color"]').forEach((el) => el.remove());
+      const meta = document.createElement("meta");
+      meta.name = "theme-color";
+      meta.content = dark ? "#0a1826" : "#aed8f1";
+      document.head.appendChild(meta);
+    };
+    apply();
+    if (theme === "auto") {
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    }
+  }, [theme]);
 
   const openCalendar = () => {
     setCal(CAL_START);
     setModal("calendar");
   };
 
-  const toggleDark = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    api.setTheme(getToken, next ? "dark" : "light").catch(() => {});
+  const changeTheme = (next: ThemeMode) => {
+    setTheme(next);
+    api.setTheme(getToken, next).catch(() => {});
   };
 
   return (
@@ -66,8 +77,8 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
         <TopBar
           name={userName}
           initials={initialsOf(userName)}
-          dark={dark}
-          onToggleDark={toggleDark}
+          theme={theme}
+          onChangeTheme={changeTheme}
           onChangeUsername={() => setChangeUsername(true)}
           isAdmin={isAdmin}
           onAdmin={() => setAdminOpen(true)}

@@ -22,8 +22,14 @@ export function FriendsModal({
   const [sent, setSent] = useState<string[]>([]);
 
   const load = () => {
-    api.directory(getToken).then(setPeople).catch(() => setPeople([]));
-    api.friendRequests(getToken).then(setRequests).catch(() => setRequests([]));
+    api
+      .directory(getToken)
+      .then(setPeople)
+      .catch(() => setPeople([]));
+    api
+      .friendRequests(getToken)
+      .then(setRequests)
+      .catch(() => setRequests([]));
   };
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,17 +68,32 @@ export function FriendsModal({
 
   const q = query.trim().toLowerCase();
   const suggestions = people.filter(
-    (p) => !q || p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)
+    (p) =>
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.username.toLowerCase().includes(q),
   );
   const shownFriends = friends.filter(
-    (f) => !q || f.name.toLowerCase().includes(q) || (f.username ?? "").toLowerCase().includes(q)
+    (f) =>
+      !q ||
+      f.name.toLowerCase().includes(q) ||
+      (f.username ?? "").toLowerCase().includes(q),
   );
 
-  const tabBtn = (key: "friends" | "requests", label: string, count?: number) => (
+  const tabBtn = (
+    key: "friends" | "requests",
+    label: string,
+    count?: number,
+  ) => (
     <button
-      onClick={() => { setTab(key); setQuery(""); }}
+      onClick={() => {
+        setTab(key);
+        setQuery("");
+      }}
       className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-        tab === key ? "bg-coral text-coral-foreground" : "text-muted-foreground hover:bg-muted"
+        tab === key
+          ? "bg-coral text-coral-foreground"
+          : "text-muted-foreground hover:bg-muted"
       }`}
     >
       {label}
@@ -105,12 +126,18 @@ export function FriendsModal({
                   onClick={() => onOpenFriend(f)}
                   className="flex w-full items-center gap-4 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
                 >
-                  <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${f.color}`}>
+                  <div
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${f.color}`}
+                  >
                     {f.initials}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{f.name}</div>
-                    {f.username && <div className="truncate text-xs text-muted-foreground">@{f.username}</div>}
+                    {f.username && (
+                      <div className="truncate text-xs text-muted-foreground">
+                        @{f.username}
+                      </div>
+                    )}
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
@@ -138,16 +165,27 @@ export function FriendsModal({
 
           {requests.length > 0 && (
             <>
-              <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Incoming requests</div>
+              <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Incoming requests
+              </div>
               <ul className="mt-2 space-y-2">
                 {requests.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5">
-                    <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.username || p.name)}`}>
+                  <li
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5"
+                  >
+                    <div
+                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.name)}`}
+                    >
                       {initialsOf(p.name)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{p.name}</div>
-                      <div className="truncate text-xs text-muted-foreground">@{p.username}</div>
+                      <div className="truncate text-sm font-medium">
+                        {p.name}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        @{p.username}
+                      </div>
                     </div>
                     <button
                       onClick={() => accept(p.id)}
@@ -171,25 +209,39 @@ export function FriendsModal({
             </>
           )}
 
-          <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">People on Kronos</div>
+          <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            People on Kronos
+          </div>
           <ul className="mt-2 space-y-2">
             {suggestions.map((p) => {
               const requested = sent.includes(p.username);
               return (
-                <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5">
-                  <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.username || p.name)}`}>
+                <li
+                  key={p.id}
+                  className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5"
+                >
+                  <div
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.name)}`}
+                  >
                     {initialsOf(p.name)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{p.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">@{p.username} · {p.solved} solved</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      @{p.username} · {p.solved} solved
+                    </div>
                   </div>
                   <button
                     onClick={() => request(p.username)}
                     disabled={busy === p.username || requested}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-coral px-3.5 py-1.5 text-xs font-medium text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
                   >
-                    <UserPlus className="h-3.5 w-3.5" /> {requested ? "Requested" : busy === p.username ? "…" : "Request"}
+                    <UserPlus className="h-3.5 w-3.5" />{" "}
+                    {requested
+                      ? "Requested"
+                      : busy === p.username
+                        ? "…"
+                        : "Request"}
                   </button>
                 </li>
               );

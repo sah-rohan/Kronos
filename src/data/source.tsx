@@ -1,9 +1,22 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { api } from "../lib/api";
 import type { TokenFn, ApiProblem } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { LoadingScreen } from "../components/LoadingScreen";
-import type { Category, DifficultyTotal, Friend, Member, Problem, RecentItem } from "../types";
+import type {
+  Category,
+  DifficultyTotal,
+  Friend,
+  Member,
+  Problem,
+  RecentItem,
+} from "../types";
 
 export type Calendar = { byDate: Record<string, number>; streak: number };
 
@@ -26,7 +39,12 @@ type Data = {
   categories: Category[];
   solved: number;
   total: number;
-  difficultyBars: { label: string; color: string; done: number; total: number }[];
+  difficultyBars: {
+    label: string;
+    color: string;
+    done: number;
+    total: number;
+  }[];
   members: Member[];
   recent: RecentItem[];
   friends: Friend[];
@@ -49,10 +67,17 @@ export function useData(): Data {
 
 function difficultyBars(categories: Category[]) {
   return (["Easy", "Medium", "Hard"] as const).map((label) => {
-    const items = categories.flatMap((c) => c.items).filter((p) => p.diff === label);
+    const items = categories
+      .flatMap((c) => c.items)
+      .filter((p) => p.diff === label);
     return {
       label,
-      color: label === "Easy" ? "bg-sky" : label === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
+      color:
+        label === "Easy"
+          ? "bg-sky"
+          : label === "Medium"
+            ? "bg-[#f5c26b]"
+            : "bg-coral",
       done: items.filter((p) => p.done).length,
       total: items.length,
     };
@@ -81,7 +106,13 @@ function groupByCategory(problems: ApiProblem[]): Category[] {
   return order.map((title) => ({ title, items: map.get(title)! }));
 }
 
-export function DataProvider({ getToken, children }: { getToken: TokenFn; children: ReactNode }) {
+export function DataProvider({
+  getToken,
+  children,
+}: {
+  getToken: TokenFn;
+  children: ReactNode;
+}) {
   const [remote, setRemote] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,7 +131,9 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     const categories = groupByCategory(progress ?? []);
     // Back-compat: if the API hasn't shipped the list flags yet, treat every
     // problem as NeetCode 150 so Progress/leaderboard aren't empty pre-deploy.
-    const hasFlags = categories.some((c) => c.items.some((p) => p.neetcode150 || p.blind75 || p.neetcode250));
+    const hasFlags = categories.some((c) =>
+      c.items.some((p) => p.neetcode150 || p.blind75 || p.neetcode250),
+    );
     if (!hasFlags) {
       for (const c of categories) for (const p of c.items) p.neetcode150 = true;
     }
@@ -109,7 +142,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       name: f.name,
       initials: initialsOf(f.name),
       username: f.username,
-      color: colorFor(f.username || f.name),
+      color: colorFor(f.name),
     }));
     const n150cats = categories
       .map((c) => ({ ...c, items: c.items.filter((p) => p.neetcode150) }))
@@ -128,9 +161,14 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       members: (leaders ?? []).map((m) => ({
         name: m.name,
         initials: initialsOf(m.name),
-        color: colorFor(m.username || m.name),
+        color: colorFor(m.name),
         solved: m.neetcode150,
-        solvedByList: { blind75: m.blind75, neetcode150: m.neetcode150, neetcode250: m.neetcode250, all: m.all },
+        solvedByList: {
+          blind75: m.blind75,
+          neetcode150: m.neetcode150,
+          neetcode250: m.neetcode250,
+          all: m.all,
+        },
         username: m.username,
       })),
       recent: (recents ?? []).map((r) => ({
@@ -138,7 +176,11 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
         slug: r.slug,
         name: r.name,
         diff: r.diff,
-        who: r.who.map((name) => ({ name, initials: initialsOf(name), color: colorFor(name) })),
+        who: (r.who ?? []).map((name) => ({
+          name,
+          initials: initialsOf(name),
+          color: colorFor(name),
+        })),
       })),
       friends: apiFriends,
       friendsDifficulty: circleData,
@@ -179,9 +221,14 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       <div className="grid min-h-screen place-items-center px-6">
         <div className="max-w-lg rounded-2xl border border-border bg-card p-6 text-center">
           <div className="font-display text-xl">Couldn't load your data</div>
-          <p className="mt-2 break-words text-sm text-muted-foreground">{error}</p>
+          <p className="mt-2 break-words text-sm text-muted-foreground">
+            {error}
+          </p>
           <button
-            onClick={() => { setError(null); refresh().catch((e) => setError(String(e))); }}
+            onClick={() => {
+              setError(null);
+              refresh().catch((e) => setError(String(e)));
+            }}
             className="mt-4 rounded-full bg-coral px-4 py-2 text-sm font-medium text-coral-foreground"
           >
             Retry
