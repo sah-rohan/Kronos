@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Check, ChevronRight, Search, UserPlus, X } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
-import { useApi } from "../lib/env";
 import { api, type ApiFriend } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import type { Friend } from "../types";
@@ -15,6 +14,7 @@ export function FriendsModal({
   onOpenFriend: (f: Friend) => void;
 }) {
   const { friends, addFriend, getToken, refresh } = useData();
+  const [tab, setTab] = useState<"friends" | "requests">("friends");
   const [query, setQuery] = useState("");
   const [people, setPeople] = useState<ApiFriend[]>([]);
   const [requests, setRequests] = useState<ApiFriend[]>([]);
@@ -22,7 +22,6 @@ export function FriendsModal({
   const [sent, setSent] = useState<string[]>([]);
 
   const load = () => {
-    if (!useApi) return;
     api.directory(getToken).then(setPeople).catch(() => setPeople([]));
     api.friendRequests(getToken).then(setRequests).catch(() => setRequests([]));
   };
@@ -69,56 +68,109 @@ export function FriendsModal({
     (f) => !q || f.name.toLowerCase().includes(q) || (f.username ?? "").toLowerCase().includes(q)
   );
 
+  const tabBtn = (key: "friends" | "requests", label: string, count?: number) => (
+    <button
+      onClick={() => { setTab(key); setQuery(""); }}
+      className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
+        tab === key ? "bg-coral text-coral-foreground" : "text-muted-foreground hover:bg-muted"
+      }`}
+    >
+      {label}
+      {count ? <span className="ml-1.5 tabular-nums">{count}</span> : null}
+    </button>
+  );
+
   return (
     <Modal title="My Friends" onClose={onClose}>
-      <div className="flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2.5">
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && q && request(query.trim())}
-          placeholder="Search people to add…"
-          className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
-        />
+      <div className="flex gap-1 rounded-full border border-border bg-background/60 p-1">
+        {tabBtn("friends", "Friends", friends.length)}
+        {tabBtn("requests", "Requests", requests.length)}
       </div>
 
-      {requests.length > 0 && (
+      {tab === "friends" ? (
         <>
-          <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Friend requests</div>
-          <ul className="mt-2 space-y-2">
-            {requests.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5">
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.username || p.name)}`}>
-                  {initialsOf(p.name)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{p.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">@{p.username}</div>
-                </div>
+          <div className="mt-4 flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2.5">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search your friends…"
+              className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+          <ul className="mt-4 space-y-3">
+            {shownFriends.map((f) => (
+              <li key={f.id}>
                 <button
-                  onClick={() => accept(p.id)}
-                  disabled={busy === p.id}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
-                  title="Accept"
+                  onClick={() => onOpenFriend(f)}
+                  className="flex w-full items-center gap-4 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
                 >
-                  <Check className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => decline(p.id)}
-                  disabled={busy === p.id}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-60"
-                  title="Decline"
-                >
-                  <X className="h-4 w-4" />
+                  <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${f.color}`}>
+                    {f.initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{f.name}</div>
+                    {f.username && <div className="truncate text-xs text-muted-foreground">@{f.username}</div>}
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
               </li>
             ))}
+            {friends.length === 0 && (
+              <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                No friends yet.
+              </li>
+            )}
           </ul>
         </>
-      )}
-
-      {suggestions.length > 0 && (
+      ) : (
         <>
+          <div className="mt-4 flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2.5">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && q && request(query.trim())}
+              placeholder="Search people to add…"
+              className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+            />
+          </div>
+
+          {requests.length > 0 && (
+            <>
+              <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Incoming requests</div>
+              <ul className="mt-2 space-y-2">
+                {requests.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5">
+                    <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.username || p.name)}`}>
+                      {initialsOf(p.name)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{p.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">@{p.username}</div>
+                    </div>
+                    <button
+                      onClick={() => accept(p.id)}
+                      disabled={busy === p.id}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
+                      title="Accept"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => decline(p.id)}
+                      disabled={busy === p.id}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-60"
+                      title="Decline"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">People on Kronos</div>
           <ul className="mt-2 space-y-2">
             {suggestions.map((p) => {
@@ -142,35 +194,14 @@ export function FriendsModal({
                 </li>
               );
             })}
+            {suggestions.length === 0 && (
+              <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                No one to add.
+              </li>
+            )}
           </ul>
         </>
       )}
-
-      <div className="mt-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">Your friends</div>
-      <ul className="mt-2 space-y-3">
-        {shownFriends.map((f) => (
-          <li key={f.id}>
-            <button
-              onClick={() => onOpenFriend(f)}
-              className="flex w-full items-center gap-4 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
-            >
-              <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${f.color}`}>
-                {f.initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{f.name}</div>
-                {f.username && <div className="truncate text-xs text-muted-foreground">@{f.username}</div>}
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          </li>
-        ))}
-        {friends.length === 0 && (
-          <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            No friends yet. Add someone from the list above.
-          </li>
-        )}
-      </ul>
     </Modal>
   );
 }
