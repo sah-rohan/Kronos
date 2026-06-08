@@ -17,7 +17,7 @@ export function FriendSolutionModal({
   onClose: () => void;
   onBack?: () => void;
 }) {
-  const solutions = useFriendSolutions(friend.username, problem.slug, friendSolutions(friend, problem.name));
+  const solutions = useFriendSolutions(friend.id, problem.slug, friendSolutions(friend, problem.name));
   return (
     <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">

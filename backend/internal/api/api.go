@@ -116,12 +116,39 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		rows, err := a.Store.Friends(ctx, user.ID)
 		return dataOrError(rows, err)
 
+	case method == "GET" && path == "/users":
+		rows, err := a.Store.Directory(ctx, user.ID)
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/friends/requests":
+		rows, err := a.Store.IncomingRequests(ctx, user.ID)
+		return dataOrError(rows, err)
+
+	case method == "POST" && path == "/friends/requests/accept":
+		var in struct{ ID string `json:"id"` }
+		json.Unmarshal([]byte(body), &in)
+		if err := a.Store.AcceptRequest(ctx, user.ID, in.ID); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return reply(404, map[string]string{"error": "no such request"})
+			}
+			return serverError(err)
+		}
+		return reply(200, map[string]bool{"ok": true})
+
+	case method == "POST" && path == "/friends/requests/decline":
+		var in struct{ ID string `json:"id"` }
+		json.Unmarshal([]byte(body), &in)
+		return okOrError(a.Store.DeclineRequest(ctx, user.ID, in.ID))
+
 	case method == "POST" && path == "/friends":
 		var in struct{ Username string `json:"username"` }
 		json.Unmarshal([]byte(body), &in)
-		if err := a.Store.AddFriend(ctx, user.ID, in.Username); err != nil {
+		if err := a.Store.SendFriendRequest(ctx, user.ID, in.Username); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				return reply(404, map[string]string{"error": "no approved user with that username"})
+			}
+			if errors.Is(err, store.ErrSelfFriend) {
+				return reply(400, map[string]string{"error": "you can't add yourself"})
 			}
 			return serverError(err)
 		}

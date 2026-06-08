@@ -2,9 +2,9 @@ import type { Friend, Solution } from "../types";
 import { flatProblems } from "./problems";
 
 export const initialFriends: Friend[] = [
-  { name: "Mira Chen", initials: "MC", username: "mirac", color: "bg-coral text-white" },
-  { name: "Ari Patel", initials: "AP", username: "aripatel", color: "bg-sky text-sky-foreground" },
-  { name: "Sam Ortega", initials: "SO", username: "sortega", color: "bg-[#f5c26b] text-[#5a3a0a]" },
+  { id: "mirac", name: "Mira Chen", initials: "MC", username: "mirac", color: "bg-coral text-white" },
+  { id: "aripatel", name: "Ari Patel", initials: "AP", username: "aripatel", color: "bg-sky text-sky-foreground" },
+  { id: "sortega", name: "Sam Ortega", initials: "SO", username: "sortega", color: "bg-[#f5c26b] text-[#5a3a0a]" },
 ];
 
 export const langStyles: Record<string, string> = {

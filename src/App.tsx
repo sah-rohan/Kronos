@@ -126,7 +126,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialDark = false }: 
           onRemove={() => {
             const removed = friendView;
             setFriendView(null);
-            removeFriend(removed.username ?? removed.name);
+            removeFriend(removed.id);
             setModal("friends");
           }}
         />

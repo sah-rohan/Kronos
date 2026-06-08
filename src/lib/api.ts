@@ -40,6 +40,12 @@ export const api = {
   mySolutions: (t: TokenFn, slug: string, recent = false) =>
     call<ApiSolution[]>(`/me/problem/${slug}${recent ? "?recent=1" : ""}`, t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
+  directory: (t: TokenFn) => call<ApiFriend[]>("/users", t),
+  friendRequests: (t: TokenFn) => call<ApiFriend[]>("/friends/requests", t),
+  acceptRequest: (t: TokenFn, id: string) =>
+    call("/friends/requests/accept", t, { method: "POST", body: JSON.stringify({ id }) }),
+  declineRequest: (t: TokenFn, id: string) =>
+    call("/friends/requests/decline", t, { method: "POST", body: JSON.stringify({ id }) }),
   addFriend: (t: TokenFn, username: string) =>
     call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),
   removeFriend: (t: TokenFn, id: string) => call(`/friends/${id}`, t, { method: "DELETE" }),

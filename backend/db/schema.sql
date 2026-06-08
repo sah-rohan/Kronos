@@ -65,6 +65,15 @@ create table if not exists solves (
   primary key (user_id, problem_id)
 );
 
+-- Pending friend requests. On accept, two friendship rows are created (both
+-- directions) so each side sees the other.
+create table if not exists friend_requests (
+  requester_id uuid not null references users(id) on delete cascade,
+  target_id    uuid not null references users(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  primary key (requester_id, target_id)
+);
+
 -- Every captured accepted submission, queued for the enricher. One row per
 -- LeetCode submission id so distinct languages are never lost.
 create table if not exists submissions (

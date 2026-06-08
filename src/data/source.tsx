@@ -110,7 +110,7 @@ function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken
     async addFriend(username) {
       if (!username || friends.some((f) => f.username === username)) return;
       const palette = ["bg-coral text-white", "bg-sky text-sky-foreground", "bg-[#f5c26b] text-[#5a3a0a]", "bg-[#111] text-white"];
-      setFriends([...friends, { name: username, initials: username.slice(0, 2).toUpperCase(), username, color: palette[friends.length % palette.length] }]);
+      setFriends([...friends, { id: username, name: username, initials: username.slice(0, 2).toUpperCase(), username, color: palette[friends.length % palette.length] }]);
     },
     async removeFriend(id) {
       setFriends(friends.filter((f) => f.username !== id && f.name !== id));
@@ -157,9 +157,10 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     for (const d of days ?? []) byDate[d.date] = d.count;
     const categories = groupByCategory(progress ?? []);
     const apiFriends: Friend[] = (friendRows ?? []).map((f) => ({
+      id: f.id,
       name: f.name,
       initials: initialsOf(f.name),
-      username: f.id,
+      username: f.username,
       color: colorFor(f.username || f.name),
     }));
     const all = categories.flatMap((c) => c.items);
