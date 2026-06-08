@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"strconv"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -22,6 +23,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := &api.API{Store: db, AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID")}
+	season, _ := strconv.ParseInt(config.Get(ctx, "SEASON_START"), 10, 64)
+
+	handler := &api.API{
+		Store:        db,
+		AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID"),
+		Season:       season,
+		Session:      config.Get(ctx, "LEETCODE_SESSION"),
+	}
 	lambda.Start(handler.Handle)
 }
