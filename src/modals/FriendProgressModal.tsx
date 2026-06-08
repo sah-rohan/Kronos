@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { OptimalTag } from "../components/OptimalTag";
-import { categories as mockCategories, TOTAL, diffStyles } from "../data/problems";
-import { friendSolved, friendOptimal } from "../data/friends";
+import { diffStyles } from "../data/problems";
 import { useData } from "../data/source";
-import { useApi } from "../lib/env";
 import { api } from "../lib/api";
 import type { Friend, ProblemRef } from "../types";
 
@@ -27,22 +25,9 @@ export function FriendProgressModal({
 }) {
   const { getToken } = useData();
   const [confirming, setConfirming] = useState(false);
-
-  const mockCats: Cat[] = mockCategories.map((c) => ({
-    title: c.title,
-    items: c.items.map((p) => ({
-      name: p.name,
-      slug: p.slug,
-      diff: p.diff,
-      done: friendSolved(friend, p.name),
-      optimal: friendOptimal(friend, p.name),
-    })),
-  }));
-
-  const [cats, setCats] = useState<Cat[]>(useApi ? [] : mockCats);
+  const [cats, setCats] = useState<Cat[]>([]);
 
   useEffect(() => {
-    if (!useApi) return;
     api
       .friendProgress(getToken, friend.id)
       .then((rows) => {
@@ -63,7 +48,7 @@ export function FriendProgressModal({
 
   const all = cats.flatMap((c) => c.items);
   const solvedCount = all.filter((p) => p.done).length;
-  const total = useApi ? all.length : TOTAL;
+  const total = all.length;
 
   return (
     <Modal title={`${friend.name}'s progress`} onClose={onClose} onBack={onBack}>

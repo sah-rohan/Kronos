@@ -34,7 +34,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{u.name}</div>
               <div className="truncate text-xs text-muted-foreground">
-                LeetCode @{u.username || "—"} · GitHub @{u.github || "—"}
+                LeetCode @{u.username || "—"}
               </div>
             </div>
             <button

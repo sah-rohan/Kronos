@@ -219,6 +219,37 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 	return out, rows.Err()
 }
 
+func (p *Postgres) CircleDifficulty(ctx context.Context, userID string) ([]DifficultyTotal, error) {
+	rows, err := p.pool.Query(ctx, `
+		select pr.difficulty, count(*)
+		from solves s
+		join problems pr on pr.id = s.problem_id
+		where s.first_season_ac_at is not null
+		  and (s.user_id = $1 or s.user_id in (select friend_id from friendships where user_id = $1))
+		group by pr.difficulty`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	totals := map[string]int{"Easy": 0, "Medium": 0, "Hard": 0}
+	for rows.Next() {
+		var label string
+		var count int
+		if err := rows.Scan(&label, &count); err != nil {
+			return nil, err
+		}
+		totals[label] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return []DifficultyTotal{
+		{Label: "Easy", Count: totals["Easy"]},
+		{Label: "Medium", Count: totals["Medium"]},
+		{Label: "Hard", Count: totals["Hard"]},
+	}, nil
+}
+
 func (p *Postgres) GroupDifficulty(ctx context.Context) ([]DifficultyTotal, error) {
 	rows, err := p.pool.Query(ctx, `
 		select pr.difficulty, count(*)

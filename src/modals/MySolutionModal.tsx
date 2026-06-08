@@ -1,7 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { SolutionSlider } from "../components/SolutionSlider";
-import { mySolutions } from "../data/friends";
 import { diffStyles, leetcodeUrl } from "../data/problems";
 import { useMySolutions } from "../lib/useSolutions";
 import type { ProblemRef } from "../types";
@@ -17,7 +16,7 @@ export function MySolutionModal({
   onBack?: () => void;
   recent?: boolean;
 }) {
-  const solutions = useMySolutions(problem.slug, mySolutions(problem.slug), recent);
+  const solutions = useMySolutions(problem.slug, recent);
   return (
     <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">

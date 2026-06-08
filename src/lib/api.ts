@@ -36,6 +36,7 @@ export const api = {
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
   groupDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/group/difficulty", t),
+  circleDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/me/circle", t),
   calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
   mySolutions: (t: TokenFn, slug: string, recent = false) =>
     call<ApiSolution[]>(`/me/problem/${slug}${recent ? "?recent=1" : ""}`, t),

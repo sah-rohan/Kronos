@@ -1,13 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useApi } from "../lib/env";
 import { api } from "../lib/api";
 import type { TokenFn } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { LoadingScreen } from "../components/LoadingScreen";
-import { categories as mockCategories } from "./problems";
-import { members as mockMembers, recent as mockRecent, avatarColor, nameByInitials } from "./members";
-import { initialFriends, friendSolved } from "./friends";
-import { monthCounts, CAL_START, CAL_END } from "./calendar";
 import type { Category, DifficultyTotal, Friend, Member, Problem, RecentItem } from "../types";
 
 export type Calendar = { byDate: Record<string, number>; streak: number };
@@ -24,16 +19,6 @@ function computeStreak(byDate: Record<string, number>): number {
     d.setDate(d.getDate() - 1);
   }
   return streak;
-}
-
-function mockByDate(): Record<string, number> {
-  const byDate: Record<string, number> = {};
-  for (let m = CAL_START.month; m <= CAL_END.month; m++) {
-    monthCounts(CAL_START.year, m).forEach((count, i) => {
-      if (count > 0) byDate[`${CAL_START.year}-${String(m + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`] = count;
-    });
-  }
-  return byDate;
 }
 
 type Data = {
@@ -74,52 +59,6 @@ function difficultyBars(categories: Category[]) {
   });
 }
 
-function friendsDifficulty(categories: Category[], friends: Friend[]) {
-  const all = categories.flatMap((c) => c.items);
-  return (["Easy", "Medium", "Hard"] as const).map((label) => {
-    let val = all.filter((p) => p.diff === label && p.done).length;
-    for (const f of friends) {
-      val += all.filter((p) => p.diff === label && friendSolved(f, p.name)).length;
-    }
-    return { label, val };
-  });
-}
-
-function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken: TokenFn): Data {
-  const recent: RecentItem[] = mockRecent.map((r) => ({
-    n: r.n,
-    slug: r.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-    name: r.name,
-    diff: r.diff,
-    who: r.who.map((i) => ({ name: nameByInitials[i] ?? i, initials: i, color: avatarColor[i] ?? "bg-muted" })),
-  }));
-  const all = mockCategories.flatMap((c) => c.items);
-  const bars = difficultyBars(mockCategories);
-  return {
-    loading: false,
-    categories: mockCategories,
-    solved: all.filter((p) => p.done).length,
-    total: all.length,
-    difficultyBars: bars,
-    members: mockMembers,
-    recent,
-    friends,
-    friendsDifficulty: friendsDifficulty(mockCategories, friends),
-    groupTotals: bars.map((b) => ({ label: b.label, count: b.done })),
-    calendar: { byDate: mockByDate(), streak: 13 },
-    async addFriend(username) {
-      if (!username || friends.some((f) => f.username === username)) return;
-      const palette = ["bg-coral text-white", "bg-sky text-sky-foreground", "bg-[#f5c26b] text-[#5a3a0a]", "bg-[#111] text-white"];
-      setFriends([...friends, { id: username, name: username, initials: username.slice(0, 2).toUpperCase(), username, color: palette[friends.length % palette.length] }]);
-    },
-    async removeFriend(id) {
-      setFriends(friends.filter((f) => f.username !== id && f.name !== id));
-    },
-    async refresh() {},
-    getToken,
-  };
-}
-
 function groupByCategory(problems: { slug: string; title: string; difficulty: string; category: string; done: boolean; optimal: boolean }[]): Category[] {
   const order: string[] = [];
   const map = new Map<string, Problem[]>();
@@ -140,7 +79,6 @@ function groupByCategory(problems: { slug: string; title: string; difficulty: st
 }
 
 export function DataProvider({ getToken, children }: { getToken: TokenFn; children: ReactNode }) {
-  const [friends, setFriends] = useState<Friend[]>(initialFriends);
   const [remote, setRemote] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -153,6 +91,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     ]);
     const days = await api.calendar(getToken).catch(() => []);
     const groupTotals = await api.groupDifficulty(getToken).catch(() => []);
+    const circle = await api.circleDifficulty(getToken).catch(() => []);
     const byDate: Record<string, number> = {};
     for (const d of days ?? []) byDate[d.date] = d.count;
     const categories = groupByCategory(progress ?? []);
@@ -164,12 +103,16 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
       color: colorFor(f.username || f.name),
     }));
     const all = categories.flatMap((c) => c.items);
+    const bars = difficultyBars(categories);
+    const circleData = (circle ?? []).length
+      ? (circle ?? []).map((d) => ({ label: d.label, val: d.count }))
+      : bars.map((b) => ({ label: b.label, val: b.done }));
     setRemote({
       loading: false,
       categories,
       solved: all.filter((p) => p.done).length,
       total: all.length,
-      difficultyBars: difficultyBars(categories),
+      difficultyBars: bars,
       members: (leaders ?? []).map((m) => ({
         name: m.name,
         initials: initialsOf(m.name),
@@ -185,7 +128,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
         who: r.who.map((name) => ({ name, initials: initialsOf(name), color: colorFor(name) })),
       })),
       friends: apiFriends,
-      friendsDifficulty: friendsDifficulty(categories, apiFriends),
+      friendsDifficulty: circleData,
       groupTotals: groupTotals ?? [],
       calendar: { byDate, streak: computeStreak(byDate) },
       async addFriend(username) {
@@ -202,7 +145,6 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
   };
 
   useEffect(() => {
-    if (!useApi) return;
     refresh().catch((e) => setError(String(e)));
     const quiet = () => refresh().catch(() => {});
     const id = setInterval(quiet, 30000);
@@ -219,7 +161,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (useApi && error) {
+  if (error) {
     return (
       <div className="grid min-h-screen place-items-center px-6">
         <div className="max-w-lg rounded-2xl border border-border bg-card p-6 text-center">
@@ -236,10 +178,9 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
     );
   }
 
-  if (useApi && !remote) {
+  if (!remote) {
     return <LoadingScreen />;
   }
 
-  const value = useApi && remote ? remote : mockData(friends, setFriends, getToken);
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return <DataContext.Provider value={remote}>{children}</DataContext.Provider>;
 }

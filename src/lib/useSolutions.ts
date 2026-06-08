@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useApi } from "./env";
 import { api } from "./api";
 import type { ApiSolution } from "./api";
 import { useData } from "../data/source";
@@ -15,10 +14,9 @@ function toSolutions(rows: ApiSolution[]): Solution[] {
   }));
 }
 
-export function useSolutions(fallback: Solution[], fetcher: () => Promise<ApiSolution[]>): Solution[] {
-  const [rows, setRows] = useState<Solution[]>(useApi ? [] : fallback);
+export function useSolutions(fetcher: () => Promise<ApiSolution[]>): Solution[] {
+  const [rows, setRows] = useState<Solution[]>([]);
   useEffect(() => {
-    if (!useApi) return;
     let active = true;
     fetcher()
       .then((r) => { if (active) setRows(toSolutions(r ?? [])); })
@@ -29,12 +27,12 @@ export function useSolutions(fallback: Solution[], fetcher: () => Promise<ApiSol
   return rows;
 }
 
-export function useMySolutions(slug: string, fallback: Solution[], recent = false): Solution[] {
+export function useMySolutions(slug: string, recent = false): Solution[] {
   const { getToken } = useData();
-  return useSolutions(fallback, () => api.mySolutions(getToken, slug, recent));
+  return useSolutions(() => api.mySolutions(getToken, slug, recent));
 }
 
-export function useFriendSolutions(friendId: string, slug: string, fallback: Solution[]): Solution[] {
+export function useFriendSolutions(friendId: string, slug: string): Solution[] {
   const { getToken } = useData();
-  return useSolutions(fallback, () => api.friendSolutions(getToken, friendId, slug));
+  return useSolutions(() => api.friendSolutions(getToken, friendId, slug));
 }

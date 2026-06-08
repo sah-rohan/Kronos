@@ -112,6 +112,10 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		rows, err := a.Store.GroupDifficulty(ctx)
 		return dataOrError(rows, err)
 
+	case method == "GET" && path == "/me/circle":
+		rows, err := a.Store.CircleDifficulty(ctx, user.ID)
+		return dataOrError(rows, err)
+
 	case method == "GET" && path == "/friends":
 		rows, err := a.Store.Friends(ctx, user.ID)
 		return dataOrError(rows, err)

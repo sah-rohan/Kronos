@@ -30,7 +30,7 @@ export function ChangeUsernameModal({ onClose, isAdmin = false }: { onClose: () 
 
   if (sent) {
     return (
-      <Modal title={isAdmin ? "Username updated" : "Request sent"} onClose={onClose}>
+      <Modal title={isAdmin ? "Username updated" : "Request sent"} onClose={onClose} fitContent>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d5f0db] text-[#2f7d46]">
             <Check className="h-4 w-4" />
@@ -52,7 +52,7 @@ export function ChangeUsernameModal({ onClose, isAdmin = false }: { onClose: () 
   }
 
   return (
-    <Modal title="Change LeetCode username" onClose={onClose}>
+    <Modal title="Change LeetCode username" onClose={onClose} fitContent>
       <p className="text-sm text-muted-foreground">
         {isAdmin
           ? "As an admin you can change your LeetCode username directly."
