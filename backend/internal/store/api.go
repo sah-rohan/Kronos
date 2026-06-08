@@ -112,6 +112,26 @@ func (p *Postgres) ListPending(ctx context.Context) ([]User, error) {
 	return users, rows.Err()
 }
 
+func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
+	rows, err := p.pool.Query(ctx, `
+		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role
+		from users
+		order by (status = 'approved') desc, display_name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	users := []User{}
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (p *Postgres) Approve(ctx context.Context, userID string) error {
 	_, err := p.pool.Exec(ctx, `update users set status = 'approved' where id = $1`, userID)
 	return err
