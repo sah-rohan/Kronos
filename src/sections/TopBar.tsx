@@ -3,6 +3,7 @@ import { ChevronDown, Moon, Sun, AtSign, LogOut, ShieldCheck, RefreshCw } from "
 import { SignOutButton } from "@clerk/clerk-react";
 import { useClerk } from "../lib/env";
 import { useData } from "../data/source";
+import { api } from "../lib/api";
 
 export function TopBar({
   name,
@@ -21,7 +22,7 @@ export function TopBar({
   isAdmin?: boolean;
   onAdmin?: () => void;
 }) {
-  const { refresh } = useData();
+  const { refresh, getToken } = useData();
   const [open, setOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -29,6 +30,7 @@ export function TopBar({
     if (syncing) return;
     setSyncing(true);
     try {
+      await api.syncNow(getToken).catch(() => {});
       await refresh();
     } finally {
       setSyncing(false);
@@ -79,7 +81,7 @@ export function TopBar({
               {isAdmin && onAdmin && (
                 <button onClick={() => { onAdmin(); setOpen(false); }} className={item}>
                   <ShieldCheck className="h-4 w-4" />
-                  Approve members
+                  Manage members
                 </button>
               )}
               <div className="my-1 h-px bg-border" />
