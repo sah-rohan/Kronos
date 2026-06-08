@@ -50,6 +50,7 @@ type Data = {
   calendar: Calendar;
   addFriend: (username: string) => Promise<void>;
   removeFriend: (id: string) => Promise<void>;
+  refresh: () => Promise<void>;
   getToken: TokenFn;
 };
 
@@ -114,6 +115,7 @@ function mockData(friends: Friend[], setFriends: (f: Friend[]) => void, getToken
     async removeFriend(id) {
       setFriends(friends.filter((f) => f.username !== id && f.name !== id));
     },
+    async refresh() {},
     getToken,
   };
 }
@@ -193,6 +195,7 @@ export function DataProvider({ getToken, children }: { getToken: TokenFn; childr
         await api.removeFriend(getToken, id);
         await refresh();
       },
+      refresh,
       getToken,
     });
   };

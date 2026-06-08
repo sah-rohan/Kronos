@@ -42,6 +42,18 @@ func handler(ctx context.Context) error {
 
 	results := engine.SyncAll(ctx, members, 16)
 	log.Printf("polled %d due members", len(results))
+
+	enricher := &poller.Enricher{
+		Detailer: leetcode.New(),
+		Store:    db,
+		Session:  config.Get(ctx, "LEETCODE_SESSION"),
+	}
+	enriched, err := enricher.Run(ctx, 200)
+	if err != nil {
+		log.Printf("enrich pass error: %v", err)
+		return nil
+	}
+	log.Printf("enriched %d submissions", enriched)
 	return nil
 }
 

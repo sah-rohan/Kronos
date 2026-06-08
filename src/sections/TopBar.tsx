@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, Moon, Sun, AtSign, LogOut, ShieldCheck } from "lucide-react";
+import { ChevronDown, Moon, Sun, AtSign, LogOut, ShieldCheck, RefreshCw } from "lucide-react";
 import { SignOutButton } from "@clerk/clerk-react";
 import { useClerk } from "../lib/env";
+import { useData } from "../data/source";
 
 export function TopBar({
   name,
@@ -20,7 +21,19 @@ export function TopBar({
   isAdmin?: boolean;
   onAdmin?: () => void;
 }) {
+  const { refresh } = useData();
   const [open, setOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const doSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await refresh();
+    } finally {
+      setSyncing(false);
+    }
+  };
   const item = "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted";
 
   return (
@@ -29,6 +42,16 @@ export function TopBar({
         <span className="font-display text-xl tracking-[0.08em] text-white">KRONOS</span>
       </div>
 
+      <div className="flex items-center gap-2">
+        <button
+          onClick={doSync}
+          disabled={syncing}
+          aria-label="Sync now"
+          title="Sync now"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-white/50 text-muted-foreground backdrop-blur-sm transition hover:bg-white/80 disabled:opacity-60"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+        </button>
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
@@ -76,6 +99,7 @@ export function TopBar({
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

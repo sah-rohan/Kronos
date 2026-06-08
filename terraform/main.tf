@@ -94,8 +94,9 @@ module "sync" {
   zip_path           = var.sync_zip
   ssm_parameter_arns = local.secret_arns
   environment = {
-    DATABASE_URL_SSM = module.ssm.name
-    SEASON_START     = var.season_start
+    DATABASE_URL_SSM     = module.ssm.name
+    SEASON_START         = var.season_start
+    LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
   }
 }
 

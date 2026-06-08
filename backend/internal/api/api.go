@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -35,7 +36,7 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 
 	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req))
 	if err != nil {
-		return reply(500, map[string]string{"error": err.Error()})
+		return serverError(err)
 	}
 
 	if a.AdminClerkID != "" && clerkID == a.AdminClerkID &&
@@ -60,7 +61,7 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 			if errors.Is(err, store.ErrUsernameTaken) {
 				return reply(409, map[string]string{"error": "username taken"})
 			}
-			return reply(500, map[string]string{"error": err.Error()})
+			return serverError(err)
 		}
 		return reply(200, map[string]bool{"ok": true})
 	}
@@ -122,13 +123,13 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 			if errors.Is(err, store.ErrNotFound) {
 				return reply(404, map[string]string{"error": "no approved user with that username"})
 			}
-			return reply(500, map[string]string{"error": err.Error()})
+			return serverError(err)
 		}
 		return reply(200, map[string]bool{"ok": true})
 
 	case method == "DELETE" && len(parts) == 2 && parts[0] == "friends":
 		if err := a.Store.RemoveFriend(ctx, user.ID, parts[1]); err != nil {
-			return reply(500, map[string]string{"error": err.Error()})
+			return serverError(err)
 		}
 		return reply(200, map[string]bool{"ok": true})
 
@@ -173,7 +174,7 @@ func (a *API) admin(ctx context.Context, method, path, body string) (response, e
 			if errors.Is(err, store.ErrUsernameTaken) {
 				return reply(409, map[string]string{"error": "username taken"})
 			}
-			return reply(500, map[string]string{"error": err.Error()})
+			return serverError(err)
 		}
 		return reply(200, map[string]bool{"ok": true})
 
@@ -208,16 +209,21 @@ func segments(path string) []string {
 	return strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
 }
 
+func serverError(err error) (response, error) {
+	log.Printf("server error: %v", err)
+	return reply(500, map[string]string{"error": "internal error"})
+}
+
 func dataOrError(data any, err error) (response, error) {
 	if err != nil {
-		return reply(500, map[string]string{"error": err.Error()})
+		return serverError(err)
 	}
 	return reply(200, data)
 }
 
 func okOrError(err error) (response, error) {
 	if err != nil {
-		return reply(500, map[string]string{"error": err.Error()})
+		return serverError(err)
 	}
 	return reply(200, map[string]bool{"ok": true})
 }
