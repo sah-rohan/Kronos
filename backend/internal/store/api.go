@@ -317,7 +317,7 @@ type DayCount struct {
 
 func (p *Postgres) Calendar(ctx context.Context, userID string) ([]DayCount, error) {
 	rows, err := p.pool.Query(ctx, `
-		select to_char(first_season_ac_at, 'YYYY-MM-DD') as d, count(*)
+		select to_char(first_season_ac_at at time zone 'UTC', 'YYYY-MM-DD') as d, count(*)
 		from solves
 		where user_id = $1 and first_season_ac_at is not null
 		group by d

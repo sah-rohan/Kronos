@@ -55,7 +55,7 @@ export function AuthGate() {
   }
   const name = clerkName || me.username || "You";
   return (
-    <DataProvider getToken={token}>
+    <DataProvider getToken={token} seasonStart={me.season}>
       <App
         isAdmin={me.role === "admin"}
         userName={name}

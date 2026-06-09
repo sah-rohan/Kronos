@@ -24,10 +24,17 @@ function fmtDate(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-function computeStreak(byDate: Record<string, number>): number {
-  let streak = 0;
+function computeStreak(
+  byDate: Record<string, number>,
+  seasonStart?: number,
+): number {
   const d = new Date();
-  while ((byDate[fmtDate(d)] ?? 0) > 0) {
+  if ((byDate[fmtDate(d)] ?? 0) === 0) {
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+  const floor = seasonStart ? fmtDate(new Date(seasonStart * 1000)) : "";
+  let streak = 0;
+  while ((byDate[fmtDate(d)] ?? 0) > 0 && fmtDate(d) >= floor) {
     streak++;
     d.setUTCDate(d.getUTCDate() - 1);
   }
@@ -108,9 +115,11 @@ function groupByCategory(problems: ApiProblem[]): Category[] {
 
 export function DataProvider({
   getToken,
+  seasonStart,
   children,
 }: {
   getToken: TokenFn;
+  seasonStart?: number;
   children: ReactNode;
 }) {
   const [remote, setRemote] = useState<Data | null>(null);
@@ -185,7 +194,7 @@ export function DataProvider({
       friends: apiFriends,
       friendsDifficulty: circleData,
       groupTotals: groupTotals ?? [],
-      calendar: { byDate, streak: computeStreak(byDate) },
+      calendar: { byDate, streak: computeStreak(byDate, seasonStart) },
       async addFriend(username) {
         await api.addFriend(getToken, username);
         await refresh();

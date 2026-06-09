@@ -52,7 +52,10 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 	}
 
 	if method == "GET" && path == "/me" {
-		return reply(200, user)
+		return reply(200, struct {
+			store.User
+			Season int64 `json:"season"`
+		}{user, a.Season})
 	}
 
 	if method == "POST" && path == "/me/profile" {

@@ -71,6 +71,7 @@ export type MeResponse = {
   status: string;
   role: string;
   theme: string;
+  season: number; 
 };
 export type ApiProblem = {
   slug: string;
