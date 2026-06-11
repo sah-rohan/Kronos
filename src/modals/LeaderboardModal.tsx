@@ -44,11 +44,20 @@ export function LeaderboardModal({
     : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
 
-  // Rank within the chosen scope so #1 is the top of the filtered set.
+  // Rank within the chosen scope so #1 is the top of the filtered set. Ties share
+  // a rank (competition ranking: 1, 2, 2, 4).
+  let lastVal: number | null = null;
+  let lastRank = 0;
   const ranked = [...members]
     .filter((m) => inScope(m.username))
     .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
-    .map((m, i) => ({ m, rank: i + 1 }))
+    .map((m, i) => {
+      const v = m.solvedByList[roadmap] ?? 0;
+      const rank = i > 0 && v === lastVal ? lastRank : i + 1;
+      lastVal = v;
+      lastRank = rank;
+      return { m, rank };
+    })
     .filter(({ m }) => !q || m.name.toLowerCase().includes(q) || (m.username ?? "").toLowerCase().includes(q));
 
   const footer = (

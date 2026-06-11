@@ -7,7 +7,18 @@ import type { ProblemList } from "../types";
 export function LeaderboardCard({ onOpen, roadmap }: { onOpen: () => void; roadmap: ProblemList }) {
   const { members, categories } = useData();
   const total = listTotal(categories, roadmap);
-  const ranked = [...members].sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0));
+  // Competition ranking: tied solvers share a rank (1, 2, 2, 4).
+  let lastVal: number | null = null;
+  let lastRank = 0;
+  const ranked = [...members]
+    .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
+    .map((m, i) => {
+      const v = m.solvedByList[roadmap] ?? 0;
+      const rank = i > 0 && v === lastVal ? lastRank : i + 1;
+      lastVal = v;
+      lastRank = rank;
+      return { m, rank };
+    });
   return (
     <Card className="lg:col-span-2" onClick={onOpen}>
       <div className="flex items-center justify-between">
@@ -15,14 +26,14 @@ export function LeaderboardCard({ onOpen, roadmap }: { onOpen: () => void; roadm
         <div className="text-xs text-muted-foreground">{ROADMAP_LABEL[roadmap]}</div>
       </div>
       <ul className="mt-5 space-y-3">
-        {ranked.slice(0, 4).map((m, i) => {
+        {ranked.slice(0, 4).map(({ m, rank }) => {
           const solved = m.solvedByList[roadmap] ?? 0;
           return (
             <li key={m.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
-              <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{i + 1}</div>
+              <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{rank}</div>
               <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${m.color}`}>
                 {m.initials}
-                {i === 0 && (
+                {rank === 1 && (
                   <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
                 )}
               </div>
@@ -42,7 +53,7 @@ export function LeaderboardCard({ onOpen, roadmap }: { onOpen: () => void; roadm
               <div className="flex-1">
                 <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className={i === 0 ? "h-full bg-coral" : "h-full bg-sky"}
+                    className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
                     style={{ width: `${total ? (solved / total) * 100 : 0}%` }}
                   />
                 </div>
