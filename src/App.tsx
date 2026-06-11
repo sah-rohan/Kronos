@@ -4,6 +4,7 @@ import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
 import { api } from "./lib/api";
+import { effectiveDark } from "./lib/theme";
 import type { Friend, Month, ProblemRef, ProblemList } from "./types";
 import { Clouds } from "./components/Clouds";
 import { TopBar } from "./sections/TopBar";
@@ -35,17 +36,17 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
   const [myProblem, setMyProblem] = useState<ProblemRef | null>(null);
   const [myProblemRecent, setMyProblemRecent] = useState(false);
+  const [myProblemLabel, setMyProblemLabel] = useState<string | undefined>(undefined);
   const [friendSol, setFriendSol] = useState<{ friend: Friend; problem: ProblemRef; recent: boolean } | null>(null);
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
   const hello = greeting(new Date());
 
-  // Apply the effective theme (auto follows the OS, live) + matching status-bar color.
+  // Apply the effective theme (auto = day/night by the local clock) + status-bar color.
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const dark = theme === "dark" || (theme === "auto" && mq.matches);
+      const dark = effectiveDark(theme);
       document.documentElement.classList.toggle("dark", dark);
       document.querySelectorAll('meta[name="theme-color"]').forEach((el) => el.remove());
       const meta = document.createElement("meta");
@@ -55,8 +56,17 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
     };
     apply();
     if (theme === "auto") {
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
+      // Re-evaluate as time passes (and when the tab regains focus) so it flips
+      // at the day/night boundary without a reload.
+      const id = setInterval(apply, 60000);
+      const onActive = () => apply();
+      document.addEventListener("visibilitychange", onActive);
+      window.addEventListener("focus", onActive);
+      return () => {
+        clearInterval(id);
+        document.removeEventListener("visibilitychange", onActive);
+        window.removeEventListener("focus", onActive);
+      };
     }
   }, [theme]);
 
@@ -98,7 +108,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
       {modal === "me" && (
         <ProgressModal
           onClose={() => setModal(null)}
-          onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblem(p); }}
+          onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblemLabel(undefined); setMyProblem(p); }}
         />
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
@@ -109,7 +119,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           setCal={setCal}
           onClose={() => setModal(null)}
           userName={userName}
-          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
+          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblemLabel("Solutions"); setMyProblem(p); }}
           onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem, recent: true })}
         />
       )}
@@ -118,7 +128,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
         <RecentActivityModal
           onClose={() => setModal(null)}
           userName={userName}
-          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
+          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblemLabel(undefined); setMyProblem(p); }}
           onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem, recent: true })}
         />
       )}
@@ -172,6 +182,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
         <MySolutionModal
           problem={myProblem}
           recent={myProblemRecent}
+          label={myProblemLabel}
           onBack={() => setMyProblem(null)}
           onClose={() => {
             setMyProblem(null);

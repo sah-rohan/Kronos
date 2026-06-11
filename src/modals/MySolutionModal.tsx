@@ -10,18 +10,20 @@ export function MySolutionModal({
   onClose,
   onBack,
   recent = false,
+  label,
 }: {
   problem: ProblemRef;
   onClose: () => void;
   onBack?: () => void;
   recent?: boolean;
+  label?: string;
 }) {
   const solutions = useMySolutions(problem.slug, recent);
   return (
     <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">
         <div className="flex-1 text-sm font-medium">
-          {recent ? "Your recent solutions" : "Your best per language"}
+          {label ?? (recent ? "Your recent solutions" : "Your best per language")}
         </div>
         <a
           href={leetcodeUrl(problem.slug)}

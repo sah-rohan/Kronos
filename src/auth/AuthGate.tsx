@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { api, setDisplayName, type MeResponse, type TokenFn } from "../lib/api";
+import { effectiveDark } from "../lib/theme";
 import { DataProvider } from "../data/source";
 import App from "../App";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -32,12 +33,8 @@ export function AuthGate() {
 
   useEffect(() => {
     if (me && typeof me === "object") {
-      const mode = me.theme || "auto";
-      const dark =
-        mode === "dark" ||
-        (mode === "auto" &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches);
-      document.documentElement.classList.toggle("dark", dark);
+      const mode = (me.theme as "auto" | "light" | "dark") || "auto";
+      document.documentElement.classList.toggle("dark", effectiveDark(mode));
     }
   }, [me]);
 
