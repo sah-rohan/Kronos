@@ -14,6 +14,8 @@ create table if not exists users (
 );
 
 alter table users add column if not exists active boolean not null default true;
+-- Pending LeetCode-username change requested by the user; admin reviews & applies.
+alter table users add column if not exists requested_username text;
 
 create table if not exists groups (
   id              uuid primary key default gen_random_uuid(),

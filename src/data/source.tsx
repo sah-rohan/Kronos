@@ -10,6 +10,7 @@ import type { TokenFn, ApiProblem } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { LoadingScreen } from "../components/LoadingScreen";
 import type {
+  CalendarProblem,
   Category,
   DifficultyTotal,
   Friend,
@@ -18,7 +19,11 @@ import type {
   RecentItem,
 } from "../types";
 
-export type Calendar = { byDate: Record<string, number>; streak: number };
+export type Calendar = {
+  byDate: Record<string, number>;
+  byDateProblems: Record<string, CalendarProblem[]>;
+  streak: number;
+};
 
 function fmtDate(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
@@ -133,10 +138,19 @@ export function DataProvider({
       api.friends(getToken),
     ]);
     const days = await api.calendar(getToken).catch(() => []);
+    const calProblems = await api.calendarProblems(getToken).catch(() => []);
     const groupTotals = await api.groupDifficulty(getToken).catch(() => []);
     const circle = await api.circleDifficulty(getToken).catch(() => []);
     const byDate: Record<string, number> = {};
     for (const d of days ?? []) byDate[d.date] = d.count;
+    const byDateProblems: Record<string, CalendarProblem[]> = {};
+    for (const p of calProblems ?? []) {
+      (byDateProblems[p.date] ??= []).push({
+        slug: p.slug,
+        name: p.title,
+        diff: p.difficulty,
+      });
+    }
     const categories = groupByCategory(progress ?? []);
     // Back-compat: if the API hasn't shipped the list flags yet, treat every
     // problem as NeetCode 150 so Progress/leaderboard aren't empty pre-deploy.
@@ -190,11 +204,12 @@ export function DataProvider({
           initials: initialsOf(name),
           color: colorFor(name),
         })),
+        at: r.at,
       })),
       friends: apiFriends,
       friendsDifficulty: circleData,
       groupTotals: groupTotals ?? [],
-      calendar: { byDate, streak: computeStreak(byDate, seasonStart) },
+      calendar: { byDate, byDateProblems, streak: computeStreak(byDate, seasonStart) },
       async addFriend(username) {
         await api.addFriend(getToken, username);
         await refresh();

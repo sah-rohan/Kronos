@@ -13,6 +13,7 @@ import (
 var (
 	once   sync.Once
 	client *ssm.Client
+	cache  sync.Map // resolved key -> value, so each secret is decrypted once per container
 )
 
 func ssmClient(ctx context.Context) *ssm.Client {
@@ -29,6 +30,11 @@ func Get(ctx context.Context, key string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
+	// Cache decrypted secrets per warm container to avoid a KMS Decrypt on every
+	// call (the sync Lambda runs once a minute).
+	if v, ok := cache.Load(key); ok {
+		return v.(string)
+	}
 	name := os.Getenv(key + "_SSM")
 	if name == "" {
 		return ""
@@ -44,5 +50,7 @@ func Get(ctx context.Context, key string) string {
 	if err != nil {
 		return ""
 	}
-	return aws.ToString(out.Parameter.Value)
+	val := aws.ToString(out.Parameter.Value)
+	cache.Store(key, val)
+	return val
 }

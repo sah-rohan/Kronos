@@ -13,17 +13,17 @@ export function ChangeUsernameModal({ onClose, isAdmin = false }: { onClose: () 
 
   const submit = async () => {
     if (!username.trim()) return;
-    if (!isAdmin) {
-      setSent(true);
-      return;
-    }
     setSaving(true);
     setError("");
     try {
-      await api.setProfile(getToken, username.trim(), "");
+      if (isAdmin) {
+        await api.setProfile(getToken, username.trim(), "");
+      } else {
+        await api.requestUsername(getToken, username.trim());
+      }
       setSent(true);
     } catch (e) {
-      setError(String(e).includes("409") ? "That LeetCode username is already taken." : "Could not change. Try again.");
+      setError(String(e).includes("409") ? "That LeetCode username is already taken." : "Could not submit. Try again.");
       setSaving(false);
     }
   };

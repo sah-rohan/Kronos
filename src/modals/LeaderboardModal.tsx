@@ -3,6 +3,7 @@ import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
+import { useLeaderboardScope, type LeaderboardScope } from "../lib/leaderboardScope";
 import type { ProblemList } from "../types";
 
 const barColor: Record<string, string> = {
@@ -10,6 +11,11 @@ const barColor: Record<string, string> = {
   Medium: "bg-[#f5c26b]",
   Hard: "bg-coral",
 };
+
+const SCOPES: { key: LeaderboardScope; label: string }[] = [
+  { key: "everyone", label: "Everyone" },
+  { key: "friends", label: "Friends" },
+];
 
 export function LeaderboardModal({
   onClose,
@@ -20,17 +26,27 @@ export function LeaderboardModal({
   roadmap: ProblemList;
   setRoadmap: (r: ProblemList) => void;
 }) {
-  const { members, categories, groupTotals, friendsDifficulty } = useData();
+  const { members, friends, categories, groupTotals, friendsDifficulty } = useData();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const roadmapTotal = listTotal(categories, roadmap);
+  const { scope, setScope } = useLeaderboardScope();
+
+  const friendUsernames = new Set(friends.map((f) => f.username));
+
+  const inScope = (username?: string) => {
+    if (scope === "friends") return !!username && friendUsernames.has(username);
+    return true;
+  };
 
   const totals = groupTotals.length > 0
     ? groupTotals
     : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
 
+  // Rank within the chosen scope so #1 is the top of the filtered set.
   const ranked = [...members]
+    .filter((m) => inScope(m.username))
     .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
     .map((m, i) => ({ m, rank: i + 1 }))
     .filter(({ m }) => !q || m.name.toLowerCase().includes(q) || (m.username ?? "").toLowerCase().includes(q));
@@ -76,6 +92,20 @@ export function LeaderboardModal({
           </button>
         ))}
       </div>
+      <div className="mb-4 flex flex-wrap gap-1 rounded-full border border-border bg-background/60 p-1">
+        {SCOPES.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setScope(s.key)}
+            className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              scope === s.key ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -123,7 +153,15 @@ export function LeaderboardModal({
             </div>
           </li>
         ))}
-        {ranked.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">No people match “{query}”.</li>}
+        {ranked.length === 0 && (
+          <li className="py-6 text-center text-sm text-muted-foreground">
+            {q
+              ? `No people match “${query}”.`
+              : scope === "friends"
+                ? "No friends on the leaderboard yet."
+                : "No people yet."}
+          </li>
+        )}
       </ul>
     </Modal>
   );

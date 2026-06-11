@@ -1,6 +1,7 @@
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 import { diffStyles } from "../data/problems";
+import { fmtShortDate } from "../lib/date";
 
 export function RecentActivityCard({ onOpen, userName }: { onOpen: () => void; userName: string }) {
   const { recent } = useData();
@@ -18,7 +19,10 @@ export function RecentActivityCard({ onOpen, userName }: { onOpen: () => void; u
         {mine.slice(0, 5).map((r) => (
           <li key={r.n} className="flex items-center gap-4 py-3.5">
             <div className="w-10 text-xs text-muted-foreground tabular-nums">#{r.n}</div>
-            <div className="min-w-0 flex-1 truncate text-sm">{r.name}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm">{r.name}</div>
+              {r.at && <div className="text-xs text-muted-foreground">{fmtShortDate(r.at)}</div>}
+            </div>
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}>
               {r.diff}
             </span>

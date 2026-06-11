@@ -14,7 +14,8 @@ export type Member = {
   streak?: number;
   username?: string;
 };
-export type RecentItem = { n: number; slug: string; name: string; diff: string; who: Person[] };
+export type RecentItem = { n: number; slug: string; name: string; diff: string; who: Person[]; at: string };
+export type CalendarProblem = { slug: string; name: string; diff: string };
 export type DifficultyTotal = { label: string; count: number };
 export type Category = { title: string; items: Problem[] };
 export type ProblemRef = { name: string; slug: string; diff: string };

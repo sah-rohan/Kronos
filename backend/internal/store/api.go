@@ -8,14 +8,15 @@ import (
 )
 
 type User struct {
-	ID           string `json:"id"`
-	ClerkID      string `json:"-"`
-	LeetcodeUser string `json:"username"`
-	GithubUser   string `json:"github"`
-	DisplayName  string `json:"name"`
-	Status       string `json:"status"`
-	Role         string `json:"role"`
-	Theme        string `json:"theme"`
+	ID                string `json:"id"`
+	ClerkID           string `json:"-"`
+	LeetcodeUser      string `json:"username"`
+	GithubUser        string `json:"github"`
+	DisplayName       string `json:"name"`
+	Status            string `json:"status"`
+	Role              string `json:"role"`
+	Theme             string `json:"theme"`
+	RequestedUsername string `json:"requestedUsername"`
 }
 
 type LeaderRow struct {
@@ -81,10 +82,20 @@ func (p *Postgres) SetTheme(ctx context.Context, userID, theme string) error {
 }
 
 func (p *Postgres) SetUsername(ctx context.Context, userID, leetcodeUser string) error {
-	_, err := p.pool.Exec(ctx, `update users set leetcode_user = $2 where id = $1`, userID, leetcodeUser)
+	// Applying a username also clears any pending request for it.
+	_, err := p.pool.Exec(ctx,
+		`update users set leetcode_user = $2, requested_username = null where id = $1`,
+		userID, leetcodeUser)
 	if isUniqueViolation(err) {
 		return ErrUsernameTaken
 	}
+	return err
+}
+
+// RequestUsername records a user's desired LeetCode username for admin review.
+func (p *Postgres) RequestUsername(ctx context.Context, userID, leetcodeUser string) error {
+	_, err := p.pool.Exec(ctx,
+		`update users set requested_username = $2 where id = $1`, userID, leetcodeUser)
 	return err
 }
 
@@ -119,10 +130,10 @@ func (p *Postgres) ListPending(ctx context.Context) ([]User, error) {
 
 func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
 	rows, err := p.pool.Query(ctx, `
-		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role
+		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, coalesce(requested_username, '')
 		from users
 		where active
-		order by (status = 'approved') desc, display_name`)
+		order by (requested_username is not null) desc, (status = 'approved') desc, display_name`)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +141,7 @@ func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
 	users := []User{}
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role); err != nil {
+		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role, &u.RequestedUsername); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -151,6 +162,63 @@ func (p *Postgres) MakeAdmin(ctx context.Context, userID string) error {
 func (p *Postgres) DeleteUser(ctx context.Context, userID string) error {
 	_, err := p.pool.Exec(ctx, `update users set active = false where id = $1`, userID)
 	return err
+}
+
+// PurgeUser hard-deletes a user and all their data (solves/solutions/friendships
+// cascade). Used to reject a pending sign-up so the Clerk ID + LeetCode username
+// free up and they can register again.
+func (p *Postgres) PurgeUser(ctx context.Context, userID string) error {
+	_, err := p.pool.Exec(ctx, `delete from users where id = $1`, userID)
+	return err
+}
+
+type Analytics struct {
+	Users    int        `json:"users"`    // active, approved members
+	Pending  int        `json:"pending"`  // awaiting approval
+	Solves   int        `json:"solves"`   // total season solves
+	Solves7d int        `json:"solves7d"` // solves in the last 7 days
+	Active7d int        `json:"active7d"` // distinct members who solved in last 7 days
+	PerDay   []DayCount `json:"perDay"`   // solves per UTC day, last 14 days
+}
+
+// Analytics returns group-usage aggregates for the admin dashboard. All counts
+// are derived from existing data — no tracking, no external service.
+func (p *Postgres) Analytics(ctx context.Context) (Analytics, error) {
+	var a Analytics
+	err := p.pool.QueryRow(ctx, `
+		select
+			(select count(*) from users where active and status = 'approved'),
+			(select count(*) from users where active and status = 'pending'),
+			(select count(*) from solves where first_season_ac_at is not null),
+			(select count(*) from solves where first_season_ac_at >= now() - interval '7 days'),
+			(select count(distinct user_id) from solves where first_season_ac_at >= now() - interval '7 days')
+	`).Scan(&a.Users, &a.Pending, &a.Solves, &a.Solves7d, &a.Active7d)
+	if err != nil {
+		return a, err
+	}
+
+	rows, err := p.pool.Query(ctx, `
+		select to_char(d::date, 'YYYY-MM-DD'), coalesce(c.count, 0)
+		from generate_series((now() at time zone 'UTC')::date - 13, (now() at time zone 'UTC')::date, interval '1 day') d
+		left join (
+			select (first_season_ac_at at time zone 'UTC')::date as day, count(*)
+			from solves where first_season_ac_at is not null
+			group by day
+		) c on c.day = d::date
+		order by d`)
+	if err != nil {
+		return a, err
+	}
+	defer rows.Close()
+	a.PerDay = []DayCount{}
+	for rows.Next() {
+		var dc DayCount
+		if err := rows.Scan(&dc.Date, &dc.Count); err != nil {
+			return a, err
+		}
+		a.PerDay = append(a.PerDay, dc)
+	}
+	return a, rows.Err()
 }
 
 func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, error) {
@@ -215,6 +283,7 @@ type RecentRow struct {
 	Name       string   `json:"name"`
 	Difficulty string   `json:"diff"`
 	Who        []string `json:"who"`
+	At         string   `json:"at"` // most recent solve, UTC YYYY-MM-DD
 }
 
 type DifficultyTotal struct {
@@ -225,7 +294,8 @@ type DifficultyTotal struct {
 func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 	rows, err := p.pool.Query(ctx, `
 		select pr.id, pr.slug, pr.title, pr.difficulty,
-		       array_agg(u.display_name order by s.first_season_ac_at asc)
+		       array_agg(u.display_name order by s.first_season_ac_at asc),
+		       to_char(max(s.first_season_ac_at) at time zone 'UTC', 'YYYY-MM-DD')
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
@@ -240,10 +310,42 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 	out := []RecentRow{}
 	for rows.Next() {
 		var r RecentRow
-		if err := rows.Scan(&r.Number, &r.Slug, &r.Name, &r.Difficulty, &r.Who); err != nil {
+		if err := rows.Scan(&r.Number, &r.Slug, &r.Name, &r.Difficulty, &r.Who, &r.At); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+type CalendarProblem struct {
+	Date       string `json:"date"` // UTC YYYY-MM-DD
+	Slug       string `json:"slug"`
+	Title      string `json:"title"`
+	Difficulty string `json:"difficulty"`
+}
+
+// CalendarProblems lists every problem the user solved this season with its UTC
+// solve date, so the calendar can show what was done on a given day.
+func (p *Postgres) CalendarProblems(ctx context.Context, userID string) ([]CalendarProblem, error) {
+	rows, err := p.pool.Query(ctx, `
+		select to_char(s.first_season_ac_at at time zone 'UTC', 'YYYY-MM-DD'),
+		       pr.slug, pr.title, pr.difficulty
+		from solves s
+		join problems pr on pr.id = s.problem_id
+		where s.user_id = $1 and s.first_season_ac_at is not null
+		order by s.first_season_ac_at desc`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []CalendarProblem{}
+	for rows.Next() {
+		var c CalendarProblem
+		if err := rows.Scan(&c.Date, &c.Slug, &c.Title, &c.Difficulty); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
 	}
 	return out, rows.Err()
 }
@@ -509,6 +611,28 @@ func (p *Postgres) FriendProgress(ctx context.Context, userID, friendID string) 
 		return nil, ErrNotFound
 	}
 	return p.Progress(ctx, friendID)
+}
+
+func (p *Postgres) FriendCalendar(ctx context.Context, userID, friendID string) ([]DayCount, error) {
+	ok, err := p.areFriends(ctx, userID, friendID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return p.Calendar(ctx, friendID)
+}
+
+func (p *Postgres) FriendCalendarProblems(ctx context.Context, userID, friendID string) ([]CalendarProblem, error) {
+	ok, err := p.areFriends(ctx, userID, friendID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return p.CalendarProblems(ctx, friendID)
 }
 
 func (p *Postgres) MySolution(ctx context.Context, userID, slug string, recent bool) ([]SolutionRow, error) {

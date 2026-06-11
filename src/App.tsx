@@ -102,7 +102,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
-      {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} />}
+      {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} userName={userName} />}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} />}
       {modal === "recent" && (
         <RecentActivityModal

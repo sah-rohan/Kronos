@@ -106,6 +106,16 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		}
 		return reply(200, map[string]bool{"ok": true})
 
+	case method == "POST" && path == "/me/username-request":
+		var in struct {
+			Username string `json:"username"`
+		}
+		json.Unmarshal([]byte(body), &in)
+		if strings.TrimSpace(in.Username) == "" {
+			return reply(400, map[string]string{"error": "username required"})
+		}
+		return okOrError(a.Store.RequestUsername(ctx, user.ID, strings.TrimSpace(in.Username)))
+
 	case method == "POST" && path == "/me/theme":
 		var in struct {
 			Theme string `json:"theme"`
@@ -119,6 +129,10 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 
 	case method == "GET" && path == "/me/calendar":
 		rows, err := a.Store.Calendar(ctx, user.ID)
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/me/calendar/problems":
+		rows, err := a.Store.CalendarProblems(ctx, user.ID)
 		return dataOrError(rows, err)
 
 	case method == "GET" && len(parts) == 3 && parts[0] == "me" && parts[1] == "problem":
@@ -154,7 +168,9 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		return dataOrError(rows, err)
 
 	case method == "POST" && path == "/friends/requests/accept":
-		var in struct{ ID string `json:"id"` }
+		var in struct {
+			ID string `json:"id"`
+		}
 		json.Unmarshal([]byte(body), &in)
 		if err := a.Store.AcceptRequest(ctx, user.ID, in.ID); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
@@ -165,12 +181,16 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		return reply(200, map[string]bool{"ok": true})
 
 	case method == "POST" && path == "/friends/requests/decline":
-		var in struct{ ID string `json:"id"` }
+		var in struct {
+			ID string `json:"id"`
+		}
 		json.Unmarshal([]byte(body), &in)
 		return okOrError(a.Store.DeclineRequest(ctx, user.ID, in.ID))
 
 	case method == "POST" && path == "/friends":
-		var in struct{ Username string `json:"username"` }
+		var in struct {
+			Username string `json:"username"`
+		}
 		json.Unmarshal([]byte(body), &in)
 		if err := a.Store.SendFriendRequest(ctx, user.ID, in.Username); err != nil {
 			if errors.Is(err, store.ErrNotFound) {
@@ -191,6 +211,20 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 
 	case method == "GET" && len(parts) == 3 && parts[0] == "friends" && parts[2] == "progress":
 		rows, err := a.Store.FriendProgress(ctx, user.ID, parts[1])
+		if errors.Is(err, store.ErrNotFound) {
+			return reply(404, map[string]string{"error": "not a friend"})
+		}
+		return dataOrError(rows, err)
+
+	case method == "GET" && len(parts) == 3 && parts[0] == "friends" && parts[2] == "calendar":
+		rows, err := a.Store.FriendCalendar(ctx, user.ID, parts[1])
+		if errors.Is(err, store.ErrNotFound) {
+			return reply(404, map[string]string{"error": "not a friend"})
+		}
+		return dataOrError(rows, err)
+
+	case method == "GET" && len(parts) == 4 && parts[0] == "friends" && parts[2] == "calendar" && parts[3] == "problems":
+		rows, err := a.Store.FriendCalendarProblems(ctx, user.ID, parts[1])
 		if errors.Is(err, store.ErrNotFound) {
 			return reply(404, map[string]string{"error": "not a friend"})
 		}
@@ -219,8 +253,14 @@ func (a *API) admin(ctx context.Context, method, path, body string) (response, e
 		users, err := a.Store.AllUsers(ctx)
 		return dataOrError(users, err)
 
+	case method == "GET" && path == "/admin/analytics":
+		stats, err := a.Store.Analytics(ctx)
+		return dataOrError(stats, err)
+
 	case method == "POST" && path == "/admin/approve":
-		var in struct{ ID string `json:"id"` }
+		var in struct {
+			ID string `json:"id"`
+		}
 		json.Unmarshal([]byte(body), &in)
 		return okOrError(a.Store.Approve(ctx, in.ID))
 
@@ -237,6 +277,9 @@ func (a *API) admin(ctx context.Context, method, path, body string) (response, e
 			return serverError(err)
 		}
 		return reply(200, map[string]bool{"ok": true})
+
+	case method == "DELETE" && len(parts) == 4 && parts[0] == "admin" && parts[1] == "users" && parts[3] == "purge":
+		return okOrError(a.Store.PurgeUser(ctx, parts[2]))
 
 	case method == "DELETE" && len(parts) == 3 && parts[0] == "admin" && parts[1] == "users":
 		return okOrError(a.Store.DeleteUser(ctx, parts[2]))

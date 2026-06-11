@@ -16,20 +16,7 @@ resource "aws_lambda_permission" "sync" {
   source_arn    = aws_cloudwatch_event_rule.sync.arn
 }
 
-resource "aws_cloudwatch_event_rule" "enrich" {
-  name                = "${var.name}-enrich"
-  schedule_expression = var.enrich_schedule
-}
-
-resource "aws_cloudwatch_event_target" "enrich" {
-  rule = aws_cloudwatch_event_rule.enrich.name
-  arn  = var.enrich_function_arn
-}
-
-resource "aws_lambda_permission" "enrich" {
-  statement_id  = "AllowEnrichSchedule"
-  action        = "lambda:InvokeFunction"
-  function_name = var.enrich_function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.enrich.arn
-}
+# The standalone enrich cron is intentionally removed: the sync Lambda already
+# runs the enricher inline every pass (enricher.Run), so a separate per-minute
+# enrich invocation was duplicate work (extra Lambda + KMS decrypts). The enrich
+# Lambda itself is left defined but un-triggered.

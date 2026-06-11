@@ -37,3 +37,8 @@ variable "admin_clerk_id" {
   type    = string
   default = "user_3EmSENtZcQZXU9q9ptLa7uedUGK"
 }
+
+variable "domain_name" {
+  type    = string
+  default = ""
+}

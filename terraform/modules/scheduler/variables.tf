@@ -23,6 +23,8 @@ variable "sync_schedule" {
   default = "rate(1 minute)"
 }
 
+# Unused: the enrich cron was removed (sync enriches inline). Kept so the root
+# module can still pass enrich_* without error.
 variable "enrich_schedule" {
   type    = string
   default = "rate(1 minute)"

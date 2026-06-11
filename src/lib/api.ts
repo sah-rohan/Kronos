@@ -31,6 +31,8 @@ export const api = {
   setProfile: (t: TokenFn, username: string, github: string) =>
     call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
   syncNow: (t: TokenFn) => call("/me/sync", t, { method: "POST" }),
+  requestUsername: (t: TokenFn, username: string) =>
+    call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
     call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
@@ -39,6 +41,7 @@ export const api = {
   groupDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/group/difficulty", t),
   circleDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/me/circle", t),
   calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
+  calendarProblems: (t: TokenFn) => call<ApiCalendarProblem[]>("/me/calendar/problems", t),
   mySolutions: (t: TokenFn, slug: string, recent = false) =>
     call<ApiSolution[]>(`/me/problem/${slug}${recent ? "?recent=1" : ""}`, t),
   friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
@@ -52,15 +55,20 @@ export const api = {
     call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),
   removeFriend: (t: TokenFn, id: string) => call(`/friends/${id}`, t, { method: "DELETE" }),
   friendProgress: (t: TokenFn, id: string) => call<ApiProblem[]>(`/friends/${id}/progress`, t),
+  friendCalendar: (t: TokenFn, id: string) => call<ApiDay[]>(`/friends/${id}/calendar`, t),
+  friendCalendarProblems: (t: TokenFn, id: string) =>
+    call<ApiCalendarProblem[]>(`/friends/${id}/calendar/problems`, t),
   friendSolutions: (t: TokenFn, id: string, slug: string) =>
     call<ApiSolution[]>(`/friends/${id}/problem/${slug}`, t),
   adminPending: (t: TokenFn) => call<MeResponse[]>("/admin/pending", t),
   adminUsers: (t: TokenFn) => call<MeResponse[]>("/admin/users", t),
+  adminAnalytics: (t: TokenFn) => call<Analytics>("/admin/analytics", t),
   adminApprove: (t: TokenFn, id: string) =>
     call("/admin/approve", t, { method: "POST", body: JSON.stringify({ id }) }),
   adminSetUsername: (t: TokenFn, id: string, username: string) =>
     call("/admin/username", t, { method: "POST", body: JSON.stringify({ id, username }) }),
   adminRemove: (t: TokenFn, id: string) => call(`/admin/users/${id}`, t, { method: "DELETE" }),
+  adminReject: (t: TokenFn, id: string) => call(`/admin/users/${id}/purge`, t, { method: "DELETE" }),
 };
 
 export type MeResponse = {
@@ -71,7 +79,8 @@ export type MeResponse = {
   status: string;
   role: string;
   theme: string;
-  season: number; 
+  season: number;
+  requestedUsername?: string;
 };
 export type ApiProblem = {
   slug: string;
@@ -85,9 +94,18 @@ export type ApiProblem = {
   neetcode250: boolean;
 };
 export type ApiLeader = { name: string; username: string; blind75: number; neetcode150: number; neetcode250: number; all: number };
-export type ApiRecent = { n: number; slug: string; name: string; diff: string; who: string[] };
+export type ApiRecent = { n: number; slug: string; name: string; diff: string; who: string[]; at: string };
+export type ApiCalendarProblem = { date: string; slug: string; title: string; difficulty: string };
 export type ApiDifficultyTotal = { label: string; count: number };
 export type ApiDay = { date: string; count: number };
+export type Analytics = {
+  users: number;
+  pending: number;
+  solves: number;
+  solves7d: number;
+  active7d: number;
+  perDay: ApiDay[];
+};
 export type ApiFriend = { id: string; name: string; username: string; solved: number };
 export type ApiSolution = {
   slug: string;

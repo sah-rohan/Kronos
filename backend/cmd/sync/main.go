@@ -14,19 +14,14 @@ import (
 	"kronos/internal/store"
 )
 
-func handler(ctx context.Context) error {
-	db, err := store.NewPostgres(ctx, config.Get(ctx, "DATABASE_URL"))
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
+// run executes one sync+enrich pass. The DB pool, secrets, and season are
+// resolved once at cold-start (in main) and reused across invocations so the
+// per-minute cron doesn't re-decrypt SSM secrets (KMS) or reopen the pool.
+func run(ctx context.Context, db *store.Postgres, session string, season int64) error {
 	catalog, err := db.Catalog(ctx)
 	if err != nil {
 		return err
 	}
-
-	season, _ := strconv.ParseInt(os.Getenv("SEASON_START"), 10, 64)
 
 	engine := &poller.Engine{
 		Source:  leetcode.New(),
@@ -46,7 +41,7 @@ func handler(ctx context.Context) error {
 	enricher := &poller.Enricher{
 		Detailer: leetcode.New(),
 		Store:    db,
-		Session:  config.Get(ctx, "LEETCODE_SESSION"),
+		Session:  session,
 	}
 	enriched, err := enricher.Run(ctx, 200)
 	if err != nil {
@@ -58,5 +53,17 @@ func handler(ctx context.Context) error {
 }
 
 func main() {
-	lambda.Start(handler)
+	ctx := context.Background()
+
+	db, err := store.NewPostgres(ctx, config.Get(ctx, "DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	session := config.Get(ctx, "LEETCODE_SESSION")
+	season, _ := strconv.ParseInt(os.Getenv("SEASON_START"), 10, 64)
+
+	lambda.Start(func(ctx context.Context) error {
+		return run(ctx, db, session, season)
+	})
 }
