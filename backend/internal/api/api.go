@@ -116,6 +116,9 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		}
 		return okOrError(a.Store.RequestUsername(ctx, user.ID, strings.TrimSpace(in.Username)))
 
+	case method == "POST" && path == "/me/visit":
+		return okOrError(a.Store.RecordVisit(ctx, user.ID))
+
 	case method == "POST" && path == "/me/theme":
 		var in struct {
 			Theme string `json:"theme"`

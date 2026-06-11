@@ -133,6 +133,15 @@ create table if not exists pending_confirmations (
   resolved        boolean not null default false
 );
 
+-- One row per app open, for the admin "views" metric. user_id is nulled (not
+-- deleted) if the user is purged, so the historical count is preserved.
+create table if not exists visits (
+  id       uuid primary key default gen_random_uuid(),
+  user_id  uuid references users(id) on delete set null,
+  at       timestamptz not null default now()
+);
+create index if not exists idx_visits_at on visits(at);
+
 create index if not exists idx_solves_user on solves(user_id);
 create index if not exists idx_submissions_pending on submissions(enriched) where not enriched;
 create index if not exists idx_solutions_user_problem on solutions(user_id, problem_id);

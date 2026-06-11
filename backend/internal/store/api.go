@@ -178,7 +178,14 @@ type Analytics struct {
 	Solves   int        `json:"solves"`   // total season solves
 	Solves7d int        `json:"solves7d"` // solves in the last 7 days
 	Active7d int        `json:"active7d"` // distinct members who solved in last 7 days
+	Views    int        `json:"views"`    // total app opens
+	Views7d  int        `json:"views7d"`  // app opens in the last 7 days
 	PerDay   []DayCount `json:"perDay"`   // solves per UTC day, last 14 days
+}
+
+func (p *Postgres) RecordVisit(ctx context.Context, userID string) error {
+	_, err := p.pool.Exec(ctx, `insert into visits (user_id) values ($1)`, userID)
+	return err
 }
 
 // Analytics returns group-usage aggregates for the admin dashboard. All counts
@@ -191,8 +198,10 @@ func (p *Postgres) Analytics(ctx context.Context) (Analytics, error) {
 			(select count(*) from users where active and status = 'pending'),
 			(select count(*) from solves where first_season_ac_at is not null),
 			(select count(*) from solves where first_season_ac_at >= now() - interval '7 days'),
-			(select count(distinct user_id) from solves where first_season_ac_at >= now() - interval '7 days')
-	`).Scan(&a.Users, &a.Pending, &a.Solves, &a.Solves7d, &a.Active7d)
+			(select count(distinct user_id) from solves where first_season_ac_at >= now() - interval '7 days'),
+			(select count(*) from visits),
+			(select count(*) from visits where at >= now() - interval '7 days')
+	`).Scan(&a.Users, &a.Pending, &a.Solves, &a.Solves7d, &a.Active7d, &a.Views, &a.Views7d)
 	if err != nil {
 		return a, err
 	}

@@ -86,8 +86,10 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       {stats && (
         <>
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Overview</div>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {[
+              { label: "Views", value: stats.views },
+              { label: "Views 7d", value: stats.views7d },
               { label: "Members", value: stats.users },
               { label: "Active 7d", value: stats.active7d },
               { label: "Solves 7d", value: stats.solves7d },

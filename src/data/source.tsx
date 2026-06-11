@@ -225,6 +225,7 @@ export function DataProvider({
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
+    api.visit(getToken).catch(() => {}); // log one app open for admin analytics
     const quiet = () => refresh().catch(() => {});
     const id = setInterval(quiet, 30000);
     const onVisible = () => {

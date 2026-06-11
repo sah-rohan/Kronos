@@ -31,6 +31,7 @@ export const api = {
   setProfile: (t: TokenFn, username: string, github: string) =>
     call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
   syncNow: (t: TokenFn) => call("/me/sync", t, { method: "POST" }),
+  visit: (t: TokenFn) => call("/me/visit", t, { method: "POST" }),
   requestUsername: (t: TokenFn, username: string) =>
     call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
@@ -104,6 +105,8 @@ export type Analytics = {
   solves: number;
   solves7d: number;
   active7d: number;
+  views: number;
+  views7d: number;
   perDay: ApiDay[];
 };
 export type ApiFriend = { id: string; name: string; username: string; solved: number };
