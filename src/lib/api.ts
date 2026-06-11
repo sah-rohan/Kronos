@@ -59,8 +59,8 @@ export const api = {
   friendCalendar: (t: TokenFn, id: string) => call<ApiDay[]>(`/friends/${id}/calendar`, t),
   friendCalendarProblems: (t: TokenFn, id: string) =>
     call<ApiCalendarProblem[]>(`/friends/${id}/calendar/problems`, t),
-  friendSolutions: (t: TokenFn, id: string, slug: string) =>
-    call<ApiSolution[]>(`/friends/${id}/problem/${slug}`, t),
+  friendSolutions: (t: TokenFn, id: string, slug: string, recent = false) =>
+    call<ApiSolution[]>(`/friends/${id}/problem/${slug}${recent ? "?recent=1" : ""}`, t),
   adminPending: (t: TokenFn) => call<MeResponse[]>("/admin/pending", t),
   adminUsers: (t: TokenFn) => call<MeResponse[]>("/admin/users", t),
   adminAnalytics: (t: TokenFn) => call<Analytics>("/admin/analytics", t),

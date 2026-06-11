@@ -648,7 +648,7 @@ func (p *Postgres) MySolution(ctx context.Context, userID, slug string, recent b
 	return p.solutions(ctx, userID, slug, recent)
 }
 
-func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug string) ([]SolutionRow, error) {
+func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug string, recent bool) ([]SolutionRow, error) {
 	ok, err := p.areFriends(ctx, userID, friendID)
 	if err != nil {
 		return nil, err
@@ -656,7 +656,7 @@ func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug st
 	if !ok {
 		return nil, ErrNotFound
 	}
-	return p.solutions(ctx, friendID, slug, false)
+	return p.solutions(ctx, friendID, slug, recent)
 }
 
 func (p *Postgres) solutions(ctx context.Context, ownerID, slug string, recent bool) ([]SolutionRow, error) {

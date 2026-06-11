@@ -10,13 +10,15 @@ export function FriendSolutionModal({
   problem,
   onClose,
   onBack,
+  recent = false,
 }: {
   friend: Friend;
   problem: ProblemRef;
   onClose: () => void;
   onBack?: () => void;
+  recent?: boolean;
 }) {
-  const solutions = useFriendSolutions(friend.id, problem.slug);
+  const solutions = useFriendSolutions(friend.id, problem.slug, recent);
   return (
     <Modal title={problem.name} onClose={onClose} onBack={onBack}>
       <div className="flex items-center gap-3">

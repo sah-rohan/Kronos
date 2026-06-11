@@ -35,7 +35,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
   const [myProblem, setMyProblem] = useState<ProblemRef | null>(null);
   const [myProblemRecent, setMyProblemRecent] = useState(false);
-  const [friendSol, setFriendSol] = useState<{ friend: Friend; problem: ProblemRef } | null>(null);
+  const [friendSol, setFriendSol] = useState<{ friend: Friend; problem: ProblemRef; recent: boolean } | null>(null);
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
@@ -109,8 +109,8 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           setCal={setCal}
           onClose={() => setModal(null)}
           userName={userName}
-          onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblem(p); }}
-          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem })}
+          onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
+          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem, recent: true })}
         />
       )}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} />}
@@ -119,7 +119,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           onClose={() => setModal(null)}
           userName={userName}
           onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
-          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem })}
+          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem, recent: true })}
         />
       )}
 
@@ -184,6 +184,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
         <FriendSolutionModal
           friend={friendSol.friend}
           problem={friendSol.problem}
+          recent={friendSol.recent}
           onBack={() => setFriendSol(null)}
           onClose={() => {
             setFriendSol(null);

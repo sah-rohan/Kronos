@@ -234,7 +234,7 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		return dataOrError(rows, err)
 
 	case method == "GET" && len(parts) == 4 && parts[0] == "friends" && parts[2] == "problem":
-		sol, err := a.Store.FriendSolution(ctx, user.ID, parts[1], parts[3])
+		sol, err := a.Store.FriendSolution(ctx, user.ID, parts[1], parts[3], query["recent"] == "1")
 		if errors.Is(err, store.ErrNotFound) {
 			return reply(404, map[string]string{"error": "no solution"})
 		}

@@ -32,7 +32,7 @@ export function useMySolutions(slug: string, recent = false): Solution[] {
   return useSolutions(() => api.mySolutions(getToken, slug, recent));
 }
 
-export function useFriendSolutions(friendId: string, slug: string): Solution[] {
+export function useFriendSolutions(friendId: string, slug: string, recent = false): Solution[] {
   const { getToken } = useData();
-  return useSolutions(() => api.friendSolutions(getToken, friendId, slug));
+  return useSolutions(() => api.friendSolutions(getToken, friendId, slug, recent));
 }
