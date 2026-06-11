@@ -10,7 +10,7 @@ export function FriendSolutionModal({
   problem,
   onClose,
   onBack,
-  recent = false,
+  recent = false, 
 }: {
   friend: Friend;
   problem: ProblemRef;
