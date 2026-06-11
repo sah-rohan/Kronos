@@ -8,7 +8,7 @@ import { diffStyles } from "../data/problems";
 import { api } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { fmtShortDate } from "../lib/date";
-import type { CalendarProblem, Month } from "../types";
+import type { CalendarProblem, Friend, Month, ProblemRef } from "../types";
 
 const keyFor = (y: number, m: number, d: number) =>
   `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -18,11 +18,15 @@ export function CalendarModal({
   setCal,
   onClose,
   userName,
+  onOpenProblem,
+  onOpenFriendProblem,
 }: {
   cal: Month;
   setCal: (m: Month) => void;
   onClose: () => void;
   userName: string;
+  onOpenProblem: (p: ProblemRef) => void;
+  onOpenFriendProblem: (friend: Friend, p: ProblemRef) => void;
 }) {
   const { calendar, friends, getToken } = useData();
   const [selected, setSelected] = useState<string | null>(null);
@@ -110,14 +114,24 @@ export function CalendarModal({
               <p className="mt-5 text-sm text-muted-foreground">No problem details for this day.</p>
             ) : (
               <ul className="mt-5 divide-y divide-border">
-                {selectedProblems.map((p) => (
-                  <li key={p.slug} className="flex items-center gap-3 py-3">
-                    <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[p.diff]}`}>
-                      {p.diff}
-                    </span>
-                  </li>
-                ))}
+                {selectedProblems.map((p) => {
+                  const ref: ProblemRef = { name: p.name, slug: p.slug, diff: p.diff };
+                  const friend = who === "you" ? null : friends.find((f) => f.id === who) ?? null;
+                  return (
+                    <li key={p.slug} className="flex items-center gap-3 py-3">
+                      <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[p.diff]}`}>
+                        {p.diff}
+                      </span>
+                      <button
+                        onClick={() => (friend ? onOpenFriendProblem(friend, ref) : onOpenProblem(ref))}
+                        className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground transition hover:bg-muted"
+                      >
+                        Solution
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>

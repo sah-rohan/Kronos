@@ -35,6 +35,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
   const [friendProblem, setFriendProblem] = useState<ProblemRef | null>(null);
   const [myProblem, setMyProblem] = useState<ProblemRef | null>(null);
   const [myProblemRecent, setMyProblemRecent] = useState(false);
+  const [friendSol, setFriendSol] = useState<{ friend: Friend; problem: ProblemRef } | null>(null);
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
@@ -102,13 +103,23 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
-      {modal === "calendar" && <CalendarModal cal={cal} setCal={setCal} onClose={() => setModal(null)} userName={userName} />}
+      {modal === "calendar" && (
+        <CalendarModal
+          cal={cal}
+          setCal={setCal}
+          onClose={() => setModal(null)}
+          userName={userName}
+          onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblem(p); }}
+          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem })}
+        />
+      )}
       {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} />}
       {modal === "recent" && (
         <RecentActivityModal
           onClose={() => setModal(null)}
           userName={userName}
           onOpenProblem={(p) => { setMyProblemRecent(true); setMyProblem(p); }}
+          onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem })}
         />
       )}
 
@@ -164,6 +175,18 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           onBack={() => setMyProblem(null)}
           onClose={() => {
             setMyProblem(null);
+            setModal(null);
+          }}
+        />
+      )}
+
+      {friendSol && (
+        <FriendSolutionModal
+          friend={friendSol.friend}
+          problem={friendSol.problem}
+          onBack={() => setFriendSol(null)}
+          onClose={() => {
+            setFriendSol(null);
             setModal(null);
           }}
         />

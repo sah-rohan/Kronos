@@ -100,14 +100,17 @@ export function RecentActivityModal({
   onClose,
   userName,
   onOpenProblem,
+  onOpenFriendProblem,
 }: {
   onClose: () => void;
   userName: string;
   onOpenProblem: (p: ProblemRef) => void;
+  onOpenFriendProblem: (friend: Friend, p: ProblemRef) => void;
 }) {
   const { recent, friends } = useData();
   const [tab, setTab] = useState<Tab>("you");
   const [friendName, setFriendName] = useState<string>(friends[0]?.name ?? "");
+  const selectedFriend = friends.find((f) => f.name === friendName) ?? null;
 
   const rows =
     tab === "you"
@@ -178,7 +181,11 @@ export function RecentActivityModal({
                 </span>
                 {who.length > 0 && <AvatarStack who={who} cap={3} />}
                 <button
-                  onClick={() => onOpenProblem({ name: r.name, slug: r.slug, diff: r.diff })}
+                  onClick={() => {
+                    const ref = { name: r.name, slug: r.slug, diff: r.diff };
+                    if (tab === "friends" && selectedFriend) onOpenFriendProblem(selectedFriend, ref);
+                    else onOpenProblem(ref);
+                  }}
                   className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground transition hover:bg-muted"
                 >
                   Solutions
