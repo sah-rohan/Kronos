@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#6db4e0" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0e3a5c" media="(prefers-color-scheme: dark)" />
@@ -12,15 +12,13 @@
       href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&family=Source+Serif+4:opsz,wght@8..60,300..600&display=swap"
       rel="stylesheet"
     />
-    <title>NeetCode 150 — Group Tracker</title>
-    <meta name="description" content="Calm, beautiful group progress tracker for the NeetCode 150." />
+    <title>Kronos - a neetcode problems tracker</title>
+    <meta name="description" content="Group progress tracker for the NeetCode 250." />
     <script>
       (function () {
         try {
-          document.documentElement.classList.toggle(
-            "dark",
-            window.matchMedia("(prefers-color-scheme: dark)").matches
-          );
+          var h = new Date().getHours();
+          document.documentElement.classList.toggle("dark", h >= 19 || h < 7);
         } catch (e) {}
       })();
     </script>

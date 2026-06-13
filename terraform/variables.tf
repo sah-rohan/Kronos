@@ -38,7 +38,8 @@ variable "admin_clerk_id" {
   default = "user_3EmSENtZcQZXU9q9ptLa7uedUGK"
 }
 
+# Custom domain for the site. Empty = default *.cloudfront.net URL (no ACM cert).
 variable "domain_name" {
   type    = string
-  default = ""
+  default = "usekronos.tech"
 }
