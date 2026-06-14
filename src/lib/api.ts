@@ -94,7 +94,7 @@ export type ApiProblem = {
   neetcode150: boolean;
   neetcode250: boolean;
 };
-export type ApiLeader = { name: string; username: string; blind75: number; neetcode150: number; neetcode250: number; all: number };
+export type ApiLeader = { name: string; username: string; blind75: number; neetcode150: number; neetcode250: number; all: number; easy: number; medium: number; hard: number };
 export type ApiRecent = { n: number; slug: string; name: string; diff: string; who: string[]; at: string };
 export type ApiCalendarProblem = { date: string; slug: string; title: string; difficulty: string };
 export type ApiDifficultyTotal = { label: string; count: number };

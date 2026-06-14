@@ -26,6 +26,9 @@ type LeaderRow struct {
 	Neetcode150  int    `json:"neetcode150"`
 	Neetcode250  int    `json:"neetcode250"`
 	All          int    `json:"all"`
+	Easy         int    `json:"easy"`
+	Medium       int    `json:"medium"`
+	Hard         int    `json:"hard"`
 }
 
 type FriendRow struct {
@@ -236,7 +239,10 @@ func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, err
 		       count(*) filter (where pr.blind75) as b75,
 		       count(*) filter (where pr.neetcode150) as n150,
 		       count(*) filter (where pr.neetcode250) as n250,
-		       count(pr.id) as total
+		       count(pr.id) as total,
+		       count(*) filter (where pr.difficulty = 'Easy') as easy,
+		       count(*) filter (where pr.difficulty = 'Medium') as medium,
+		       count(*) filter (where pr.difficulty = 'Hard') as hard
 		from users u
 		left join solves s on s.user_id = u.id and s.first_season_ac_at is not null
 		left join problems pr on pr.id = s.problem_id
@@ -251,7 +257,7 @@ func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, err
 	out := []LeaderRow{}
 	for rows.Next() {
 		var r LeaderRow
-		if err := rows.Scan(&r.Name, &r.LeetcodeUser, &r.Blind75, &r.Neetcode150, &r.Neetcode250, &r.All); err != nil {
+		if err := rows.Scan(&r.Name, &r.LeetcodeUser, &r.Blind75, &r.Neetcode150, &r.Neetcode250, &r.All, &r.Easy, &r.Medium, &r.Hard); err != nil {
 			return nil, err
 		}
 		out = append(out, r)

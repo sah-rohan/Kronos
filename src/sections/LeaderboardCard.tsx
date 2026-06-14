@@ -2,11 +2,13 @@ import { Crown, Flame } from "lucide-react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 import { ROADMAP_LABEL, listTotal } from "../lib/roadmaps";
+import { rankFor, maxWeighted } from "../lib/rank";
 import type { ProblemList } from "../types";
 
 export function LeaderboardCard({ onOpen, roadmap }: { onOpen: () => void; roadmap: ProblemList }) {
   const { members, categories } = useData();
   const total = listTotal(categories, roadmap);
+  const maxW = maxWeighted(categories);
   // Competition ranking: tied solvers share a rank (1, 2, 2, 4).
   let lastVal: number | null = null;
   let lastRank = 0;
@@ -33,6 +35,9 @@ export function LeaderboardCard({ onOpen, roadmap }: { onOpen: () => void; roadm
               <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{rank}</div>
               <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${m.color}`}>
                 {m.initials}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW).dot}`}
+                />
                 {rank === 1 && (
                   <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
                 )}

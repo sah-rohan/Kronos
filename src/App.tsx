@@ -123,7 +123,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           onOpenFriendProblem={(friend, problem) => setFriendSol({ friend, problem, recent: true })}
         />
       )}
-      {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} />}
+      {modal === "leaderboard" && <LeaderboardModal onClose={() => setModal(null)} roadmap={roadmap} setRoadmap={setRoadmap} userName={userName} />}
       {modal === "recent" && (
         <RecentActivityModal
           onClose={() => setModal(null)}

@@ -4,7 +4,8 @@ import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
 import { useLeaderboardScope, type LeaderboardScope } from "../lib/leaderboardScope";
-import type { ProblemList } from "../types";
+import { rankFor, maxWeighted } from "../lib/rank";
+import type { Member, ProblemList } from "../types";
 
 const barColor: Record<string, string> = {
   Easy: "bg-sky",
@@ -21,23 +22,62 @@ export function LeaderboardModal({
   onClose,
   roadmap,
   setRoadmap,
+  userName,
 }: {
   onClose: () => void;
   roadmap: ProblemList;
   setRoadmap: (r: ProblemList) => void;
+  userName: string;
 }) {
   const { members, friends, categories, groupTotals, friendsDifficulty } = useData();
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Member | null>(null);
   const q = query.trim().toLowerCase();
   const roadmapTotal = listTotal(categories, roadmap);
+  const maxW = maxWeighted(categories);
   const { scope, setScope } = useLeaderboardScope();
 
   const friendUsernames = new Set(friends.map((f) => f.username));
 
-  const inScope = (username?: string) => {
-    if (scope === "friends") return !!username && friendUsernames.has(username);
-    return true;
+  const inScope = (m: Member) => {
+    if (scope !== "friends") return true;
+    return m.name === userName || (!!m.username && friendUsernames.has(m.username));
   };
+
+  if (selected) {
+    const r = rankFor(selected.byDiff.easy, selected.byDiff.medium, selected.byDiff.hard, maxW);
+    const diffStats = [
+      { label: "Easy", val: selected.byDiff.easy, color: "text-sky" },
+      { label: "Medium", val: selected.byDiff.medium, color: "text-[#f5c26b]" },
+      { label: "Hard", val: selected.byDiff.hard, color: "text-coral" },
+    ];
+    return (
+      <Modal title={selected.name} onClose={onClose} onBack={() => setSelected(null)} fitContent>
+        <div className="flex flex-col items-center text-center">
+          <div className={`grid h-20 w-20 place-items-center rounded-full text-xl font-medium ${selected.color}`}>
+            {selected.initials}
+          </div>
+          <span className={`mt-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${r.badge}`}>
+            {r.tier}
+          </span>
+          <div className="mt-5 flex items-baseline justify-center gap-1">
+            <span className="text-6xl font-semibold tabular-nums">{r.rating}</span>
+            <span className="text-xl font-medium text-muted-foreground">/100</span>
+          </div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">rating</div>
+        </div>
+
+        <div className="mt-7 grid grid-cols-3 gap-3">
+          {diffStats.map((d) => (
+            <div key={d.label} className="rounded-2xl border border-border py-3 text-center">
+              <div className={`text-2xl font-semibold tabular-nums ${d.color}`}>{d.val}</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">{d.label}</div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
 
   const totals = groupTotals.length > 0
     ? groupTotals
@@ -49,7 +89,7 @@ export function LeaderboardModal({
   let lastVal: number | null = null;
   let lastRank = 0;
   const ranked = [...members]
-    .filter((m) => inScope(m.username))
+    .filter((m) => inScope(m))
     .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
     .map((m, i) => {
       const v = m.solvedByList[roadmap] ?? 0;
@@ -126,8 +166,14 @@ export function LeaderboardModal({
       </div>
 
       <ul className="space-y-3">
-        {ranked.map(({ m, rank }) => (
-          <li key={m.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5 sm:gap-5 sm:px-5 sm:py-4">
+        {ranked.map(({ m, rank }) => {
+          const r = rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW);
+          return (
+          <li
+            key={m.name}
+            onClick={() => setSelected(m)}
+            className="flex cursor-pointer items-center gap-4 rounded-2xl border border-border px-4 py-3.5 transition hover:bg-muted sm:gap-5 sm:px-5 sm:py-4"
+          >
             <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums sm:text-base">{rank}</div>
             <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium sm:h-12 sm:w-12 ${m.color}`}>
               {m.initials}
@@ -136,7 +182,10 @@ export function LeaderboardModal({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium sm:text-[15px]">{m.name}</div>
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium sm:text-[15px]">{m.name}</span>
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.badge}`}>{r.tier}</span>
+              </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 {m.streak != null ? (
                   <>
@@ -161,7 +210,8 @@ export function LeaderboardModal({
               <span className="text-muted-foreground"> /{roadmapTotal}</span>
             </div>
           </li>
-        ))}
+          );
+        })}
         {ranked.length === 0 && (
           <li className="py-6 text-center text-sm text-muted-foreground">
             {q

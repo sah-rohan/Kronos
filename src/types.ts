@@ -11,6 +11,7 @@ export type Member = {
   color: string;
   solved: number;
   solvedByList: Record<ProblemList, number>;
+  byDiff: { easy: number; medium: number; hard: number };
   streak?: number;
   username?: string;
 };

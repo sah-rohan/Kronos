@@ -192,6 +192,7 @@ export function DataProvider({
           neetcode250: m.neetcode250,
           all: m.all,
         },
+        byDiff: { easy: m.easy, medium: m.medium, hard: m.hard },
         username: m.username,
       })),
       recent: (recents ?? []).map((r) => ({
