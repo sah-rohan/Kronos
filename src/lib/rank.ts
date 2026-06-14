@@ -1,7 +1,6 @@
 import type { Category } from "../types";
 
-// Difficulty weights — harder problems contribute more to the rating.
-export const DIFF_WEIGHTS = { easy: 1, medium: 3, hard: 6 } as const;
+export const DIFF_WEIGHTS = { easy: 1, medium: 9, hard: 13 } as const;
 
 export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum";
 
@@ -13,7 +12,6 @@ export type RankInfo = {
   dot: string; // solid bg color for a small tier dot
 };
 
-// Max weighted points available across the whole catalog (so a perfect run = 100).
 export function maxWeighted(categories: Category[]): number {
   let e = 0,
     m = 0,
@@ -27,6 +25,33 @@ export function maxWeighted(categories: Category[]): number {
   return e * DIFF_WEIGHTS.easy + m * DIFF_WEIGHTS.medium + h * DIFF_WEIGHTS.hard;
 }
 
+export const TIER_MINS: { tier: Tier; min: number }[] = [
+  { tier: "Bronze", min: 0 },
+  { tier: "Silver", min: 25 },
+  { tier: "Gold", min: 50 },
+  { tier: "Platinum", min: 75 },
+];
+
+function earnedForRating(rating: number, maxWeight: number): number {
+  const R = rating / 100;
+  const s = (-0.6 + Math.sqrt(0.36 + 1.6 * R)) / 0.8; 
+  return s * s * maxWeight;
+}
+
+export function nextRank(
+  easy: number,
+  medium: number,
+  hard: number,
+  maxWeight: number,
+): { tier: Tier; min: number; mediums: number } | null {
+  const { rating } = rankFor(easy, medium, hard, maxWeight);
+  const next = TIER_MINS.find((t) => t.min > rating);
+  if (!next) return null; // already Platinum
+  const earned = easy * DIFF_WEIGHTS.easy + medium * DIFF_WEIGHTS.medium + hard * DIFF_WEIGHTS.hard;
+  const need = earnedForRating(next.min, maxWeight) - earned;
+  return { tier: next.tier, min: next.min, mediums: Math.max(1, Math.ceil(need / DIFF_WEIGHTS.medium)) };
+}
+
 export function rankFor(
   easy: number,
   medium: number,
@@ -34,7 +59,8 @@ export function rankFor(
   maxWeight: number,
 ): RankInfo {
   const earned = easy * DIFF_WEIGHTS.easy + medium * DIFF_WEIGHTS.medium + hard * DIFF_WEIGHTS.hard;
-  const rating = maxWeight > 0 ? Math.round(Math.min(100, (earned / maxWeight) * 100)) : 0;
+  const ratio = maxWeight > 0 ? Math.min(1, earned / maxWeight) : 0;
+  const rating = Math.round((0.6 * Math.sqrt(ratio) + 0.4 * ratio) * 100);
 
   let tier: Tier;
   if (rating >= 75) tier = "Platinum";

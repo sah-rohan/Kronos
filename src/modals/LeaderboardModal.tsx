@@ -47,7 +47,7 @@ export function LeaderboardModal({
   if (selected) {
     const r = rankFor(selected.byDiff.easy, selected.byDiff.medium, selected.byDiff.hard, maxW);
     const diffStats = [
-      { label: "Easy", val: selected.byDiff.easy, color: "text-sky" },
+      { label: "Easy", val: selected.byDiff.easy, color: "text-[#3fae6a]" },
       { label: "Medium", val: selected.byDiff.medium, color: "text-[#f5c26b]" },
       { label: "Hard", val: selected.byDiff.hard, color: "text-coral" },
     ];
