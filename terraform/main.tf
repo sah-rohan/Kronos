@@ -130,8 +130,9 @@ module "scheduler" {
 }
 
 module "frontend" {
-  source      = "./modules/frontend"
-  name        = "${var.project}-web"
-  bucket_name = "${var.project}-web-${random_string.bucket.result}"
-  domain_name = var.domain_name
+  source              = "./modules/frontend"
+  name                = "${var.project}-web"
+  bucket_name         = "${var.project}-web-${random_string.bucket.result}"
+  domain_name         = var.domain_name
+  acm_certificate_arn = var.acm_certificate_arn
 }

@@ -14,10 +14,6 @@ output "cloudfront_distribution_id" {
   value = module.frontend.distribution_id
 }
 
-output "acm_validation_records" {
-  value = module.frontend.acm_validation_records
-}
-
 output "cloudfront_domain" {
   value = module.frontend.cloudfront_domain
 }

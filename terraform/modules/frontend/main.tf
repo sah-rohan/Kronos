@@ -1,24 +1,12 @@
 locals {
-  use_domain = var.domain_name != ""
+  # A custom domain is active only when we have BOTH a domain name and an
+  # already-issued ACM cert ARN (created + DNS-validated in the ACM console).
+  # Referencing a pre-made cert avoids Terraform blocking on DNS validation.
+  use_domain = var.domain_name != "" && var.acm_certificate_arn != ""
 }
 
 resource "aws_s3_bucket" "site" {
   bucket = var.bucket_name
-}
-resource "aws_acm_certificate" "site" {
-  count             = local.use_domain ? 1 : 0
-  domain_name       = var.domain_name
-  validation_method = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-
-resource "aws_acm_certificate_validation" "site" {
-  count           = local.use_domain ? 1 : 0
-  certificate_arn = aws_acm_certificate.site[0].arn
 }
 
 resource "aws_cloudfront_origin_access_control" "site" {
@@ -73,7 +61,7 @@ resource "aws_cloudfront_distribution" "site" {
 
   viewer_certificate {
     cloudfront_default_certificate = local.use_domain ? false : true
-    acm_certificate_arn            = local.use_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    acm_certificate_arn            = local.use_domain ? var.acm_certificate_arn : null
     ssl_support_method             = local.use_domain ? "sni-only" : null
     minimum_protocol_version       = local.use_domain ? "TLSv1.2_2021" : null
   }
