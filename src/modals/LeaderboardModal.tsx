@@ -4,7 +4,7 @@ import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
 import { useLeaderboardScope, type LeaderboardScope } from "../lib/leaderboardScope";
-import { rankFor, maxWeighted } from "../lib/rank";
+import { rankFor, maxWeighted, nextRank, TIER_MINS } from "../lib/rank";
 import type { Member, ProblemList } from "../types";
 
 const barColor: Record<string, string> = {
@@ -51,8 +51,9 @@ export function LeaderboardModal({
       { label: "Medium", val: selected.byDiff.medium, color: "text-[#f5c26b]" },
       { label: "Hard", val: selected.byDiff.hard, color: "text-coral" },
     ];
+    const next = nextRank(selected.byDiff.easy, selected.byDiff.medium, selected.byDiff.hard, maxW);
     return (
-      <Modal title={selected.name} onClose={onClose} onBack={() => setSelected(null)} fitContent>
+      <Modal title={selected.name} onClose={onClose} onBack={() => setSelected(null)}>
         <div className="flex flex-col items-center text-center">
           <div className={`grid h-20 w-20 place-items-center rounded-full text-xl font-medium ${selected.color}`}>
             {selected.initials}
@@ -74,6 +75,37 @@ export function LeaderboardModal({
               <div className="mt-0.5 text-[11px] text-muted-foreground">{d.label}</div>
             </div>
           ))}
+        </div>
+
+        {next ? (
+          <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-center text-sm">
+            <div className="text-muted-foreground">To reach <span className="font-medium text-foreground">{next.tier}</span>, solve any of:</div>
+            <div className="mt-2 flex justify-center gap-4 font-medium">
+              <span><span className="text-[#3fae6a]">{next.easy}</span> more easy</span>
+              <span><span className="text-[#f5c26b]">{next.medium}</span> more medium</span>
+              <span><span className="text-coral">{next.hard}</span> more hard</span>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-center text-sm font-medium">
+            Top tier reached 🏆
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Rank thresholds
+          </div>
+          <div className="space-y-1.5">
+            {TIER_MINS.map((t) => (
+              <div key={t.tier} className="flex items-center justify-between text-sm">
+                <span className={r.tier === t.tier ? "font-semibold" : "text-muted-foreground"}>
+                  {t.tier}
+                </span>
+                <span className="tabular-nums text-muted-foreground">{t.min}+</span>
+              </div>
+            ))}
+          </div>
         </div>
       </Modal>
     );

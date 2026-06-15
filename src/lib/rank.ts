@@ -1,6 +1,6 @@
 import type { Category } from "../types";
 
-export const DIFF_WEIGHTS = { easy: 1, medium: 9, hard: 13 } as const;
+export const DIFF_WEIGHTS = { easy: 1, medium: 4, hard: 7 } as const;
 
 export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum";
 
@@ -43,13 +43,19 @@ export function nextRank(
   medium: number,
   hard: number,
   maxWeight: number,
-): { tier: Tier; min: number; mediums: number } | null {
+): { tier: Tier; min: number; easy: number; medium: number; hard: number } | null {
   const { rating } = rankFor(easy, medium, hard, maxWeight);
   const next = TIER_MINS.find((t) => t.min > rating);
   if (!next) return null; // already Platinum
   const earned = easy * DIFF_WEIGHTS.easy + medium * DIFF_WEIGHTS.medium + hard * DIFF_WEIGHTS.hard;
-  const need = earnedForRating(next.min, maxWeight) - earned;
-  return { tier: next.tier, min: next.min, mediums: Math.max(1, Math.ceil(need / DIFF_WEIGHTS.medium)) };
+  const need = Math.max(0, earnedForRating(next.min, maxWeight) - earned);
+  return {
+    tier: next.tier,
+    min: next.min,
+    easy: Math.max(1, Math.ceil(need / DIFF_WEIGHTS.easy)),
+    medium: Math.max(1, Math.ceil(need / DIFF_WEIGHTS.medium)),
+    hard: Math.max(1, Math.ceil(need / DIFF_WEIGHTS.hard)),
+  };
 }
 
 export function rankFor(
