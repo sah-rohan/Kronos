@@ -38,7 +38,7 @@ function OpenInBrowserNotice() {
         <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm">
           <span>Tap</span>
           <MoreHorizontal className="h-4 w-4 shrink-0" />
-          <span>at the top, then <b>Open in Safari</b></span>
+          <span>at the top, then <b>open in your browser</b></span>
         </div>
       ) : (
         <button
