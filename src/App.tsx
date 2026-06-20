@@ -7,6 +7,10 @@ import { api } from "./lib/api";
 import { effectiveDark } from "./lib/theme";
 import type { Friend, Month, ProblemRef, ProblemList } from "./types";
 import { Clouds } from "./components/Clouds";
+import { SystemDesignCard } from "./systemdesign/SystemDesignCard";
+import { SystemDesignModal } from "./systemdesign/SystemDesignModal";
+import { ComponentsModal } from "./systemdesign/ComponentsModal";
+import { SD_PROBLEMS } from "./systemdesign/problems";
 import { TopBar } from "./sections/TopBar";
 import { Greeting } from "./sections/Greeting";
 import { MyProgressCard } from "./sections/MyProgressCard";
@@ -41,6 +45,8 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
+  const [sdSlug, setSdSlug] = useState<string | null>(null);
+  const [sdComponents, setSdComponents] = useState(false);
   const hello = greeting(new Date());
 
   // Apply the effective theme (auto = day/night by the local clock) + status-bar color.
@@ -102,6 +108,7 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           <MyFriendsCard onOpen={() => setModal("friends")} />
           <CurrentStreakCard onOpen={openCalendar} />
           <RecentActivityCard onOpen={() => setModal("recent")} userName={userName} />
+          <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
         </div>
       </div>
 
@@ -113,6 +120,13 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
+      {sdSlug && (
+        <SystemDesignModal
+          problem={SD_PROBLEMS.find((p) => p.slug === sdSlug)!}
+          onClose={() => setSdSlug(null)}
+        />
+      )}
+      {sdComponents && <ComponentsModal onClose={() => setSdComponents(false)} />}
       {modal === "calendar" && (
         <CalendarModal
           cal={cal}

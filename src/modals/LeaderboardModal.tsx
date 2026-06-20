@@ -3,7 +3,10 @@ import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
-import { useLeaderboardScope, type LeaderboardScope } from "../lib/leaderboardScope";
+import {
+  useLeaderboardScope,
+  type LeaderboardScope,
+} from "../lib/leaderboardScope";
 import { rankFor, maxWeighted, nextRank, TIER_MINS } from "../lib/rank";
 import type { Member, ProblemList } from "../types";
 
@@ -29,61 +32,133 @@ export function LeaderboardModal({
   setRoadmap: (r: ProblemList) => void;
   userName: string;
 }) {
-  const { members, friends, categories, groupTotals, friendsDifficulty } = useData();
+  const { members, friends, categories, groupTotals, friendsDifficulty } =
+    useData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
   const q = query.trim().toLowerCase();
   const roadmapTotal = listTotal(categories, roadmap);
   const maxW = maxWeighted(categories);
+  // Per-difficulty catalog totals, so "more to next rank" never exceeds what's left.
+  const diffTotals = (() => {
+    const t = { easy: 0, medium: 0, hard: 0 };
+    for (const c of categories)
+      for (const p of c.items) {
+        if (p.diff === "Easy") t.easy++;
+        else if (p.diff === "Medium") t.medium++;
+        else t.hard++;
+      }
+    return t;
+  })();
   const { scope, setScope } = useLeaderboardScope();
 
   const friendUsernames = new Set(friends.map((f) => f.username));
 
   const inScope = (m: Member) => {
     if (scope !== "friends") return true;
-    return m.name === userName || (!!m.username && friendUsernames.has(m.username));
+    return (
+      m.name === userName || (!!m.username && friendUsernames.has(m.username))
+    );
   };
 
   if (selected) {
-    const r = rankFor(selected.byDiff.easy, selected.byDiff.medium, selected.byDiff.hard, maxW);
+    const r = rankFor(
+      selected.byDiff.easy,
+      selected.byDiff.medium,
+      selected.byDiff.hard,
+      maxW,
+    );
     const diffStats = [
       { label: "Easy", val: selected.byDiff.easy, color: "text-[#3fae6a]" },
       { label: "Medium", val: selected.byDiff.medium, color: "text-[#f5c26b]" },
       { label: "Hard", val: selected.byDiff.hard, color: "text-coral" },
     ];
-    const next = nextRank(selected.byDiff.easy, selected.byDiff.medium, selected.byDiff.hard, maxW);
+    const next = nextRank(
+      selected.byDiff.easy,
+      selected.byDiff.medium,
+      selected.byDiff.hard,
+      maxW,
+      diffTotals,
+    );
+    const diffColor = {
+      easy: "text-[#3fae6a]",
+      medium: "text-[#f5c26b]",
+      hard: "text-coral",
+    } as const;
     return (
-      <Modal title={selected.name} onClose={onClose} onBack={() => setSelected(null)}>
+      <Modal
+        title={selected.name}
+        onClose={onClose}
+        onBack={() => setSelected(null)}
+      >
         <div className="flex flex-col items-center text-center">
-          <div className={`grid h-20 w-20 place-items-center rounded-full text-xl font-medium ${selected.color}`}>
+          <div
+            className={`grid h-20 w-20 place-items-center rounded-full text-xl font-medium ${selected.color}`}
+          >
             {selected.initials}
           </div>
-          <span className={`mt-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${r.badge}`}>
+          <span
+            className={`mt-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${r.badge}`}
+          >
             {r.tier}
           </span>
           <div className="mt-5 flex items-baseline justify-center gap-1">
-            <span className="text-6xl font-semibold tabular-nums">{r.rating}</span>
-            <span className="text-xl font-medium text-muted-foreground">/100</span>
+            <span className="text-6xl font-semibold tabular-nums">
+              {r.rating}
+            </span>
+            <span className="text-xl font-medium text-muted-foreground">
+              /100
+            </span>
           </div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">rating</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            rating
+          </div>
         </div>
 
         <div className="mt-7 grid grid-cols-3 gap-3">
           {diffStats.map((d) => (
-            <div key={d.label} className="rounded-2xl border border-border py-3 text-center">
-              <div className={`text-2xl font-semibold tabular-nums ${d.color}`}>{d.val}</div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">{d.label}</div>
+            <div
+              key={d.label}
+              className="rounded-2xl border border-border py-3 text-center"
+            >
+              <div className={`text-2xl font-semibold tabular-nums ${d.color}`}>
+                {d.val}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {d.label}
+              </div>
             </div>
           ))}
         </div>
 
-        {next ? (
+        {next && next.opts.length > 0 ? (
           <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-center text-sm">
-            <div className="text-muted-foreground">To reach <span className="font-medium text-foreground">{next.tier}</span>, solve any of:</div>
-            <div className="mt-2 flex justify-center gap-4 font-medium">
-              <span><span className="text-[#3fae6a]">{next.easy}</span> more easy</span>
-              <span><span className="text-[#f5c26b]">{next.medium}</span> more medium</span>
-              <span><span className="text-coral">{next.hard}</span> more hard</span>
+            <div className="text-muted-foreground">
+              To reach{" "}
+              <span className="font-medium text-foreground">{next.tier}</span>,
+              solve any of:
+            </div>
+            <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 font-medium">
+              {next.opts.map((o, i) =>
+                "combo" in o ? (
+                  <span key={i}>
+                    {o.combo.map((c, j) => (
+                      <span key={c.diff}>
+                        {j > 0 && " + "}
+                        <span className={diffColor[c.diff]}>
+                          {c.count}
+                        </span>{" "}
+                        {c.diff}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span key={i}>
+                    <span className={diffColor[o.diff]}>{o.count}</span> more{" "}
+                    {o.diff}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         ) : (
@@ -98,11 +173,22 @@ export function LeaderboardModal({
           </div>
           <div className="space-y-1.5">
             {TIER_MINS.map((t) => (
-              <div key={t.tier} className="flex items-center justify-between text-sm">
-                <span className={r.tier === t.tier ? "font-semibold" : "text-muted-foreground"}>
+              <div
+                key={t.tier}
+                className="flex items-center justify-between text-sm"
+              >
+                <span
+                  className={
+                    r.tier === t.tier
+                      ? "font-semibold"
+                      : "text-muted-foreground"
+                  }
+                >
                   {t.tier}
                 </span>
-                <span className="tabular-nums text-muted-foreground">{t.min}+</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {t.min}+
+                </span>
               </div>
             ))}
           </div>
@@ -111,9 +197,10 @@ export function LeaderboardModal({
     );
   }
 
-  const totals = groupTotals.length > 0
-    ? groupTotals
-    : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
+  const totals =
+    groupTotals.length > 0
+      ? groupTotals
+      : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
 
   // Rank within the chosen scope so #1 is the top of the filtered set. Ties share
@@ -122,7 +209,9 @@ export function LeaderboardModal({
   let lastRank = 0;
   const ranked = [...members]
     .filter((m) => inScope(m))
-    .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
+    .sort(
+      (a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0),
+    )
     .map((m, i) => {
       const v = m.solvedByList[roadmap] ?? 0;
       const rank = i > 0 && v === lastVal ? lastRank : i + 1;
@@ -130,7 +219,12 @@ export function LeaderboardModal({
       lastRank = rank;
       return { m, rank };
     })
-    .filter(({ m }) => !q || m.name.toLowerCase().includes(q) || (m.username ?? "").toLowerCase().includes(q));
+    .filter(
+      ({ m }) =>
+        !q ||
+        m.name.toLowerCase().includes(q) ||
+        (m.username ?? "").toLowerCase().includes(q),
+    );
 
   const footer = (
     <>
@@ -143,15 +237,23 @@ export function LeaderboardModal({
           <div
             key={t.label}
             className={barColor[t.label] ?? "bg-sky"}
-            style={{ width: groupSolved > 0 ? `${(t.count / groupSolved) * 100}%` : "0%" }}
+            style={{
+              width:
+                groupSolved > 0 ? `${(t.count / groupSolved) * 100}%` : "0%",
+            }}
           />
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
         {totals.map((t) => (
           <div key={t.label} className="flex items-center gap-1.5">
-            <span className={`h-2.5 w-2.5 rounded-full ${barColor[t.label] ?? "bg-sky"}`} />
-            {t.label} <span className="font-medium text-foreground tabular-nums">{t.count}</span>
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${barColor[t.label] ?? "bg-sky"}`}
+            />
+            {t.label}{" "}
+            <span className="font-medium text-foreground tabular-nums">
+              {t.count}
+            </span>
           </div>
         ))}
       </div>
@@ -166,7 +268,9 @@ export function LeaderboardModal({
             key={r.key}
             onClick={() => setRoadmap(r.key)}
             className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              roadmap === r.key ? "bg-coral text-coral-foreground" : "text-muted-foreground hover:bg-muted"
+              roadmap === r.key
+                ? "bg-coral text-coral-foreground"
+                : "text-muted-foreground hover:bg-muted"
             }`}
           >
             {r.label}
@@ -179,7 +283,9 @@ export function LeaderboardModal({
             key={s.key}
             onClick={() => setScope(s.key)}
             className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              scope === s.key ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"
+              scope === s.key
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:bg-muted"
             }`}
           >
             {s.label}
@@ -199,49 +305,66 @@ export function LeaderboardModal({
 
       <ul className="space-y-3">
         {ranked.map(({ m, rank }) => {
-          const r = rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW);
+          const r = rankFor(
+            m.byDiff.easy,
+            m.byDiff.medium,
+            m.byDiff.hard,
+            maxW,
+          );
           return (
-          <li
-            key={m.name}
-            onClick={() => setSelected(m)}
-            className="flex cursor-pointer items-center gap-4 rounded-2xl border border-border px-4 py-3.5 transition hover:bg-muted sm:gap-5 sm:px-5 sm:py-4"
-          >
-            <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums sm:text-base">{rank}</div>
-            <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium sm:h-12 sm:w-12 ${m.color}`}>
-              {m.initials}
-              {rank === 1 && (
-                <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium sm:text-[15px]">{m.name}</span>
-                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.badge}`}>{r.tier}</span>
+            <li
+              key={m.name}
+              onClick={() => setSelected(m)}
+              className="flex cursor-pointer items-center gap-4 rounded-2xl border border-border px-4 py-3.5 transition hover:bg-muted sm:gap-5 sm:px-5 sm:py-4"
+            >
+              <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums sm:text-base">
+                {rank}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {m.streak != null ? (
-                  <>
-                    <Flame className="h-3 w-3 shrink-0 text-coral" />
-                    {m.streak}-day streak
-                  </>
-                ) : (
-                  <span className="truncate">@{m.username}</span>
+              <div
+                className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium sm:h-12 sm:w-12 ${m.color}`}
+              >
+                {m.initials}
+                {rank === 1 && (
+                  <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
                 )}
               </div>
-            </div>
-            <div className="hidden flex-1 sm:block">
-              <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
-                  style={{ width: `${roadmapTotal ? ((m.solvedByList[roadmap] ?? 0) / roadmapTotal) * 100 : 0}%` }}
-                />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium sm:text-[15px]">
+                    {m.name}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${r.badge}`}
+                  >
+                    {r.tier}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {m.streak != null ? (
+                    <>
+                      <Flame className="h-3 w-3 shrink-0 text-coral" />
+                      {m.streak}-day streak
+                    </>
+                  ) : (
+                    <span className="truncate">@{m.username}</span>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="shrink-0 text-right text-sm font-semibold tabular-nums sm:text-base">
-              {m.solvedByList[roadmap] ?? 0}
-              <span className="text-muted-foreground"> /{roadmapTotal}</span>
-            </div>
-          </li>
+              <div className="hidden flex-1 sm:block">
+                <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
+                    style={{
+                      width: `${roadmapTotal ? ((m.solvedByList[roadmap] ?? 0) / roadmapTotal) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="shrink-0 text-right text-sm font-semibold tabular-nums sm:text-base">
+                {m.solvedByList[roadmap] ?? 0}
+                <span className="text-muted-foreground"> /{roadmapTotal}</span>
+              </div>
+            </li>
           );
         })}
         {ranked.length === 0 && (
