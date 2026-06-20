@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
-import type { SDComponentType, SDProblem } from "./problems";
+import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
 import { SystemDiagram } from "./SystemDiagram";
 import { markCompleted } from "./progress";
@@ -21,7 +21,7 @@ export function SystemDesignModal({
 
   // Intro slides, then one slide per component so every part is explained before
   // the user has to place it.
-  const slides = useMemo(
+  const slides = useMemo<SDSlide[]>(
     () => [
       ...problem.slides,
       ...problem.palette.map((c) => ({ title: c.name, body: c.explain })),
@@ -138,7 +138,7 @@ export function SystemDesignModal({
                     {answers[slide] !== undefined && (
                       <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
                         {answers[slide] === quiz.correct ? "Correct. " : "Not quite. "}
-                        {quiz.explain}
+                        {quiz.why}
                       </p>
                     )}
                   </div>
