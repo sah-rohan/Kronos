@@ -12,7 +12,7 @@ export type SDConfigOption = { id: string; label: string };
 export type SDConfig = {
   id: string;
   question: string;
-  options: SDConfigOption[];
+  options: readonly SDConfigOption[];
   correct: string; // option id
   why: string; // explanation shown when the choice is wrong
 };
@@ -22,24 +22,23 @@ export type SDComponentDef = {
   name: string;
   blurb: string;
   explain: string;
-  configs?: SDConfig[];
+  configs?: readonly SDConfig[];
 };
 
 // A "pick" presented as a quiz: choose an option, then see why it's the answer.
 export type SDQuiz = {
   prompt: string;
-  options: SDConfigOption[];
+  options: readonly SDConfigOption[];
   correct: string;
-  explain: string;
+  why: string;
 };
 export type SDSlide = {
   title: string;
   body: string;
-  bullets?: string[];
+  bullets?: readonly string[];
   quiz?: SDQuiz;
-  // If set, the slide shows a focused sub-diagram of just these components
-  // (e.g. the write path) instead of the progressive full diagram.
-  focus?: SDComponentType[];
+
+  focus?: readonly SDComponentType[];
 };
 export type SDConn = [SDComponentType, SDComponentType];
 
