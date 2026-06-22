@@ -8,8 +8,18 @@ import { SD_PROBLEMS } from "../systemdesign/problems";
 import { GENAI_PROBLEMS } from "../systemdesign/genai";
 
 type Row =
-  | { key: string; kind: "lc"; label: string; at?: string; diff: "Easy" | "Medium" | "Hard" }
+  | {
+      key: string;
+      kind: "lc";
+      label: string;
+      at?: string;
+      diff: "Easy" | "Medium" | "Hard";
+    }
   | { key: string; kind: "sd"; label: string; at?: string; slug: string };
+
+function isDiff(s: string): s is "Easy" | "Medium" | "Hard" {
+  return s === "Easy" || s === "Medium" || s === "Hard";
+}
 
 export function RecentActivityCard({
   onOpen,
@@ -24,7 +34,10 @@ export function RecentActivityCard({
   const [sd, setSd] = useState<SdActivity[]>([]);
 
   useEffect(() => {
-    api.mySdActivity(getToken).then((a) => setSd(a ?? [])).catch(() => setSd([]));
+    api
+      .mySdActivity(getToken)
+      .then((a) => setSd(a ?? []))
+      .catch(() => setSd([]));
   }, [getToken]);
 
   const titleBySlug = useMemo(() => {
@@ -37,9 +50,27 @@ export function RecentActivityCard({
   const rows: Row[] = [
     ...recent
       .filter((r) => r.who.some((p) => p.name === userName))
-      .map((r): Row => ({ key: `lc${r.n}`, kind: "lc", label: r.name, at: r.at, diff: r.diff })),
-    ...sd.map((a): Row => ({ key: `sd${a.slug}`, kind: "sd", label: titleBySlug.get(a.slug) ?? a.slug, at: a.at, slug: a.slug })),
-  ].sort((a, b) => (b.at ? Date.parse(b.at) : 0) - (a.at ? Date.parse(a.at) : 0));
+      .map(
+        (r): Row => ({
+          key: `lc${r.n}`,
+          kind: "lc",
+          label: r.name,
+          at: r.at,
+          diff: isDiff(r.diff) ? r.diff : "Medium",
+        }),
+      ),
+    ...sd.map(
+      (a): Row => ({
+        key: `sd${a.slug}`,
+        kind: "sd",
+        label: titleBySlug.get(a.slug) ?? a.slug,
+        at: a.at,
+        slug: a.slug,
+      }),
+    ),
+  ].sort(
+    (a, b) => (b.at ? Date.parse(b.at) : 0) - (a.at ? Date.parse(a.at) : 0),
+  );
 
   return (
     <Card className="lg:col-span-1 h-full" onClick={onOpen}>
@@ -48,19 +79,36 @@ export function RecentActivityCard({
         <span className="text-xs text-muted-foreground">See all</span>
       </div>
       <ul className="mt-4 divide-y divide-border">
-        {rows.length === 0 && <li className="py-3 text-sm text-muted-foreground">No activity yet.</li>}
+        {rows.length === 0 && (
+          <li className="py-3 text-sm text-muted-foreground">
+            No activity yet.
+          </li>
+        )}
         {rows.slice(0, 5).map((r) => (
           <li
             key={r.key}
-            onClick={r.kind === "sd" ? (e) => { e.stopPropagation(); onOpenModule(r.slug); } : undefined}
+            onClick={
+              r.kind === "sd"
+                ? (e) => {
+                    e.stopPropagation();
+                    onOpenModule(r.slug);
+                  }
+                : undefined
+            }
             className={`flex items-center gap-4 py-3.5 ${r.kind === "sd" ? "cursor-pointer" : ""}`}
           >
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm">{r.label}</div>
-              {r.at && <div className="text-xs text-muted-foreground">{fmtShortDate(r.at)}</div>}
+              {r.at && (
+                <div className="text-xs text-muted-foreground">
+                  {fmtShortDate(r.at)}
+                </div>
+              )}
             </div>
             {r.kind === "lc" ? (
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}
+              >
                 {r.diff}
               </span>
             ) : (
