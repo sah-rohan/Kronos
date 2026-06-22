@@ -23,7 +23,12 @@ export function validateDesign(
   const name = (t: SDComponentType) => problem.palette.find((c) => c.type === t)?.name ?? t;
   const firstOf = (t: SDComponentType) => nodes.find((n) => n.type === t);
 
+  // Only forward connections are required/validated. Response (return) edges are
+  // teaching-only - shown in the walkthrough, never required in the build. We DO
+  // accept them as valid drawn edges so they aren't flagged as "extra".
+  const returns = problem.returns ?? [];
   const wanted = new Set(problem.connections.map(([f, t]) => `${f}>${t}`));
+  const allowed = new Set([...problem.connections, ...returns].map(([f, t]) => `${f}>${t}`));
 
   // 1) Missing required components - phrased as an action on the actual design.
   for (const t of problem.required) {
@@ -49,7 +54,7 @@ export function validateDesign(
     const t = typeOf.get(e.to);
     if (!f || !t) continue;
     const key = `${f}>${t}`;
-    if (!wanted.has(key) && !flaggedExtra.has(key)) {
+    if (!allowed.has(key) && !flaggedExtra.has(key)) {
       flaggedExtra.add(key);
       const reversed = wanted.has(`${t}>${f}`);
       issues.push({

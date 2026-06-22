@@ -21,15 +21,20 @@ export function SystemDiagram({
   problem,
   revealed,
   current,
+  step,
 }: {
   problem: SDProblem;
   revealed: Set<SDComponentType>;
   current?: SDComponentType;
+  // Walkthrough mode: light up edges 0..step in flow order, dim the rest, and
+  // reveal boxes as the flow reaches them. Undefined = normal (slide) reveal.
+  step?: number;
 }) {
   const c = (t: SDComponentType) => ({
     cx: problem.layout[t].x + NODE_W / 2,
     cy: problem.layout[t].y + NODE_H / 2,
   });
+  const stepped = step !== undefined;
 
   // Every node's rectangle, used to keep curves and labels off the boxes.
   const boxes = problem.palette.map((comp) => {
@@ -46,9 +51,24 @@ export function SystemDiagram({
         ly - 11 < b.y + NODE_H + 4,
     );
 
-  const edges = problem.connections.map(([from, to], i) => {
-    const on = revealed.has(from) && revealed.has(to);
-    const touchesCurrent = current === from || current === to;
+  // Return (response) edges only appear in the walkthrough, where one step shows
+  // at a time - so they never clutter the static diagram or collide with labels.
+  const allEdges = [
+    ...problem.connections.map((c) => ({ c, dashed: false })),
+    ...(stepped ? (problem.returns ?? []).map((c) => ({ c, dashed: true })) : []),
+  ];
+  // In walkthrough mode, a box is revealed once the flow has reached it.
+  const steppedRevealed = new Set<SDComponentType>();
+  if (stepped) {
+    for (let i = 0; i <= step! && i < allEdges.length; i++) {
+      steppedRevealed.add(allEdges[i].c[0]);
+      steppedRevealed.add(allEdges[i].c[1]);
+    }
+    if (allEdges.length > 0) steppedRevealed.add(allEdges[0].c[0]);
+  }
+  const edges = allEdges.map(({ c: [from, to], dashed }, i) => {
+    const on = stepped ? i <= step! : revealed.has(from) && revealed.has(to);
+    const touchesCurrent = stepped ? i === step : current === from || current === to;
     const a = c(from);
     const b = c(to);
     const start = borderPoint(b.cx, b.cy, problem.layout[from].x, problem.layout[from].y);
@@ -88,7 +108,7 @@ export function SystemDiagram({
     }
     mx = Math.min(VB_W - half, Math.max(half, mx));
     my = Math.min(VB_H - 12, Math.max(12, my));
-    return { i, on, touchesCurrent, start, end, cxp, cyp, label, half, mx, my };
+    return { i, on, touchesCurrent, start, end, cxp, cyp, label, half, mx, my, dashed };
   });
 
   return (
@@ -100,6 +120,9 @@ export function SystemDiagram({
         <marker id="sd-arrow-s" markerWidth="8" markerHeight="8" refX="1.5" refY="4" orient="auto">
           <path d="M8,0 L0,4 L8,8 Z" className="fill-coral" />
         </marker>
+        <marker id="sd-arrow-r" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="#2563eb" />
+        </marker>
       </defs>
 
       {/* Layer 1: curves */}
@@ -108,17 +131,19 @@ export function SystemDiagram({
           key={`p${e.i}`}
           d={`M ${e.start.x} ${e.start.y} Q ${e.cxp} ${e.cyp} ${e.end.x} ${e.end.y}`}
           fill="none"
-          className={e.on ? "stroke-coral" : "stroke-border"}
-          strokeWidth={e.on && e.touchesCurrent ? 2.25 : e.on ? 1.5 : 1}
-          markerEnd={e.on ? "url(#sd-arrow-d)" : undefined}
+          className={e.on ? (e.dashed ? "stroke-[#2563eb]" : "stroke-coral") : "stroke-border"}
+          strokeWidth={e.on && e.touchesCurrent ? 2.5 : e.on ? 1.5 : 1}
+          strokeDasharray={e.dashed ? "6 4" : undefined}
+          markerEnd={e.on ? (e.dashed ? "url(#sd-arrow-r)" : "url(#sd-arrow-d)") : undefined}
           opacity={e.on ? 1 : 0.35}
         />
       ))}
 
       {/* Layer 2: node boxes */}
       {problem.palette.map((comp) => {
-        const on = revealed.has(comp.type);
-        const isCurrent = current === comp.type;
+        const on = stepped ? steppedRevealed.has(comp.type) : revealed.has(comp.type);
+        const stepTarget = stepped && step! >= 0 && step! < allEdges.length ? allEdges[step!].c[1] : undefined;
+        const isCurrent = stepped ? comp.type === stepTarget : current === comp.type;
         const { x, y } = problem.layout[comp.type];
         return (
           <g key={comp.type} opacity={on ? 1 : 0.4}>
@@ -146,9 +171,11 @@ export function SystemDiagram({
         );
       })}
 
-      {/* Layer 3: edge labels - drawn last so they sit on top of everything */}
+      {/* Layer 3: edge labels - drawn last so they sit on top of everything. In
+          walkthrough mode only the current step's label shows, so labels never
+          overlap; in the static diagram every revealed edge is labeled. */}
       {edges.map((e) =>
-        e.on && e.label ? (
+        (stepped ? e.i === step : e.on) && e.label ? (
           <g key={`l${e.i}`}>
             <rect x={e.mx - e.half} y={e.my - 9} width={e.half * 2} height={18} rx={5} className="fill-background" />
             <text x={e.mx} y={e.my + 4} textAnchor="middle" className="fill-muted-foreground text-[11px]">

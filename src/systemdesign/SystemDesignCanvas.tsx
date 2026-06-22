@@ -35,6 +35,7 @@ import {
   Scale,
   Layers,
   Maximize2,
+  Ban,
   ShieldCheck,
   X,
   Check,
@@ -119,6 +120,8 @@ const ICONS: Record<string, typeof Server> = {
   trainer: Cog,
   compression: Filter,
   visual_decoder: Film,
+  rejection: Ban,
+  query_expansion: Maximize2,
 };
 const iconFor = (t: SDComponentType) => ICONS[t] ?? Server;
 

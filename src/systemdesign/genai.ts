@@ -118,8 +118,10 @@ const GPT = {
       { id: "align", question: "Final alignment stage?", options: [{ id: "pretrain", label: "Pretraining only" }, { id: "sft", label: "Supervised fine-tuning only" }, { id: "rlhf", label: "RLHF (reward model + RL)" }], correct: "rlhf", why: "RLHF is the alignment stage: a reward model scores responses by human preference and the policy is optimized (PPO/DPO) to maximize it. Pretraining gives raw capability and SFT teaches the format, but RLHF is what aligns tone, helpfulness, and safety." },
     ],
   },
-  safetyOut: { type: "safety_eval", name: "Response Evaluator", blurb: "Screens the answer", explain: "Evaluates the generated response for harmful content. If unsafe, it routes to a rejection response that explains why the request can't be fulfilled." },
+  safetyOut: { type: "safety_eval", name: "Response Evaluator", blurb: "Screens the answer", explain: "Evaluates the generated response for harmful content. A safe answer goes to the user; an unsafe one is routed to the rejection generator." },
+  rejection: { type: "rejection", name: "Rejection Generator", blurb: "Clean refusal", explain: "When the input prompt is unsafe or the generated response is unsuitable, this produces a proper refusal that explains why the request can't be fulfilled, instead of leaking a bad answer." },
   session: { type: "session", name: "Session Store", blurb: "Conversation memory", explain: "Holds the conversation history so multi-turn chats stay coherent; the enhancer reads it to give the model context." },
+  out: { type: "output", name: "Response", blurb: "To the user", explain: "The final message shown to the user - either the safe generated answer or the rejection explanation." },
 } as const;
 const CHATGPT: SDProblem = {
   slug: "genai-chatbot", title: "ChatGPT Assistant", difficulty: "Hard",
@@ -148,16 +150,16 @@ const CHATGPT: SDProblem = {
       ],
       quiz: { prompt: "Which stage aligns the assistant to be helpful and safe?", options: [{ id: "pretrain", label: "Pretraining" }, { id: "sft", label: "SFT" }, { id: "rlhf", label: "RLHF" }], correct: "rlhf", why: "RLHF: a reward model captures human preference and the model is trained to maximize it. Pretraining gives capability and SFT teaches the format, but RLHF aligns tone, helpfulness, and refusal behavior." },
     },
-    { title: "Inference pipeline", body: "Each turn flows through safety and context steps.", bullets: ["User → Safety Filter → Prompt Enhancer (+ session) → Response Generator → Response Evaluator.", "Unsafe input or output is handled by a clean rejection response."] },
-    { title: "Now build it", body: "Assemble it.", bullets: ["Wire User → Safety Filter → Prompt Enhancer → Response Generator → Response Evaluator; Session ↔ Enhancer.", "Configure the alignment stage.", "Check everything."] },
+    { title: "Inference pipeline", body: "Each turn flows through safety and context steps before any answer reaches the user.", bullets: ["User → Safety Filter → Prompt Enhancer (+ session) → Response Generator → Response Evaluator.", "A safe response goes to the user; an unsafe input or output is routed to the Rejection Generator, which returns a clean refusal."] },
+    { title: "Now build it", body: "Assemble it.", bullets: ["Happy path: User → Safety Filter → Prompt Enhancer → Response Generator → Response Evaluator → Response.", "Session → Prompt Enhancer for memory; Response Evaluator → Rejection Generator → Response for unsafe answers.", "Configure the alignment stage, then check."] },
   ],
-  palette: [GPT.user, GPT.safetyIn, GPT.enhancer, GPT.model, GPT.safetyOut, GPT.session],
-  required: ["client", "safety_filter", "prompt_enhancer", "llm", "safety_eval", "session"],
-  connections: [["client", "safety_filter"], ["safety_filter", "prompt_enhancer"], ["prompt_enhancer", "llm"], ["llm", "safety_eval"], ["session", "prompt_enhancer"]],
-  connectionWhy: { "client>safety_filter": "Every prompt is screened before anything else.", "safety_filter>prompt_enhancer": "Safe prompts are enriched with instructions and context.", "prompt_enhancer>llm": "The enhanced prompt is sent to the model.", "llm>safety_eval": "The response is screened before it reaches the user.", "session>prompt_enhancer": "Conversation history is injected so multi-turn chats stay coherent." },
-  missingWhy: { client: "No conversation without a user prompt.", safety_filter: "Without input screening, harmful prompts reach the model.", prompt_enhancer: "Without context/instructions the model answers poorly.", llm: "Without the model there's no response.", safety_eval: "Without output screening, harmful responses reach users.", session: "Without session memory, multi-turn chats lose context." },
-  layout: { client: { x: 205, y: 20 }, safety_filter: { x: 205, y: 140 }, prompt_enhancer: { x: 205, y: 260 }, session: { x: 380, y: 260 }, llm: { x: 205, y: 380 }, safety_eval: { x: 205, y: 500 } },
-  edgeLabels: { "client>safety_filter": "prompt", "safety_filter>prompt_enhancer": "safe", "prompt_enhancer>llm": "enhanced", "llm>safety_eval": "response", "session>prompt_enhancer": "history" },
+  palette: [GPT.user, GPT.safetyIn, GPT.enhancer, GPT.model, GPT.safetyOut, GPT.rejection, GPT.session, GPT.out],
+  required: ["client", "safety_filter", "prompt_enhancer", "llm", "safety_eval", "rejection", "session", "output"],
+  connections: [["client", "safety_filter"], ["safety_filter", "prompt_enhancer"], ["session", "prompt_enhancer"], ["prompt_enhancer", "llm"], ["llm", "safety_eval"], ["safety_eval", "output"], ["safety_eval", "rejection"], ["rejection", "output"]],
+  connectionWhy: { "client>safety_filter": "Every prompt is screened before anything else.", "safety_filter>prompt_enhancer": "Safe prompts are enriched with instructions and context.", "session>prompt_enhancer": "Conversation history is injected so multi-turn chats stay coherent.", "prompt_enhancer>llm": "The enhanced prompt is sent to the model.", "llm>safety_eval": "The response is screened before it reaches the user.", "safety_eval>output": "A safe response is returned to the user.", "safety_eval>rejection": "An unsafe response is routed to the rejection generator instead of being shown.", "rejection>output": "The rejection explanation is returned to the user." },
+  missingWhy: { client: "No conversation without a user prompt.", safety_filter: "Without input screening, harmful prompts reach the model.", prompt_enhancer: "Without context/instructions the model answers poorly.", llm: "Without the model there's no response.", safety_eval: "Without output screening, harmful responses reach users.", rejection: "Without a rejection path, unsafe requests have no clean refusal.", session: "Without session memory, multi-turn chats lose context.", output: "Without an output there's nothing returned to the user." },
+  layout: { client: { x: 225, y: 20 }, safety_filter: { x: 225, y: 120 }, prompt_enhancer: { x: 225, y: 235 }, session: { x: 410, y: 235 }, llm: { x: 225, y: 350 }, safety_eval: { x: 225, y: 465 }, rejection: { x: 410, y: 465 }, output: { x: 225, y: 585 } },
+  edgeLabels: { "client>safety_filter": "prompt", "safety_filter>prompt_enhancer": "safe", "session>prompt_enhancer": "history", "prompt_enhancer>llm": "enhanced", "llm>safety_eval": "response", "safety_eval>output": "safe", "safety_eval>rejection": "unsafe", "rejection>output": "refusal" },
 };
 
 // ---------- RAG ----------
@@ -180,6 +182,8 @@ const RG = {
   },
   llm: { type: "llm", name: "LLM", blurb: "Generates answer", explain: "Takes the user query plus the retrieved chunks and generates a grounded answer (chain-of-thought prompting, top-p sampling), citing the context instead of hallucinating." },
   user: { type: "client", name: "User", blurb: "Asks a question", explain: "Sends a question; the system answers using the company's own documents rather than the model's memory alone." },
+  safetyIn: { type: "safety_filter", name: "Safety Filter", blurb: "Screens the query", explain: "Checks the incoming question for harmful or disallowed content before any retrieval or generation happens." },
+  queryExp: { type: "query_expansion", name: "Query Expansion", blurb: "Broaden the query", explain: "Rewrites/expands the user's question (synonyms, sub-questions) so retrieval casts a wider, more relevant net before searching the index." },
 } as const;
 const RAG: SDProblem = {
   slug: "genai-rag", title: "Retrieval-Augmented Generation", difficulty: "Hard",
@@ -217,15 +221,16 @@ const RAG: SDProblem = {
       quiz: { prompt: "How should you search millions of vectors?", options: [{ id: "exact", label: "Exact nearest neighbor" }, { id: "ann", label: "Approximate NN" }], correct: "ann", why: "Approximate nearest neighbor (HNSW/LSH) is the only way to keep retrieval fast at scale; exact search would have to scan every vector." },
     },
     { title: "Generation & evaluation", body: "Generate and measure.", bullets: ["The LLM answers from the query + retrieved chunks (CoT prompting, top-p).", "Evaluate context relevance (MRR, NDCG, Precision@k), faithfulness, and answer correctness (BLEU/ROUGE/METEOR)."] },
-    { title: "Now build it", body: "Assemble it.", bullets: ["Index: Documents → Embedder → Vector Index.", "Query: User → Retriever → Vector Index; Retriever → LLM.", "Configure the index and search, then check."] },
+    { title: "The query path", body: "At query time the question is screened and broadened before retrieval.", focus: ["client", "safety_filter", "query_expansion", "retriever"], bullets: ["User → Safety Filter (block harmful queries) → Query Expansion (broaden the search) → Retriever.", "Then the retriever ANN-searches the index and hands chunks to the LLM."] },
+    { title: "Now build it", body: "Assemble it.", bullets: ["Index: Documents → Embedder → Vector Index.", "Query: User → Safety Filter → Query Expansion → Retriever → Vector Index; Retriever → LLM.", "Configure the index and search, then check."] },
   ],
-  palette: [RG.user, RG.docs, RG.embedder, RG.index, RG.retriever, RG.llm],
-  required: ["client", "docs", "embedder", "vector_index", "retriever", "llm"],
-  connections: [["docs", "embedder"], ["embedder", "vector_index"], ["client", "retriever"], ["retriever", "vector_index"], ["retriever", "llm"]],
-  connectionWhy: { "docs>embedder": "Documents are chunked and embedded during indexing.", "embedder>vector_index": "Chunk vectors are stored in the index.", "client>retriever": "The user query goes to the retriever.", "retriever>vector_index": "The retriever ANN-searches the index for relevant chunks.", "retriever>llm": "Retrieved chunks plus the query are sent to the LLM to generate a grounded answer." },
-  missingWhy: { client: "No question to answer without a user.", docs: "Without documents there's nothing to ground answers in.", embedder: "Without embeddings, chunks and queries can't be compared semantically.", vector_index: "Without an index there's nowhere to search for relevant chunks.", retriever: "Without the retriever, the LLM has no grounding context.", llm: "Without the LLM nothing generates the final answer." },
-  layout: { client: { x: 380, y: 20 }, docs: { x: 30, y: 20 }, embedder: { x: 30, y: 160 }, vector_index: { x: 30, y: 300 }, retriever: { x: 380, y: 160 }, llm: { x: 380, y: 300 } },
-  edgeLabels: { "docs>embedder": "chunk+embed", "embedder>vector_index": "store", "client>retriever": "query", "retriever>vector_index": "ANN search", "retriever>llm": "context" },
+  palette: [RG.user, RG.safetyIn, RG.queryExp, RG.docs, RG.embedder, RG.index, RG.retriever, RG.llm],
+  required: ["client", "safety_filter", "query_expansion", "docs", "embedder", "vector_index", "retriever", "llm"],
+  connections: [["docs", "embedder"], ["embedder", "vector_index"], ["client", "safety_filter"], ["safety_filter", "query_expansion"], ["query_expansion", "retriever"], ["retriever", "vector_index"], ["retriever", "llm"]],
+  connectionWhy: { "docs>embedder": "Documents are chunked and embedded during indexing.", "embedder>vector_index": "Chunk vectors are stored in the index.", "client>safety_filter": "The user query is screened for harmful content first.", "safety_filter>query_expansion": "A safe query is broadened to improve recall.", "query_expansion>retriever": "The expanded query is handed to the retriever.", "retriever>vector_index": "The retriever ANN-searches the index for relevant chunks.", "retriever>llm": "Retrieved chunks plus the query are sent to the LLM to generate a grounded answer." },
+  missingWhy: { client: "No question to answer without a user.", safety_filter: "Without input screening, harmful queries reach the system.", query_expansion: "Without expansion, retrieval misses relevant chunks phrased differently.", docs: "Without documents there's nothing to ground answers in.", embedder: "Without embeddings, chunks and queries can't be compared semantically.", vector_index: "Without an index there's nowhere to search for relevant chunks.", retriever: "Without the retriever, the LLM has no grounding context.", llm: "Without the LLM nothing generates the final answer." },
+  layout: { client: { x: 400, y: 20 }, safety_filter: { x: 400, y: 140 }, query_expansion: { x: 400, y: 260 }, retriever: { x: 400, y: 380 }, llm: { x: 400, y: 510 }, docs: { x: 30, y: 20 }, embedder: { x: 30, y: 170 }, vector_index: { x: 30, y: 320 } },
+  edgeLabels: { "docs>embedder": "chunk+embed", "embedder>vector_index": "store", "client>safety_filter": "query", "safety_filter>query_expansion": "safe", "query_expansion>retriever": "expanded", "retriever>vector_index": "ANN search", "retriever>llm": "context" },
 };
 
 // ---------- Image Captioning (Image2Text) ----------

@@ -41,6 +41,8 @@ export type SDSlide = {
   focus?: readonly SDComponentType[];
   // Concept illustration to show instead of the architecture diagram.
   art?: string;
+  // Step-through-the-flow slide: the diagram advances one hop at a time.
+  walk?: boolean;
 };
 export type SDConn = [SDComponentType, SDComponentType];
 
@@ -53,6 +55,10 @@ export type SDProblem = {
   palette: SDComponentDef[];
   required: SDComponentType[];
   connections: SDConn[];
+  // Response/return edges: the data flowing BACK after a request. Drawn dashed
+  // and required in the build, just like forward connections. Each is the
+  // response for some forward edge (usually its reverse).
+  returns?: SDConn[];
   connectionWhy: Record<string, string>;
   missingWhy: Record<string, string>;
   layout: Record<SDComponentType, { x: number; y: number }>;
@@ -415,8 +421,26 @@ export const URL_SHORTENER: SDProblem = {
     ["redirection_handler", "analytics_service"],
     ["analytics_service", "database"],
   ],
+  // Response paths (dashed): the data that flows back after each request.
+  // Analytics is fire-and-forget, so it has no return.
+  returns: [
+    ["api_gateway", "client"],
+    ["shortening_service", "api_gateway"],
+    ["redirection_handler", "api_gateway"],
+    ["id_generator", "shortening_service"],
+    ["database", "shortening_service"],
+    ["cache", "redirection_handler"],
+    ["database", "cache"],
+  ],
   connectionWhy: {
     "client>api_gateway": "All traffic enters through the API gateway, which routes by request type.",
+    "api_gateway>client": "The gateway returns the short URL (write) or the 302 redirect (read) to the client.",
+    "shortening_service>api_gateway": "The new short URL is handed back to the gateway.",
+    "redirection_handler>api_gateway": "The resolved long URL / redirect is handed back to the gateway.",
+    "id_generator>shortening_service": "The unique code is returned to the shortening service.",
+    "database>shortening_service": "The database acknowledges the write.",
+    "cache>redirection_handler": "The cached long URL is returned for the redirect.",
+    "database>cache": "On a miss, the database returns the mapping to populate the cache.",
     "api_gateway>shortening_service": "POST /shorten requests are routed to the write service.",
     "api_gateway>redirection_handler": "GET /{code} requests are routed to the read/redirect handler.",
     "shortening_service>id_generator": "Creating a link needs a unique short code from the ID generator.",
@@ -459,6 +483,10 @@ export const URL_SHORTENER: SDProblem = {
     "cache>database": "miss",
     "redirection_handler>analytics_service": "track",
     "analytics_service>database": "flush",
+    "api_gateway>client": "short URL",
+    "id_generator>shortening_service": "code",
+    "cache>redirection_handler": "long URL",
+    "database>cache": "row",
   },
 };
 
@@ -651,8 +679,18 @@ export const RATE_LIMITER: SDProblem = {
     ["rate_limiter", "redis"],
     ["rate_limiter", "api_servers"],
   ],
+  returns: [
+    ["rules", "rate_limiter"],
+    ["redis", "rate_limiter"],
+    ["api_servers", "rate_limiter"],
+    ["rate_limiter", "client"],
+  ],
   connectionWhy: {
     "client>rate_limiter": "All client traffic hits the limiter first, before any business logic.",
+    "rules>rate_limiter": "The rules store returns the limit config to the limiter.",
+    "redis>rate_limiter": "Redis returns the updated counter so the limiter can allow or reject.",
+    "api_servers>rate_limiter": "The API servers return their response to the limiter.",
+    "rate_limiter>client": "The limiter returns the response (or a 429 'too many requests') to the client.",
     "rate_limiter>rules": "The limiter loads the limit rules (e.g. 100/min per user) from the rules store.",
     "rate_limiter>redis": "The limiter reads and atomically increments each client's counter in shared Redis.",
     "rate_limiter>api_servers": "Only allowed requests are forwarded to the API servers.",
@@ -1081,6 +1119,7 @@ const CONSISTENT_HASHING: SDProblem = {
   palette: [CH.client, CH.router, CH.nodes],
   required: ["client", "router", "cache_nodes"],
   connections: [["client", "router"], ["router", "cache_nodes"]],
+  returns: [["cache_nodes", "router"], ["router", "client"]],
   connectionWhy: { "client>router": "Clients ask the router which node owns a key.", "router>cache_nodes": "The router forwards the request to the node that owns that part of the ring." },
   missingWhy: { client: "Something has to look up keys.", router: "Without the router there's nothing computing key→node placement.", cache_nodes: "Without nodes there's nowhere to store the data." },
   layout: { client: { x: 205, y: 30 }, router: { x: 205, y: 170 }, cache_nodes: { x: 205, y: 310 } },
@@ -1115,6 +1154,7 @@ const KEY_VALUE: SDProblem = {
   palette: [KV.client, KV.coordinator, KV.nodes],
   required: ["client", "coordinator", "storage_nodes"],
   connections: [["client", "coordinator"], ["coordinator", "storage_nodes"]],
+  returns: [["storage_nodes", "coordinator"], ["coordinator", "client"]],
   connectionWhy: { "client>coordinator": "Clients send get/put to a coordinator node.", "coordinator>storage_nodes": "The coordinator reads/writes the key's replicas across the storage nodes." },
   missingWhy: { client: "Something must issue get/put.", coordinator: "Without a coordinator nothing routes keys or enforces quorum.", storage_nodes: "Without storage nodes there's nowhere to keep data." },
   layout: { client: { x: 205, y: 30 }, coordinator: { x: 205, y: 170 }, storage_nodes: { x: 205, y: 310 } },
@@ -1327,6 +1367,8 @@ const AUTOCOMPLETE: SDProblem = {
   palette: [AC.client, AC.query, AC.cache, AC.aggregator, AC.db],
   required: ["client", "query_service", "trie_cache", "aggregator", "database"],
   connections: [["client", "query_service"], ["query_service", "trie_cache"], ["aggregator", "trie_cache"], ["aggregator", "database"]],
+  // Read path returns suggestions to the user; the aggregator path is offline (no return).
+  returns: [["trie_cache", "query_service"], ["query_service", "client"]],
   connectionWhy: { "client>query_service": "Each keystroke asks the query service for suggestions.", "query_service>trie_cache": "The query service reads top-k from the in-memory trie.", "aggregator>trie_cache": "The aggregation service rebuilds and publishes the trie.", "aggregator>database": "It reads raw query logs to compute popularity." },
   missingWhy: { client: "Users type the prefixes.", query_service: "Without it there's nothing answering keystrokes.", trie_cache: "Without the in-memory trie, lookups are too slow.", aggregator: "Without aggregation the trie is never built or updated.", database: "Without query logs there's no popularity data to rank by." },
   layout: { client: { x: 205, y: 30 }, query_service: { x: 205, y: 160 }, trie_cache: { x: 205, y: 290 }, aggregator: { x: 380, y: 420 }, database: { x: 380, y: 540 } },

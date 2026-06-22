@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
@@ -23,11 +23,21 @@ export function SystemDesignModal({
   // Remembered quiz answers, keyed by slide index.
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
-  // Intro slides, then one slide per component so every part is explained before
-  // the user has to place it.
+  const [walkStep, setWalkStep] = useState(0);
+  const totalSteps = problem.connections.length + (problem.returns?.length ?? 0);
+  // Restart the walkthrough whenever we land on (or leave) the walk slide.
+  useEffect(() => setWalkStep(0), [slide]);
+
+  // Intro slides, then a flow walkthrough, then one slide per component so every
+  // part is explained before the user has to place it.
   const slides = useMemo<SDSlide[]>(
     () => [
       ...problem.slides,
+      {
+        title: "Full flow walkthrough",
+        body: "Step through the whole request and response, one hop at a time. Solid coral arrows are requests; dashed blue arrows are the data coming back.",
+        walk: true,
+      },
       ...problem.palette.map((c) => ({ title: c.name, body: c.explain })),
     ],
     [problem],
@@ -47,7 +57,8 @@ export function SystemDesignModal({
   // Reveal components on the diagram. A slide with `focus` shows just those
   // components (a sub-diagram, e.g. the write path); otherwise the diagram builds
   // up progressively as the user reaches each component slide.
-  const introCount = problem.slides.length;
+  const introCount = problem.slides.length + 1; // +1 for the walkthrough slide
+  const isWalk = !!slides[slide]?.walk;
   const focus = slides[slide]?.focus;
   const revealed = useMemo(() => {
     if (focus) return new Set<SDComponentType>(focus);
@@ -114,6 +125,48 @@ export function SystemDesignModal({
                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
                   {slides[slide].body}
                 </p>
+                {isWalk && (() => {
+                  const allEdges = [...problem.connections, ...(problem.returns ?? [])];
+                  const [ef, et] = allEdges[walkStep] ?? [];
+                  const isReturn = walkStep >= problem.connections.length;
+                  const why = ef ? problem.connectionWhy[`${ef}>${et}`] ?? `${nameOf(ef)} returns its response to ${nameOf(et)}.` : "";
+                  return (
+                    <div className="mt-4 rounded-2xl border border-border bg-background/40 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Step {walkStep + 1} / {totalSteps}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setWalkStep((s) => Math.max(0, s - 1))}
+                            disabled={walkStep === 0}
+                            className="grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-30"
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setWalkStep((s) => Math.min(totalSteps - 1, s + 1))}
+                            disabled={walkStep >= totalSteps - 1}
+                            className="grid h-8 w-8 place-items-center rounded-full bg-coral text-coral-foreground transition hover:opacity-95 disabled:opacity-30"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {ef && (
+                        <div className="mt-3 text-sm">
+                          <span className={`font-medium ${isReturn ? "text-sky" : "text-coral"}`}>
+                            {nameOf(ef)} {isReturn ? "⇠" : "→"} {nameOf(et)}
+                          </span>
+                          <span className="ml-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            {isReturn ? "response" : "request"}
+                          </span>
+                          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{why}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {slides[slide].bullets && (
                   <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-muted-foreground">
                     {slides[slide].bullets!.map((b, i) => (
@@ -183,7 +236,7 @@ export function SystemDesignModal({
                 {slides[slide].art ? (
                   <ConceptDiagram id={slides[slide].art!} />
                 ) : (
-                  <SystemDiagram problem={problem} revealed={revealed} current={currentType} />
+                  <SystemDiagram problem={problem} revealed={revealed} current={currentType} step={isWalk ? walkStep : undefined} />
                 )}
               </div>
             </div>
