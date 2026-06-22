@@ -25,13 +25,15 @@ resource "aws_iam_role_policy" "ssm" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["ssm:GetParameter"]
+        Effect = "Allow"
+        # PutParameter lets the admin UI rotate the LeetCode session token into
+        # its SSM SecureString parameter without a redeploy.
+        Action   = ["ssm:GetParameter", "ssm:PutParameter"]
         Resource = var.ssm_parameter_arns
       },
       {
         Effect   = "Allow"
-        Action   = ["kms:Decrypt"]
+        Action   = ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"]
         Resource = "*"
       }
     ]

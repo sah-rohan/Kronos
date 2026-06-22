@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { OptionPicker } from "../components/OptionPicker";
+import { initialsOf, colorFor } from "../lib/avatar";
 import { useData } from "../data/source";
 import { api, type SdLeader } from "../lib/api";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
@@ -307,6 +308,9 @@ export function LeaderboardModal({
           {sdLeaders.map((l, i) => (
             <li key={l.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
               <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">{i + 1}</div>
+              <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(l.name)}`}>
+                {initialsOf(l.name)}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{l.name}</div>
                 {l.username && <div className="truncate text-xs text-muted-foreground">@{l.username}</div>}

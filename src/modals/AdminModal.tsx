@@ -5,13 +5,14 @@ import { useData } from "../data/source";
 import { api, type Analytics, type LeetcodeSession, type MeResponse } from "../lib/api";
 import { daysUntil } from "../lib/date";
 
-// ISO timestamp -> value for <input type="datetime-local"> in local time.
-function toLocalInput(iso?: string): string {
+// ISO timestamp -> value for <input type="datetime-local">, shown in UTC
+// (LeetCode session cookies expire in UTC, so we keep the whole field in UTC).
+function toUtcInput(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
@@ -37,7 +38,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
       .adminLeetcodeSession(getToken)
       .then((s) => {
         setSession(s);
-        setExpiryVal(toLocalInput(s.expiresAt));
+        setExpiryVal(toUtcInput(s.expiresAt));
       })
       .catch(() => setSession(null));
     api
@@ -60,8 +61,8 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     setSavingSession(true);
     setSessionMsg("");
     try {
-      // expiryVal is a local datetime-local string; store it as ISO.
-      const iso = expiryVal ? new Date(expiryVal).toISOString() : "";
+      // expiryVal is a UTC datetime-local string; append Z so it's parsed as UTC.
+      const iso = expiryVal ? new Date(`${expiryVal}:00Z`).toISOString() : "";
       await api.adminSetLeetcodeSession(getToken, tokenVal.trim(), iso);
       setTokenVal("");
       setSessionMsg("Saved.");
@@ -194,7 +195,9 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
               placeholder="Paste LEETCODE_SESSION token"
               className="mt-1.5 w-full rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm outline-none transition focus:border-coral"
             />
-            <label className="mt-3 block text-xs font-medium text-muted-foreground">Expires at</label>
+            <label className="mt-3 block text-xs font-medium text-muted-foreground">
+              Expires at (UTC) - LeetCode session cookies expire in UTC
+            </label>
             <input
               type="datetime-local"
               value={expiryVal}

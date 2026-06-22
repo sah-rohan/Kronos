@@ -74,13 +74,24 @@ export function SystemDesignModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-sky-foreground/25 backdrop-blur-sm" onClick={onClose} />
       <div className="modal-surface relative flex h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] border border-border p-6 shadow-[0_30px_80px_-20px_rgba(7,55,129,0.55)] sm:p-8">
-        {stage === "build" && (
+        {stage === "build" ? (
           <button
             onClick={() => setStage("learn")}
+            aria-label="Back to learning"
             className="absolute left-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
+        ) : (
+          slide > 0 && (
+            <button
+              onClick={() => setSlide((s) => Math.max(0, s - 1))}
+              aria-label="Previous slide"
+              className="absolute left-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )
         )}
         <button
           onClick={onClose}
@@ -89,7 +100,7 @@ export function SystemDesignModal({
           <X className="h-4 w-4" />
         </button>
 
-        <div className={`${stage === "build" ? "px-12" : "pr-12"}`}>
+        <div className={`${stage === "build" || slide > 0 ? "px-12" : "pr-12"}`}>
           <div className="mb-1 text-xs font-medium uppercase tracking-wide text-coral">System Design</div>
           <div className="font-display text-2xl tracking-tight">{problem.title}</div>
         </div>

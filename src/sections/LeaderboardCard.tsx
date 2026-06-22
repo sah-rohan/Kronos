@@ -36,14 +36,7 @@ export function LeaderboardCard({
   if (isSD) {
     const total = board === "genai" ? GENAI_PROBLEMS.length : SD_PROBLEMS.length;
     const label = board === "genai" ? "AI System Design" : "System Design";
-    let lastVal: number | null = null;
-    let lastRank = 0;
-    const ranked = sdLeaders.map((l, i) => {
-      const rank = i > 0 && l.count === lastVal ? lastRank : i + 1;
-      lastVal = l.count;
-      lastRank = rank;
-      return { l, rank };
-    });
+    const ranked = sdLeaders.map((l, i) => ({ l, rank: i + 1 }));
     return (
       <Card className="lg:col-span-2 h-full" onClick={onOpen}>
         <div className="flex items-center justify-between">
@@ -56,7 +49,7 @@ export function LeaderboardCard({
               <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{rank}</div>
               <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(l.name)}`}>
                 {initialsOf(l.name)}
-                {rank === 1 && <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />}
+                {rank === 1 && l.count > 0 && <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />}
               </div>
               <div className="w-36 min-w-0">
                 <div className="truncate text-sm font-medium">{l.name}</div>
