@@ -13,6 +13,10 @@ export function isCompleted(slug: string): boolean {
   return read().includes(slug);
 }
 
+export function completedSet(): Set<string> {
+  return new Set(read());
+}
+
 export function completedCount(): number {
   return read().length;
 }

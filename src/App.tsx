@@ -3,13 +3,20 @@ import { greeting } from "./lib/greeting";
 import { initialsOf } from "./lib/avatar";
 import { CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
-import { api } from "./lib/api";
+import { api, type TokenFn } from "./lib/api";
+import { daysUntil } from "./lib/date";
+import { LockOverlay } from "./components/LockOverlay";
+import { LinkLeetCodeModal } from "./modals/LinkLeetCodeModal";
 import { effectiveDark } from "./lib/theme";
 import type { Friend, Month, ProblemRef, ProblemList } from "./types";
 import { Clouds } from "./components/Clouds";
 import { SystemDesignCard } from "./systemdesign/SystemDesignCard";
 import { SystemDesignModal } from "./systemdesign/SystemDesignModal";
 import { ComponentsModal } from "./systemdesign/ComponentsModal";
+import { CloudCard } from "./systemdesign/CloudCard";
+import { CloudModal } from "./systemdesign/CloudModal";
+import { GenAICard } from "./systemdesign/GenAICard";
+import { GENAI_PROBLEMS } from "./systemdesign/genai";
 import { SD_PROBLEMS } from "./systemdesign/problems";
 import { TopBar } from "./sections/TopBar";
 import { Greeting } from "./sections/Greeting";
@@ -31,8 +38,32 @@ import { AdminModal } from "./modals/AdminModal";
 
 type ThemeMode = "auto" | "light" | "dark";
 
-function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }: { isAdmin?: boolean; userName?: string; initialTheme?: ThemeMode }) {
+function App({
+  isAdmin = false,
+  userName = "Jordan Dev",
+  initialTheme = "auto",
+  lcUnlocked = true,
+  lcPending = false,
+  token,
+  onReloadMe,
+}: {
+  isAdmin?: boolean;
+  userName?: string;
+  initialTheme?: ThemeMode;
+  lcUnlocked?: boolean;
+  lcPending?: boolean;
+  token?: TokenFn;
+  onReloadMe?: () => void;
+}) {
   const { removeFriend, getToken } = useData();
+  const [linkOpen, setLinkOpen] = useState(false);
+  // When a card is locked, the LockOverlay wrapper becomes the grid item, so it
+  // must carry the card's column span (and fill height) for the rows to line up.
+  const lock = (node: React.ReactNode, span = "lg:col-span-1") => (
+    <LockOverlay locked={!lcUnlocked} pending={lcPending} onUnlock={() => setLinkOpen(true)} className={span}>
+      {node}
+    </LockOverlay>
+  );
   const [modal, setModal] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const [cal, setCal] = useState<Month>(CAL_START);
@@ -45,8 +76,24 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [roadmap, setRoadmap] = useState<ProblemList>("neetcode150");
+  // The board shared by My Progress + the Leaderboard card: a roadmap, or the
+  // System Design / AI System Design rankings. Picking it on the left switches
+  // the right leaderboard too.
+  const [board, setBoard] = useState<ProblemList | "sd" | "genai">("neetcode150");
+  const onBoard = (b: ProblemList | "sd" | "genai") => {
+    setBoard(b);
+    if (b !== "sd" && b !== "genai") setRoadmap(b);
+  };
   const [sdSlug, setSdSlug] = useState<string | null>(null);
   const [sdComponents, setSdComponents] = useState(false);
+  const [cloudOpen, setCloudOpen] = useState(false);
+  // Admin-only: warn when the LeetCode session token is near/at expiry.
+  const [sessionExpiry, setSessionExpiry] = useState<string>("");
+  useEffect(() => {
+    if (isAdmin) api.adminLeetcodeSession(getToken).then((s) => setSessionExpiry(s.expiresAt)).catch(() => {});
+  }, [isAdmin, getToken]);
+  const expiryDays = daysUntil(sessionExpiry);
+  const showExpiryAlert = isAdmin && expiryDays !== null && expiryDays <= 7;
   const hello = greeting(new Date());
 
   // Apply the effective theme (auto = day/night by the local clock) + status-bar color.
@@ -102,13 +149,30 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
         />
         <Greeting hello={hello} name={userName.split(" ")[0]} />
 
+        {showExpiryAlert && (
+          <button
+            onClick={() => setAdminOpen(true)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-coral/50 bg-coral/10 px-4 py-3 text-left text-sm transition hover:bg-coral/15"
+          >
+            <span className="font-medium text-coral">
+              {expiryDays! < 0 ? "LeetCode session expired" : `LeetCode session expires in ${expiryDays} day${expiryDays === 1 ? "" : "s"}`}
+            </span>
+            <span className="text-muted-foreground">
+              {expiryDays! < 0 ? "Sync is paused until you replace the token." : "Replace it soon to keep syncing."}
+            </span>
+            <span className="ml-auto shrink-0 font-medium text-coral">Update →</span>
+          </button>
+        )}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <MyProgressCard onOpen={() => setModal("me")} roadmap={roadmap} onRoadmap={setRoadmap} />
-          <LeaderboardCard onOpen={() => setModal("leaderboard")} roadmap={roadmap} />
-          <MyFriendsCard onOpen={() => setModal("friends")} />
-          <CurrentStreakCard onOpen={openCalendar} />
-          <RecentActivityCard onOpen={() => setModal("recent")} userName={userName} />
+          {lock(<MyProgressCard onOpen={() => setModal("me")} board={board} onBoard={onBoard} />)}
+          {lock(<LeaderboardCard onOpen={() => setModal("leaderboard")} board={board} roadmap={roadmap} />, "lg:col-span-2")}
+          {lock(<MyFriendsCard onOpen={() => setModal("friends")} />)}
+          {lock(<CurrentStreakCard onOpen={openCalendar} />)}
+          {lock(<RecentActivityCard onOpen={() => setModal("recent")} onOpenModule={setSdSlug} userName={userName} />)}
           <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
+          <GenAICard onOpen={setSdSlug} />
+          <CloudCard onOpen={() => setCloudOpen(true)} />
         </div>
       </div>
 
@@ -118,15 +182,23 @@ function App({ isAdmin = false, userName = "Jordan Dev", initialTheme = "auto" }
           onOpenProblem={(p) => { setMyProblemRecent(false); setMyProblemLabel(undefined); setMyProblem(p); }}
         />
       )}
+      {linkOpen && token && (
+        <LinkLeetCodeModal
+          token={token}
+          onClose={() => setLinkOpen(false)}
+          onLinked={() => onReloadMe?.()}
+        />
+      )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
       {sdSlug && (
         <SystemDesignModal
-          problem={SD_PROBLEMS.find((p) => p.slug === sdSlug)!}
+          problem={[...SD_PROBLEMS, ...GENAI_PROBLEMS].find((p) => p.slug === sdSlug)!}
           onClose={() => setSdSlug(null)}
         />
       )}
       {sdComponents && <ComponentsModal onClose={() => setSdComponents(false)} />}
+      {cloudOpen && <CloudModal onClose={() => setCloudOpen(false)} />}
       {modal === "calendar" && (
         <CalendarModal
           cal={cal}

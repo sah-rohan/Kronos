@@ -9,3 +9,12 @@ export function fmtShortDate(key?: string): string {
     timeZone: "UTC",
   });
 }
+
+// Whole days from now until an ISO timestamp (negative if already past).
+// Returns null for an empty/invalid input.
+export function daysUntil(iso?: string): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return Math.floor((t - Date.now()) / 86400000);
+}

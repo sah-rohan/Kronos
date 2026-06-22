@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Crown, Flame, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { OptionPicker } from "../components/OptionPicker";
 import { useData } from "../data/source";
+import { api, type SdLeader } from "../lib/api";
 import { ROADMAPS, listTotal } from "../lib/roadmaps";
 import {
   useLeaderboardScope,
@@ -32,7 +34,7 @@ export function LeaderboardModal({
   setRoadmap: (r: ProblemList) => void;
   userName: string;
 }) {
-  const { members, friends, categories, groupTotals, friendsDifficulty } =
+  const { members, friends, categories, groupTotals, friendsDifficulty, getToken } =
     useData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
@@ -51,6 +53,29 @@ export function LeaderboardModal({
     return t;
   })();
   const { scope, setScope } = useLeaderboardScope();
+
+  // "type" is the leaderboard board: a roadmap, the System Design ranking, or
+  // the AI System Design ranking. The choice is cached so it persists across
+  // opens / reloads.
+  type Board = ProblemList | "sd" | "genai";
+  const [type, setType] = useState<Board>(() => {
+    const saved = localStorage.getItem("lb-type") as Board | null;
+    return saved ?? roadmap;
+  });
+  useEffect(() => {
+    localStorage.setItem("lb-type", type);
+  }, [type]);
+
+  const [sdLeaders, setSdLeaders] = useState<SdLeader[]>([]);
+  const showSd = type === "sd" || type === "genai";
+  useEffect(() => {
+    if (showSd) {
+      api
+        .sdLeaderboard(getToken, type === "genai" ? "genai" : "design")
+        .then((l) => setSdLeaders(l ?? []))
+        .catch(() => {});
+    }
+  }, [showSd, type, getToken]);
 
   const friendUsernames = new Set(friends.map((f) => f.username));
 
@@ -261,22 +286,44 @@ export function LeaderboardModal({
   );
 
   return (
-    <Modal title="Summer 2026 Leaderboard" onClose={onClose} footer={footer}>
-      <div className="mb-4 flex flex-wrap gap-1 rounded-full border border-border bg-background/60 p-1">
-        {ROADMAPS.map((r) => (
-          <button
-            key={r.key}
-            onClick={() => setRoadmap(r.key)}
-            className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              roadmap === r.key
-                ? "bg-coral text-coral-foreground"
-                : "text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
+    <Modal title="Summer 2026 Leaderboard" onClose={onClose} footer={showSd ? undefined : footer}>
+      <OptionPicker
+        className="mb-4"
+        value={type}
+        onSelect={(id) => {
+          const v = id as Board;
+          setType(v);
+          if (v !== "sd" && v !== "genai") setRoadmap(v);
+        }}
+        options={[
+          ...ROADMAPS.map((r) => ({ id: r.key, label: r.label })),
+          { id: "sd", label: "System Design" },
+          { id: "genai", label: "AI System Design" },
+        ]}
+      />
+
+      {showSd && (
+        <ul className="space-y-3">
+          {sdLeaders.map((l, i) => (
+            <li key={l.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
+              <div className="w-5 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">{i + 1}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{l.name}</div>
+                {l.username && <div className="truncate text-xs text-muted-foreground">@{l.username}</div>}
+              </div>
+              <div className="shrink-0 text-right text-sm font-semibold tabular-nums">
+                {l.count}<span className="text-muted-foreground"> solved</span>
+              </div>
+            </li>
+          ))}
+          {sdLeaders.length === 0 && (
+            <li className="py-6 text-center text-sm text-muted-foreground">No one has completed a module yet.</li>
+          )}
+        </ul>
+      )}
+
+      {!showSd && (
+      <>
       <div className="mb-4 flex flex-wrap gap-1 rounded-full border border-border bg-background/60 p-1">
         {SCOPES.map((s) => (
           <button
@@ -377,6 +424,8 @@ export function LeaderboardModal({
           </li>
         )}
       </ul>
+      </>
+      )}
     </Modal>
   );
 }

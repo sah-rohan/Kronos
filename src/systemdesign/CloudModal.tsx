@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import { COMPONENT_DOCS } from "./components";
-import { ComponentDiagram } from "./ComponentDiagrams";
+import { CLOUD_DOCS } from "./cloud";
 
-export function ComponentsModal({ onClose }: { onClose: () => void }) {
-  const [activeId, setActiveId] = useState(COMPONENT_DOCS[0].id);
-  const active = COMPONENT_DOCS.find((c) => c.id === activeId)!;
+export function CloudModal({ onClose }: { onClose: () => void }) {
+  const [activeId, setActiveId] = useState(CLOUD_DOCS[0].id);
+  const active = CLOUD_DOCS.find((c) => c.id === activeId)!;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -19,17 +18,17 @@ export function ComponentsModal({ onClose }: { onClose: () => void }) {
         </button>
 
         <div className="border-b border-border p-6 pb-4 sm:px-8">
-          <div className="text-xs font-medium uppercase tracking-wide text-coral">System Design</div>
-          <div className="font-display text-2xl tracking-tight">Main Components</div>
+          <div className="text-xs font-medium uppercase tracking-wide text-coral">Cloud Engineering</div>
+          <div className="font-display text-2xl tracking-tight">AWS &amp; Azure</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            The reusable building blocks - the problem each solves, how it works, and when to use it.
+            Core cloud building blocks, how they work, and the equivalent service on each cloud.
           </p>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           {/* Sidebar */}
           <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-border p-3 sm:w-56 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r">
-            {COMPONENT_DOCS.map((c) => (
+            {CLOUD_DOCS.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setActiveId(c.id)}
@@ -47,41 +46,48 @@ export function ComponentsModal({ onClose }: { onClose: () => void }) {
             <div className="font-display text-2xl tracking-tight">{active.name}</div>
             <p className="mt-1 text-sm text-muted-foreground">{active.tagline}</p>
 
-            <div className="mt-5 rounded-2xl border border-border bg-background/40 p-4">
-              <ComponentDiagram id={active.id} />
-            </div>
-
-            <div className="mt-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">The problem</div>
+            <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">What it is</div>
             <div className="mt-2 space-y-2 text-[15px] leading-relaxed text-muted-foreground">
-              {active.problem.map((p, i) => (
+              {active.what.map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
             </div>
 
             <div className="mt-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">How it works</div>
             <ul className="mt-2 space-y-2 text-[14px] leading-relaxed text-muted-foreground">
-              {active.how.map((b, i) => (
+              {active.how.map((h, i) => (
                 <li key={i} className="flex gap-2">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-coral" />
-                  {typeof b === "string" ? (
-                    <span>{b}</span>
-                  ) : (
-                    <span>
-                      <span className="font-medium text-foreground">{b.term}.</span> {b.text}
-                    </span>
-                  )}
+                  <span>
+                    <span className="font-medium text-foreground">{h.term}.</span> {h.text}
+                  </span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">Common implementations</div>
-            <div className="mt-2 space-y-2">
-              {active.implementations.map((impl) => (
-                <div key={impl.name} className="rounded-2xl border border-border px-4 py-2.5">
-                  <div className="text-sm font-medium">{impl.name}</div>
-                  <div className="text-[13px] text-muted-foreground">{impl.desc}</div>
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#ff9900]">On AWS</div>
+                <div className="space-y-2">
+                  {active.aws.map((s) => (
+                    <div key={s.name} className="rounded-2xl border border-border px-4 py-2.5">
+                      <div className="text-sm font-medium">{s.name}</div>
+                      <div className="text-[13px] text-muted-foreground">{s.desc}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#0078d4]">On Azure</div>
+                <div className="space-y-2">
+                  {active.azure.map((s) => (
+                    <div key={s.name} className="rounded-2xl border border-border px-4 py-2.5">
+                      <div className="text-sm font-medium">{s.name}</div>
+                      <div className="text-[13px] text-muted-foreground">{s.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -7,8 +7,9 @@ create table if not exists users (
   leetcode_user   citext unique,               -- unique LeetCode username (no impersonation)
   github_user     text,
   display_name    text not null,
-  status          text not null default 'pending',  -- 'pending' | 'approved'
+  status          text not null default 'approved',  -- everyone is a member; 'pending' is legacy
   role            text not null default 'member',   -- 'member' | 'admin'
+  email           text,                             -- Google account email (for admin reference)
   active          boolean not null default true,    -- false = soft-deleted (kept for history)
   created_at      timestamptz not null default now()
 );
@@ -16,6 +17,16 @@ create table if not exists users (
 alter table users add column if not exists active boolean not null default true;
 -- Pending LeetCode-username change requested by the user; admin reviews & applies.
 alter table users add column if not exists requested_username text;
+alter table users add column if not exists email text;
+-- Membership is now automatic: approve everyone (LeetCode is gated on a linked username, not approval).
+update users set status = 'approved' where status = 'pending';
+
+-- Small key/value store for app-level settings (non-secret). e.g. the LeetCode
+-- session token's expiry timestamp (the token itself lives in SSM SecureString).
+create table if not exists app_settings (
+  key   text primary key,
+  value text not null
+);
 
 create table if not exists groups (
   id              uuid primary key default gen_random_uuid(),
@@ -141,6 +152,14 @@ create table if not exists visits (
   at       timestamptz not null default now()
 );
 create index if not exists idx_visits_at on visits(at);
+
+-- One row per system-design module a user has completed, for ranking.
+create table if not exists sd_solves (
+  user_id   uuid not null references users(id) on delete cascade,
+  slug      text not null,
+  solved_at timestamptz not null default now(),
+  primary key (user_id, slug)
+);
 
 create index if not exists idx_solves_user on solves(user_id);
 create index if not exists idx_submissions_pending on submissions(enriched) where not enriched;

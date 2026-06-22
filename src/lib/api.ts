@@ -9,10 +9,16 @@ export function setDisplayName(name: string) {
   displayName = name ?? "";
 }
 
+let userEmail = "";
+export function setUserEmail(email: string) {
+  userEmail = email ?? "";
+}
+
 async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Promise<T> {
   const token = await getToken();
   const url = new URL(`${base}${path}`);
   if (displayName) url.searchParams.set("name", displayName);
+  if (userEmail) url.searchParams.set("email", userEmail);
   const res = await fetch(url.toString(), {
     ...init,
     headers: {
@@ -32,6 +38,13 @@ export const api = {
     call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
   syncNow: (t: TokenFn) => call("/me/sync", t, { method: "POST" }),
   visit: (t: TokenFn) => call("/me/visit", t, { method: "POST" }),
+  sdSolved: (t: TokenFn) => call<string[]>("/me/sd", t),
+  sdSolve: (t: TokenFn, slug: string) => call(`/me/sd/${slug}`, t, { method: "POST" }),
+  sdLeaderboard: (t: TokenFn, kind?: "design" | "genai") =>
+    call<SdLeader[]>(`/sd/leaderboard${kind ? `?kind=${kind}` : ""}`, t),
+  sdActivity: (t: TokenFn, kind?: "design" | "genai") =>
+    call<SdActivity[]>(`/sd/activity${kind ? `?kind=${kind}` : ""}`, t),
+  mySdActivity: (t: TokenFn) => call<SdActivity[]>("/me/sd/activity", t),
   requestUsername: (t: TokenFn, username: string) =>
     call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
@@ -70,13 +83,19 @@ export const api = {
     call("/admin/username", t, { method: "POST", body: JSON.stringify({ id, username }) }),
   adminRemove: (t: TokenFn, id: string) => call(`/admin/users/${id}`, t, { method: "DELETE" }),
   adminReject: (t: TokenFn, id: string) => call(`/admin/users/${id}/purge`, t, { method: "DELETE" }),
+  adminLeetcodeSession: (t: TokenFn) => call<LeetcodeSession>("/admin/leetcode-session", t),
+  adminSetLeetcodeSession: (t: TokenFn, token: string, expiresAt: string) =>
+    call("/admin/leetcode-session", t, { method: "POST", body: JSON.stringify({ token, expiresAt }) }),
 };
+
+export type LeetcodeSession = { expiresAt: string; hasToken: boolean };
 
 export type MeResponse = {
   id: string;
   username: string;
   github: string;
   name: string;
+  email?: string;
   status: string;
   role: string;
   theme: string;
@@ -99,6 +118,8 @@ export type ApiRecent = { n: number; slug: string; name: string; diff: string; w
 export type ApiCalendarProblem = { date: string; slug: string; title: string; difficulty: string };
 export type ApiDifficultyTotal = { label: string; count: number };
 export type ApiDay = { date: string; count: number };
+export type SdLeader = { name: string; username: string; count: number };
+export type SdActivity = { name: string; username: string; slug: string; at: string };
 export type Analytics = {
   users: number;
   pending: number;

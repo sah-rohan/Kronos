@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
-import { api, type Analytics, type MeResponse } from "../lib/api";
+import { api, type Analytics, type LeetcodeSession, type MeResponse } from "../lib/api";
+import { daysUntil } from "../lib/date";
+
+// ISO timestamp -> value for <input type="datetime-local"> in local time.
+function toLocalInput(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function AdminModal({ onClose }: { onClose: () => void }) {
   const { getToken } = useData();
@@ -14,10 +24,22 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState("");
+  const [session, setSession] = useState<LeetcodeSession | null>(null);
+  const [tokenVal, setTokenVal] = useState("");
+  const [expiryVal, setExpiryVal] = useState("");
+  const [savingSession, setSavingSession] = useState(false);
+  const [sessionMsg, setSessionMsg] = useState("");
 
   const load = () => {
     api.adminPending(getToken).then(setPending).catch(() => setPending([]));
     api.adminAnalytics(getToken).then(setStats).catch(() => setStats(null));
+    api
+      .adminLeetcodeSession(getToken)
+      .then((s) => {
+        setSession(s);
+        setExpiryVal(toLocalInput(s.expiresAt));
+      })
+      .catch(() => setSession(null));
     api
       .adminUsers(getToken)
       .then((u) => {
@@ -33,6 +55,23 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const saveSession = async () => {
+    setSavingSession(true);
+    setSessionMsg("");
+    try {
+      // expiryVal is a local datetime-local string; store it as ISO.
+      const iso = expiryVal ? new Date(expiryVal).toISOString() : "";
+      await api.adminSetLeetcodeSession(getToken, tokenVal.trim(), iso);
+      setTokenVal("");
+      setSessionMsg("Saved.");
+      load();
+    } catch {
+      setSessionMsg("Could not save. Try again.");
+    } finally {
+      setSavingSession(false);
+    }
+  };
 
   const approve = async (id: string) => {
     await api.adminApprove(getToken, id);
@@ -122,6 +161,61 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           <div className="mt-7" />
         </>
       )}
+
+      {(() => {
+        const days = daysUntil(session?.expiresAt);
+        const warn = days !== null && days <= 7;
+        return (
+          <>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">LeetCode session</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The session token used to sync solves from LeetCode. Paste a fresh token and its expiry; it's stored
+              encrypted (SSM SecureString) and never shown again.
+            </p>
+            {session && (
+              <div
+                className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${
+                  warn ? "border-coral/50 bg-coral/5 text-coral" : "border-border text-muted-foreground"
+                }`}
+              >
+                {session.hasToken ? "Token set." : "No token set yet."}{" "}
+                {session.expiresAt
+                  ? days !== null && days < 0
+                    ? `Expired ${-days} day${-days === 1 ? "" : "s"} ago - sync is broken until you replace it.`
+                    : `Expires in ${days} day${days === 1 ? "" : "s"} (${new Date(session.expiresAt).toLocaleString()}).`
+                  : "No expiry recorded."}
+              </div>
+            )}
+            <label className="mt-3 block text-xs font-medium text-muted-foreground">New session token</label>
+            <input
+              type="password"
+              value={tokenVal}
+              onChange={(e) => setTokenVal(e.target.value)}
+              placeholder="Paste LEETCODE_SESSION token"
+              className="mt-1.5 w-full rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm outline-none transition focus:border-coral"
+            />
+            <label className="mt-3 block text-xs font-medium text-muted-foreground">Expires at</label>
+            <input
+              type="datetime-local"
+              value={expiryVal}
+              onChange={(e) => setExpiryVal(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-border bg-background/60 px-3 py-2.5 text-sm outline-none transition focus:border-coral"
+            />
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={saveSession}
+                disabled={savingSession || (!tokenVal.trim() && !expiryVal)}
+                className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
+              >
+                {savingSession ? "Saving…" : "Save session"}
+              </button>
+              {sessionMsg && <span className="text-xs text-muted-foreground">{sessionMsg}</span>}
+            </div>
+            <div className="mt-7" />
+          </>
+        );
+      })()}
+
       {requests.length > 0 && (
         <>
           <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -151,15 +245,17 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
           <div className="mt-7" />
         </>
       )}
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pending approval</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Legacy pending</div>
       <p className="mt-1 text-sm text-muted-foreground">
-        New sign-ups wait here until you verify their LeetCode username.
+        New members are approved automatically now - everyone can use the System Design modules. LeetCode features
+        unlock once they link a username. These are older sign-ups not yet migrated.
       </p>
       <ul className="mt-3 space-y-3">
         {(pending ?? []).map((u) => (
           <li key={u.id} className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{u.name}</div>
+              {u.email && <div className="truncate text-[11px] text-muted-foreground">{u.email}</div>}
               <div className="truncate text-xs text-muted-foreground">LeetCode @{u.username || "—"}</div>
             </div>
             <button
@@ -210,6 +306,7 @@ export function AdminModal({ onClose }: { onClose: () => void }) {
                 {u.name}
                 {u.role === "admin" && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">admin</span>}
               </div>
+              {u.email && <div className="truncate text-[11px] text-muted-foreground">{u.email}</div>}
               {editId === u.id ? (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">@</span>

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
-import { api, setDisplayName, type MeResponse, type TokenFn } from "../lib/api";
+import { api, setDisplayName, setUserEmail, type MeResponse, type TokenFn } from "../lib/api";
 import { effectiveDark } from "../lib/theme";
 import { DataProvider } from "../data/source";
 import App from "../App";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { PendingScreen } from "./PendingScreen";
-import { OnboardingScreen } from "./OnboardingScreen";
 
 export function AuthGate() {
   const { getToken } = useAuth();
@@ -21,13 +20,16 @@ export function AuthGate() {
     user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
     "";
 
+  const clerkEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+
   const load = useCallback(() => {
     setDisplayName(clerkName);
+    setUserEmail(clerkEmail);
     api
       .me(token)
       .then(setMe)
       .catch(() => setMe("error"));
-  }, [token, clerkName]);
+  }, [token, clerkName, clerkEmail]);
 
   useEffect(load, [load]);
 
@@ -44,12 +46,11 @@ export function AuthGate() {
   if (me === "error") {
     return <PendingScreen />;
   }
-  if (!me.username) {
-    return <OnboardingScreen token={token} onDone={load} />;
-  }
-  if (me.status !== "approved") {
-    return <PendingScreen />;
-  }
+  // Everyone is a member automatically. The LeetCode-powered features unlock as
+  // soon as a LeetCode username is linked; until then a Google sign-in still has
+  // full access to the System Design modules and the LeetCode cards stay locked.
+  const lcUnlocked = !!me.username;
+  const lcPending = false;
   const name = clerkName || me.username || "You";
   return (
     <DataProvider getToken={token} seasonStart={me.season}>
@@ -57,6 +58,10 @@ export function AuthGate() {
         isAdmin={me.role === "admin"}
         userName={name}
         initialTheme={(me.theme as "auto" | "light" | "dark") || "auto"}
+        lcUnlocked={lcUnlocked}
+        lcPending={lcPending}
+        token={token}
+        onReloadMe={load}
       />
     </DataProvider>
   );

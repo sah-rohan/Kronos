@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -13,6 +14,7 @@ type User struct {
 	LeetcodeUser      string `json:"username"`
 	GithubUser        string `json:"github"`
 	DisplayName       string `json:"name"`
+	Email             string `json:"email"`
 	Status            string `json:"status"`
 	Role              string `json:"role"`
 	Theme             string `json:"theme"`
@@ -63,16 +65,20 @@ var ErrNotFound = errors.New("not found")
 var ErrSelfFriend = errors.New("cannot add yourself")
 var ErrUsernameTaken = errors.New("leetcode username already taken")
 
-func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName string) (User, error) {
+func (p *Postgres) EnsureUser(ctx context.Context, clerkID, displayName, email string) (User, error) {
 	var u User
+	// Everyone is auto-approved (a member) the moment they sign in. LeetCode
+	// participation is gated separately on having linked a LeetCode username.
 	err := p.pool.QueryRow(ctx, `
-		insert into users (clerk_id, display_name)
-		values ($1, coalesce(nullif($2, ''), $1))
+		insert into users (clerk_id, display_name, email, status)
+		values ($1, coalesce(nullif($2, ''), $1), nullif($3, ''), 'approved')
 		on conflict (clerk_id) do update set
-			display_name = case when nullif($2, '') is not null then $2 else users.display_name end
-		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, coalesce(theme, 'auto')`,
-		clerkID, displayName,
-	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role, &u.Theme)
+			display_name = case when nullif($2, '') is not null then $2 else users.display_name end,
+			email = coalesce(nullif($3, ''), users.email),
+			status = 'approved'
+		returning id::text, clerk_id, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, coalesce(email, ''), status, role, coalesce(theme, 'auto')`,
+		clerkID, displayName, email,
+	).Scan(&u.ID, &u.ClerkID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Email, &u.Status, &u.Role, &u.Theme)
 	return u, err
 }
 
@@ -133,10 +139,10 @@ func (p *Postgres) ListPending(ctx context.Context) ([]User, error) {
 
 func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
 	rows, err := p.pool.Query(ctx, `
-		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, status, role, coalesce(requested_username, '')
+		select id::text, coalesce(leetcode_user::text, ''), coalesce(github_user, ''), display_name, coalesce(email, ''), status, role, coalesce(requested_username, '')
 		from users
 		where active
-		order by (requested_username is not null) desc, (status = 'approved') desc, display_name`)
+		order by (leetcode_user is null) desc, display_name`)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +150,7 @@ func (p *Postgres) AllUsers(ctx context.Context) ([]User, error) {
 	users := []User{}
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Status, &u.Role, &u.RequestedUsername); err != nil {
+		if err := rows.Scan(&u.ID, &u.LeetcodeUser, &u.GithubUser, &u.DisplayName, &u.Email, &u.Status, &u.Role, &u.RequestedUsername); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -186,9 +192,151 @@ type Analytics struct {
 	PerDay   []DayCount `json:"perDay"`   // solves per UTC day, last 14 days
 }
 
+// GetSetting reads an app-level setting (empty string if unset).
+func (p *Postgres) GetSetting(ctx context.Context, key string) (string, error) {
+	var v string
+	err := p.pool.QueryRow(ctx, `select value from app_settings where key = $1`, key).Scan(&v)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return v, err
+}
+
+// SetSetting upserts an app-level setting.
+func (p *Postgres) SetSetting(ctx context.Context, key, value string) error {
+	_, err := p.pool.Exec(ctx,
+		`insert into app_settings (key, value) values ($1, $2)
+		 on conflict (key) do update set value = excluded.value`, key, value)
+	return err
+}
+
 func (p *Postgres) RecordVisit(ctx context.Context, userID string) error {
 	_, err := p.pool.Exec(ctx, `insert into visits (user_id) values ($1)`, userID)
 	return err
+}
+
+func (p *Postgres) RecordSDSolve(ctx context.Context, userID, slug string) error {
+	_, err := p.pool.Exec(ctx,
+		`insert into sd_solves (user_id, slug) values ($1, $2) on conflict do nothing`,
+		userID, slug)
+	return err
+}
+
+func (p *Postgres) SDSolved(ctx context.Context, userID string) ([]string, error) {
+	rows, err := p.pool.Query(ctx, `select slug from sd_solves where user_id = $1`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// MySDActivity returns the current user's own module completions, newest first.
+func (p *Postgres) MySDActivity(ctx context.Context, userID string) ([]SDActivityRow, error) {
+	rows, err := p.pool.Query(ctx, `
+		select slug, solved_at from sd_solves
+		where user_id = $1
+		order by solved_at desc`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SDActivityRow{}
+	for rows.Next() {
+		var r SDActivityRow
+		var at time.Time
+		if err := rows.Scan(&r.Slug, &at); err != nil {
+			return nil, err
+		}
+		r.At = at.Format(time.RFC3339)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// SDActivityRow is one "user completed a module" event, newest first.
+type SDActivityRow struct {
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Slug     string `json:"slug"`
+	At       string `json:"at"`
+}
+
+// SDActivity returns recent System Design module completions across approved
+// users. kind filters by slug prefix ("design"/"genai"; empty = all). It never
+// exposes any build/solution content - only that the module was solved.
+func (p *Postgres) SDActivity(ctx context.Context, limit int, kind string) ([]SDActivityRow, error) {
+	prefix := ""
+	if kind == "design" || kind == "genai" {
+		prefix = kind + "-"
+	}
+	rows, err := p.pool.Query(ctx, `
+		select u.display_name, coalesce(u.leetcode_user::text, ''), s.slug, s.solved_at
+		from sd_solves s
+		join users u on u.id = s.user_id
+		where u.active and ($2 = '' or s.slug like $2 || '%')
+		order by s.solved_at desc
+		limit $1`, limit, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SDActivityRow{}
+	for rows.Next() {
+		var r SDActivityRow
+		var at time.Time
+		if err := rows.Scan(&r.Name, &r.Username, &r.Slug, &at); err != nil {
+			return nil, err
+		}
+		r.At = at.Format(time.RFC3339)
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+type SDLeaderRow struct {
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Count    int    `json:"count"`
+}
+
+// SDLeaderboard ranks approved users by how many modules they've completed.
+// kind filters by slug prefix: "design" or "genai" (empty = all modules).
+func (p *Postgres) SDLeaderboard(ctx context.Context, limit int, kind string) ([]SDLeaderRow, error) {
+	prefix := ""
+	if kind == "design" || kind == "genai" {
+		prefix = kind + "-"
+	}
+	rows, err := p.pool.Query(ctx, `
+		select u.display_name, coalesce(u.leetcode_user::text, ''),
+			count(s.slug) filter (where $2 = '' or s.slug like $2 || '%')
+		from users u
+		left join sd_solves s on s.user_id = u.id
+		where u.active
+		group by u.id
+		order by count(s.slug) filter (where $2 = '' or s.slug like $2 || '%') desc, u.display_name
+		limit $1`, limit, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SDLeaderRow{}
+	for rows.Next() {
+		var r SDLeaderRow
+		if err := rows.Scan(&r.Name, &r.Username, &r.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // Analytics returns group-usage aggregates for the admin dashboard. All counts
@@ -246,7 +394,7 @@ func (p *Postgres) Leaderboard(ctx context.Context, limit int) ([]LeaderRow, err
 		from users u
 		left join solves s on s.user_id = u.id and s.first_season_ac_at is not null
 		left join problems pr on pr.id = s.problem_id
-		where u.status = 'approved' and u.active
+		where u.leetcode_user is not null and u.active
 		group by u.id
 		order by n150 desc
 		limit $1`, limit)
@@ -314,7 +462,7 @@ func (p *Postgres) Recent(ctx context.Context, limit int) ([]RecentRow, error) {
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
-		where s.first_season_ac_at is not null and u.status = 'approved' and u.active
+		where s.first_season_ac_at is not null and u.leetcode_user is not null and u.active
 		group by pr.id, pr.slug, pr.title, pr.difficulty
 		order by max(s.first_season_ac_at) desc
 		limit $1`, limit)
@@ -402,7 +550,7 @@ func (p *Postgres) GroupDifficulty(ctx context.Context) ([]DifficultyTotal, erro
 		from solves s
 		join problems pr on pr.id = s.problem_id
 		join users u on u.id = s.user_id
-		where s.first_season_ac_at is not null and u.status = 'approved' and u.active
+		where s.first_season_ac_at is not null and u.leetcode_user is not null and u.active
 		group by pr.difficulty`)
 	if err != nil {
 		return nil, err
@@ -581,7 +729,7 @@ func (p *Postgres) Directory(ctx context.Context, userID string) ([]FriendRow, e
 		       count(s.problem_id) filter (where s.first_season_ac_at is not null) as solved
 		from users u
 		left join solves s on s.user_id = u.id
-		where u.status = 'approved' and u.active and u.id <> $1
+		where u.leetcode_user is not null and u.active and u.id <> $1
 		  and u.leetcode_user is not null
 		  and not exists (select 1 from friendships f where f.user_id = $1 and f.friend_id = u.id)
 		  and not exists (select 1 from friend_requests r where r.requester_id = $1 and r.target_id = u.id)

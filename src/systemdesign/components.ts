@@ -4,12 +4,16 @@
 
 export type SDImpl = { name: string; desc: string };
 
+// A "how it works" point. Use a labeled object so each concept is explained
+// modularly on its own; plain strings are still allowed for simple notes.
+export type SDHow = { term: string; text: string };
+
 export type SDComponentDoc = {
   id: string;
   name: string;
   tagline: string;
   problem: string[];
-  how: string[];
+  how: (string | SDHow)[];
   implementations: SDImpl[];
 };
 
@@ -68,11 +72,11 @@ export const COMPONENT_DOCS: SDComponentDoc[] = [
       "NoSQL stores flexible, nested data without rigid schemas, trading relational guarantees for flexibility and horizontal scale.",
     ],
     how: [
-      "Key-value (Redis, Memcached): a hash map - key → value. Great for caching and sessions.",
-      "Document (MongoDB): self-contained JSON documents with nested fields. Great for varying schemas.",
-      "Column-family (Cassandra): data organized by column; great for high-write, time-series, logs.",
-      "Graph (Neo4j): nodes and edges as first-class citizens; great for social graphs and recommendations.",
-      "Most offer eventual consistency: writes propagate within seconds; strong consistency is optional but costs availability.",
+      { term: "Key-value store", text: "A giant hash map: a key maps directly to a value. Lookups by key are O(1) and trivially shardable. Best for caching, sessions, and simple high-speed lookups. Examples: Redis, Memcached, DynamoDB." },
+      { term: "Document store", text: "Stores self-contained JSON-like documents with nested fields, so one record holds everything (no joins). Schema can vary per document. Best for content, catalogs, and user-generated data. Example: MongoDB." },
+      { term: "Column-family (wide-column)", text: "Organizes data by column families and partitions by key, optimized for very high write throughput and range scans. Best for time-series, logs, and event data. Example: Cassandra." },
+      { term: "Graph database", text: "Stores nodes and edges as first-class citizens so relationship traversals (friends-of-friends) are fast. Best for social graphs and recommendation engines. Example: Neo4j." },
+      { term: "Eventual consistency", text: "Most NoSQL stores replicate asynchronously, so a write propagates to all replicas within a short window rather than instantly. Strong consistency is usually available as an option, but it reduces availability and adds latency (the CAP trade-off)." },
     ],
     implementations: [
       { name: "MongoDB", desc: "Popular document DB; rich queries and aggregations for varying schemas." },
@@ -113,11 +117,17 @@ export const COMPONENT_DOCS: SDComponentDoc[] = [
       "A cache stores frequently-read data in memory, dropping response time from ~50ms to ~1ms and DB load by ~80%.",
     ],
     how: [
-      "App checks cache first. Hit → return immediately. Miss → query DB, store result, return.",
-      "Cache-aside: app manages the cache. Alternatives: write-through (write cache+DB together), write-behind (cache first, sync later).",
-      "Eviction when full: LRU (least recently used), LFU (least frequently used), or TTL (expire after time).",
-      "Invalidation keeps data fresh: set a TTL, or delete an entry explicitly when its data changes.",
-      "Trade-off: longer TTL = less DB load but staler data; shorter TTL = fresher data but more DB hits.",
+      { term: "Cache hit", text: "The requested data is already in the cache, so it's returned straight from memory without touching the database. This is the fast path (~1ms) you want most requests to take." },
+      { term: "Cache miss", text: "The data isn't in the cache. The system falls back to the database, returns the value, and usually stores it in the cache so the next request for it is a hit." },
+      { term: "Cache-aside (lazy loading)", text: "The application owns the cache. On a read it checks the cache first; on a miss it loads from the DB and writes the value into the cache itself. The cache only ever holds data that's actually been requested. This is the most common pattern." },
+      { term: "Read-through", text: "The cache (not the app) knows how to load from the DB. The app always just asks the cache; on a miss, the cache fetches from the DB, stores the value, and returns it - transparently. This keeps app code simple because it never handles misses itself, at the cost of the cache needing a loader for each data type." },
+      { term: "Write-through", text: "On a write, the app updates the cache and the database together, synchronously. The cache is always consistent with the DB, but every write pays the cost of hitting both." },
+      { term: "Write-behind (write-back)", text: "On a write, the app updates the cache and returns immediately; the cache flushes to the DB asynchronously a bit later. Writes are very fast, but you risk losing data if the cache dies before it flushes." },
+      { term: "Eviction - LRU", text: "When the cache is full, evict the Least Recently Used entry. It bets that recently used data will be used again soon. The most popular policy." },
+      { term: "Eviction - LFU", text: "Evict the Least Frequently Used entry (the lowest hit count). Good when popularity is stable over time, but it can keep stale-but-once-popular items too long." },
+      { term: "Eviction - FIFO", text: "Evict the oldest-inserted entry regardless of how often it's used. Simple, but ignores access patterns." },
+      { term: "TTL (time to live)", text: "Each entry expires after a set time, then is dropped and reloaded fresh on the next access. It bounds how stale data can get." },
+      { term: "Invalidation", text: "Keeping cache and DB in sync. Either rely on a short TTL, or explicitly delete/update the cached entry the moment its underlying data changes. Longer TTL = less DB load but staler data; shorter TTL = fresher data but more DB hits." },
     ],
     implementations: [
       { name: "Redis", desc: "Sub-ms in-memory cache with rich data structures; sessions, leaderboards, general caching." },

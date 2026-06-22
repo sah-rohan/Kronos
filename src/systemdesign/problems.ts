@@ -39,6 +39,8 @@ export type SDSlide = {
   quiz?: SDQuiz;
 
   focus?: readonly SDComponentType[];
+  // Concept illustration to show instead of the architecture diagram.
+  art?: string;
 };
 export type SDConn = [SDComponentType, SDComponentType];
 
@@ -435,16 +437,17 @@ export const URL_SHORTENER: SDProblem = {
     database: "Without durable storage, mappings vanish on restart and links break.",
     analytics_service: "Without an analytics service you can't track click usage, one of the requirements.",
   },
-  // Top-to-bottom flow: client in, database at the bottom.
+  // Top-to-bottom flow: client in, database at the bottom. Cache and Analytics
+  // sit side by side so the read path never has an edge crossing over a box.
   layout: {
-    client: { x: 205, y: 20 },
-    api_gateway: { x: 205, y: 120 },
-    shortening_service: { x: 40, y: 235 },
-    redirection_handler: { x: 370, y: 235 },
-    id_generator: { x: 40, y: 350 },
-    cache: { x: 370, y: 350 },
-    analytics_service: { x: 370, y: 465 },
-    database: { x: 205, y: 585 },
+    client: { x: 225, y: 20 },
+    api_gateway: { x: 225, y: 130 },
+    shortening_service: { x: 40, y: 250 },
+    redirection_handler: { x: 360, y: 250 },
+    id_generator: { x: 40, y: 380 },
+    cache: { x: 285, y: 380 },
+    analytics_service: { x: 450, y: 380 },
+    database: { x: 225, y: 545 },
   },
   edgeLabels: {
     "client>api_gateway": "requests",
@@ -585,6 +588,7 @@ export const RATE_LIMITER: SDProblem = {
     {
       title: "Algorithm: token bucket",
       body: "A bucket holds tokens; each request spends one; tokens refill at a fixed rate. Memory-light and burst-friendly.",
+      art: "token_bucket",
       bullets: [
         "Bucket has a capacity (max burst) and a refill rate (steady allowance).",
         "Request with a token → allowed; empty bucket → blocked.",
@@ -765,6 +769,7 @@ export const UNIQUE_ID: SDProblem = {
     {
       title: "Approach: Snowflake",
       body: "Build a 64-bit ID from parts, generated locally on each machine. This is the standard distributed approach.",
+      art: "snowflake",
       bullets: [
         "Layout (64 bits): 1 sign bit + 41-bit timestamp + ~10 bits machine ID + 12-bit per-millisecond sequence.",
         "Timestamp first → IDs sort by time. Machine ID → no cross-machine collisions. Sequence → many IDs within the same millisecond.",
@@ -1068,7 +1073,7 @@ const CONSISTENT_HASHING: SDProblem = {
   slides: [
     { title: "The problem", body: "You have data spread across N servers and need to find which server holds each key.", bullets: ["The simple answer hash(key) % N works… until N changes.", "Add or remove one server and % N remaps almost every key.", "That means massive cache misses or data migration every time the cluster scales."] },
     { title: "Why % N hurts", body: "The modulus depends on N, so the whole mapping shifts when N changes.", bullets: ["With 4 servers, key→server is hash % 4; with 5 it's hash % 5 - different for nearly every key.", "Goal: when a server joins/leaves, only ~1/N of keys should move."] },
-    { title: "The hash ring", body: "Consistent hashing maps both servers and keys onto a circle (e.g. 0…2^32).", bullets: ["A key is owned by the first server clockwise from it.", "Add a server → only keys between it and the previous server move.", "Remove a server → its keys go to the next server clockwise. Everyone else is untouched."] },
+    { title: "The hash ring", body: "Consistent hashing maps both servers and keys onto a circle (e.g. 0…2^32).", art: "hash_ring", bullets: ["A key is owned by the first server clockwise from it.", "Add a server → only keys between it and the previous server move.", "Remove a server → its keys go to the next server clockwise. Everyone else is untouched."] },
     { title: "Pick the scheme", body: "Given a cluster that scales up and down, which mapping?", quiz: { prompt: "How should keys map to servers?", options: [{ id: "modn", label: "hash(key) % N" }, { id: "consistent", label: "Consistent hashing" }], correct: "consistent", why: "Consistent hashing moves only ~1/N of keys when the cluster changes; % N reshuffles almost everything, which is catastrophic for caches and storage." } },
     { title: "Virtual nodes", body: "A plain ring can distribute load unevenly - a server might own a huge arc by chance.", quiz: { prompt: "How do you keep load even across servers?", options: [{ id: "single", label: "One ring point per server" }, { id: "virtual", label: "Virtual nodes" }], correct: "virtual", why: "Virtual nodes put each server at many points on the ring, so arcs average out and load is balanced. They also make heterogeneous servers easy - give bigger servers more virtual nodes." } },
     { title: "Now build it", body: "Assemble the routing.", bullets: ["Client → Hash Router → Cache/Storage Nodes.", "Configure the router: strategy and virtual nodes.", "Check everything."] },
@@ -1155,36 +1160,96 @@ const WEB_CRAWLER: SDProblem = {
 // ---------- News Feed ----------
 const NF = {
   client: { type: "client", name: "Clients", blurb: "Post & read feed", explain: "Users publish posts and load their home feed (posts from people they follow), newest first." },
-  web: { type: "api_gateway", name: "API Servers", blurb: "Entry point", explain: "Stateless servers behind a load balancer that handle feed-publish and feed-read requests and call the right services." },
-  post: { type: "post_service", name: "Post Service", blurb: "Writes posts", explain: "Stores a new post and kicks off delivering it to followers' feeds." },
-  fanout: {
-    type: "fanout_service", name: "Fanout Service", blurb: "Delivers to feeds",
-    explain: "Decides how a post reaches followers' feeds. The central decision is fanout-on-write (push to each follower's feed now) vs fanout-on-read (build the feed when they open the app).",
+  lb: { type: "load_balancer", name: "Load Balancer", blurb: "Spreads traffic", explain: "Fronts the web servers, spreading requests across them and routing around any that fail." },
+  web: { type: "api_gateway", name: "Web Servers", blurb: "Stateless entry", explain: "Stateless servers that handle publish and feed-read requests and call the right services. They scale out behind the load balancer." },
+  post: { type: "post_service", name: "Post Service", blurb: "Writes posts", explain: "On publish, it stores the post and enqueues a fanout job. It does not deliver to followers itself - that's done asynchronously so publishing stays fast." },
+  queue: { type: "queue", name: "Fanout Queue", blurb: "Buffers fanout jobs", explain: "A message queue holding fanout jobs so delivery happens asynchronously and bursts (a viral post) are absorbed without slowing the publish call." },
+  workers: {
+    type: "workers", name: "Fanout Workers", blurb: "Deliver to feeds",
+    explain: "Pull fanout jobs, look up the author's followers in the graph DB, and write the post ID into each follower's feed cache. The central decision is how they fan out.",
     configs: [
       { id: "model", question: "Fanout model?", options: [{ id: "write", label: "Fanout on write (push)" }, { id: "read", label: "Fanout on read (pull)" }, { id: "hybrid", label: "Hybrid" }], correct: "hybrid", why: "Use a hybrid: fanout-on-write for normal users (feeds are precomputed, fast reads), but fanout-on-read for celebrities - pushing one post to 100M followers' feeds is too expensive, so their posts are pulled in at read time." },
     ],
   },
-  cache: { type: "cache", name: "Feed Cache", blurb: "Precomputed feeds", explain: "Holds each user's feed (list of post IDs) in memory so opening the app is instant. The fanout service writes into it." },
-  db: { type: "database", name: "Database", blurb: "Posts & graph", explain: "Stores posts and the follower/following graph. The source of truth behind the caches." },
+  graph: { type: "graph_db", name: "Graph DB", blurb: "Follower relationships", explain: "Stores who follows whom. Workers query it to find an author's followers; reads at feed time also use it to pull celebrity posts." },
+  feedCache: { type: "cache", name: "Feed Cache", blurb: "Precomputed feeds", explain: "Holds each user's feed as a list of post IDs in memory, so opening the app is instant. Workers write into it; web servers read it." },
+  postCache: { type: "post_cache", name: "Post Cache", blurb: "Hot posts", explain: "A feed is a list of post IDs; the web servers hydrate them into full posts from this cache (falling back to the post DB on a miss)." },
+  postDb: { type: "database", name: "Post DB", blurb: "Durable posts", explain: "The source of truth for post content. Reads are served from the post cache; this is the durable backing store." },
 } as const;
 const NEWS_FEED: SDProblem = {
   slug: "design-news-feed", title: "Design a News Feed", difficulty: "Hard",
   summary: "Publish posts and build home feeds at scale - choose the fanout strategy.",
   slides: [
     { title: "What we're building", body: "A news feed: users post, and each user's home feed shows recent posts from people they follow, newest first.", bullets: ["Two flows: publish a post, and read a feed.", "Reads dominate; feeds must load fast.", "Some users have tens of millions of followers."] },
-    { title: "Two flows", body: "Separate the write and read paths.", bullets: ["Publish: store the post, then get it into followers' feeds.", "Read: return the user's feed quickly.", "The interesting question is how publishing reaches followers."] },
-    { title: "Fanout on write", body: "When you post, immediately push the post ID into every follower's feed cache.", focus: ["post_service", "fanout_service", "cache"], bullets: ["Reads are instant - the feed is already built.", "But posting is expensive if you have millions of followers (millions of writes per post)."] },
-    { title: "Fanout on read", body: "Don't precompute; build the feed by pulling followees' recent posts when the user opens the app.", focus: ["client", "api_gateway", "post_service", "database"], bullets: ["Cheap writes.", "But reads are slower and heavier, done on every feed open."] },
+    { title: "Two flows", body: "Separate the write and read paths.", bullets: ["Publish: store the post, then get it into followers' feeds (asynchronously, via a queue + workers).", "Read: return the user's prebuilt feed quickly, then hydrate post IDs into full posts.", "The interesting question is how publishing reaches followers."] },
+    { title: "Fanout on write", body: "When you post, workers push the post ID into every follower's feed cache.", focus: ["post_service", "queue", "workers", "graph_db", "cache"], bullets: ["Reads are instant - the feed is already built.", "But posting is expensive if you have millions of followers (millions of feed writes per post)."] },
+    { title: "Fanout on read", body: "Don't precompute; build the feed by pulling followees' recent posts when the user opens the app.", focus: ["client", "load_balancer", "api_gateway", "graph_db", "post_cache"], bullets: ["Cheap writes.", "But reads are slower and heavier, done on every feed open."] },
     { title: "Pick the model", body: "Most users have few followers; a few have millions.", quiz: { prompt: "Which fanout model scales best overall?", options: [{ id: "write", label: "Fanout on write" }, { id: "read", label: "Fanout on read" }, { id: "hybrid", label: "Hybrid" }], correct: "hybrid", why: "Hybrid: precompute (push) for normal users so reads are instant, but pull celebrities' posts at read time so one post doesn't trigger 100M feed writes. Pure push breaks for celebrities; pure pull makes every read slow." } },
-    { title: "Now build it", body: "Assemble it.", bullets: ["Client → API Servers → Post Service → Fanout Service → Feed Cache; services → Database.", "Configure the fanout model.", "Check everything."] },
+    { title: "Reading the feed", body: "A feed read is two steps.", focus: ["client", "load_balancer", "api_gateway", "cache", "post_cache"], bullets: ["Web servers read the feed cache to get the list of post IDs (instant).", "They hydrate those IDs into full posts from the post cache (DB on a miss).", "This split keeps feeds small in memory and posts shared across many feeds."] },
+    { title: "Now build it", body: "Assemble it.", bullets: ["Write: Client → LB → Web → Post Service → Post DB + Fanout Queue → Workers → (Graph DB, Feed Cache).", "Read: Web → Feed Cache (IDs) → Post Cache (posts).", "Configure the fanout model, then check."] },
   ],
-  palette: [NF.client, NF.web, NF.post, NF.fanout, NF.cache, NF.db],
-  required: ["client", "api_gateway", "post_service", "fanout_service", "cache", "database"],
-  connections: [["client", "api_gateway"], ["api_gateway", "post_service"], ["post_service", "fanout_service"], ["fanout_service", "cache"], ["post_service", "database"]],
-  connectionWhy: { "client>api_gateway": "All publish/read requests enter through the API servers.", "api_gateway>post_service": "Publishing a post routes to the post service.", "post_service>fanout_service": "After storing a post, the post service triggers fanout to followers.", "fanout_service>cache": "Fanout writes post IDs into followers' feed caches for instant reads.", "post_service>database": "Posts and the follow graph are persisted in the database." },
-  missingWhy: { client: "Users post and read feeds.", api_gateway: "Without an entry point nothing routes requests.", post_service: "Without it posts aren't stored or delivered.", fanout_service: "Without fanout, posts never reach followers' feeds.", cache: "Without a feed cache, every feed open recomputes from the DB - too slow.", database: "Without the DB there's no durable store for posts and the graph." },
-  layout: { client: { x: 205, y: 20 }, api_gateway: { x: 205, y: 130 }, post_service: { x: 205, y: 250 }, fanout_service: { x: 205, y: 370 }, cache: { x: 380, y: 490 }, database: { x: 40, y: 490 } },
-  edgeLabels: { "client>api_gateway": "post/read", "api_gateway>post_service": "publish", "post_service>fanout_service": "deliver", "fanout_service>cache": "push IDs", "post_service>database": "store" },
+  palette: [NF.client, NF.lb, NF.web, NF.post, NF.queue, NF.workers, NF.graph, NF.feedCache, NF.postCache, NF.postDb],
+  required: ["client", "load_balancer", "api_gateway", "post_service", "queue", "workers", "graph_db", "cache", "post_cache", "database"],
+  connections: [
+    ["client", "load_balancer"],
+    ["load_balancer", "api_gateway"],
+    ["api_gateway", "post_service"],
+    ["api_gateway", "cache"],
+    ["api_gateway", "post_cache"],
+    ["post_service", "database"],
+    ["post_service", "queue"],
+    ["queue", "workers"],
+    ["workers", "graph_db"],
+    ["workers", "cache"],
+  ],
+  connectionWhy: {
+    "client>load_balancer": "All traffic enters through the load balancer.",
+    "load_balancer>api_gateway": "It spreads requests across the stateless web servers.",
+    "api_gateway>post_service": "Publishing a post routes to the post service.",
+    "api_gateway>cache": "Reading a feed pulls the list of post IDs from the feed cache.",
+    "api_gateway>post_cache": "Those post IDs are hydrated into full posts from the post cache.",
+    "post_service>database": "The post is stored durably in the post DB.",
+    "post_service>queue": "A fanout job is enqueued so delivery happens asynchronously.",
+    "queue>workers": "Fanout workers pull jobs from the queue.",
+    "workers>graph_db": "Workers look up the author's followers in the graph DB.",
+    "workers>cache": "Workers push the post ID into each follower's feed cache.",
+  },
+  missingWhy: {
+    client: "Users post and read feeds.",
+    load_balancer: "Without a load balancer the web tier can't scale or survive a server failure.",
+    api_gateway: "Without stateless web servers nothing handles requests.",
+    post_service: "Without it posts aren't stored or queued for delivery.",
+    queue: "Without a queue, fanout is synchronous and a viral post stalls publishing.",
+    workers: "Without workers, queued fanout jobs are never delivered to feeds.",
+    graph_db: "Without the graph DB, workers can't find an author's followers.",
+    cache: "Without a feed cache, every feed open recomputes from scratch - too slow.",
+    post_cache: "Without a post cache, hydrating feed IDs hammers the post DB.",
+    database: "Without the post DB there's no durable source of truth for posts.",
+  },
+  layout: {
+    client: { x: 205, y: 15 },
+    load_balancer: { x: 205, y: 110 },
+    api_gateway: { x: 205, y: 205 },
+    post_service: { x: 30, y: 310 },
+    cache: { x: 380, y: 310 },
+    queue: { x: 30, y: 415 },
+    post_cache: { x: 380, y: 415 },
+    workers: { x: 30, y: 520 },
+    graph_db: { x: 205, y: 610 },
+    database: { x: 380, y: 520 },
+  },
+  edgeLabels: {
+    "client>load_balancer": "request",
+    "load_balancer>api_gateway": "route",
+    "api_gateway>post_service": "publish",
+    "api_gateway>cache": "read feed",
+    "api_gateway>post_cache": "hydrate",
+    "post_service>database": "store",
+    "post_service>queue": "fanout job",
+    "queue>workers": "dequeue",
+    "workers>graph_db": "followers",
+    "workers>cache": "push IDs",
+  },
 };
 
 // ---------- Chat System ----------
@@ -1254,7 +1319,7 @@ const AUTOCOMPLETE: SDProblem = {
   slides: [
     { title: "What we're building", body: "Type-ahead search: as the user types, show the top few most-popular completions of the current prefix.", bullets: ["Fires on every keystroke → must be a few ms.", "Suggestions ranked by popularity (query frequency).", "Read-heavy; freshness can lag a bit."] },
     { title: "The naive way fails", body: "Querying a database for matching strings on every keystroke is far too slow.", bullets: ["SQL LIKE 'pre%' scans large tables.", "You'd do it on every character for every user - impossible at scale."] },
-    { title: "The trie", body: "A trie (prefix tree) maps each prefix to its completions efficiently.", bullets: ["Walk the prefix once (O(length)).", "Cache the top-k suggestions at each node so you return them instantly without searching the subtree."] },
+    { title: "The trie", body: "A trie (prefix tree) maps each prefix to its completions efficiently.", art: "trie", bullets: ["Walk the prefix once (O(length)).", "Cache the top-k suggestions at each node so you return them instantly without searching the subtree."] },
     { title: "Pick the structure", body: "Per-keystroke latency is the constraint.", quiz: { prompt: "What should back the lookups?", options: [{ id: "sql", label: "SQL LIKE" }, { id: "hashmap", label: "Hash map of every prefix" }, { id: "trie", label: "Trie with cached top-k" }], correct: "trie", why: "A trie with top-k cached at each node returns suggestions in O(prefix length) with no scan. SQL LIKE is too slow per keystroke; storing every prefix in a hash map is huge and awkward to keep ranked." } },
     { title: "Keeping it fresh", body: "Popularity changes over time, but not by the second.", quiz: { prompt: "How often to rebuild the trie?", options: [{ id: "realtime", label: "On every query" }, { id: "batch", label: "Periodic batch from logs" }], correct: "batch", why: "Rebuild in batches from aggregated query logs - suggestions don't need to be instant-fresh, and rebuilding per query would crush the system. Query-time stays a fast, read-only trie lookup." } },
     { title: "Now build it", body: "Assemble it.", bullets: ["Client → Query Service → Trie Cache; Aggregation Service → Trie Cache; Aggregation Service ← Logs DB.", "Configure the structure and update frequency.", "Check everything."] },

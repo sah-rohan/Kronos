@@ -12,6 +12,7 @@ import (
 
 	"kronos/internal/leetcode"
 	"kronos/internal/poller"
+	"kronos/internal/config"
 	"kronos/internal/store"
 )
 
@@ -38,7 +39,7 @@ func (a *API) Handle(ctx context.Context, req request) (response, error) {
 		return reply(401, map[string]string{"error": "unauthorized"})
 	}
 
-	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req))
+	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req), userEmail(req))
 	if err != nil {
 		return serverError(err)
 	}
@@ -118,6 +119,25 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 
 	case method == "POST" && path == "/me/visit":
 		return okOrError(a.Store.RecordVisit(ctx, user.ID))
+
+	case method == "POST" && len(parts) == 3 && parts[0] == "me" && parts[1] == "sd":
+		return okOrError(a.Store.RecordSDSolve(ctx, user.ID, parts[2]))
+
+	case method == "GET" && path == "/me/sd":
+		rows, err := a.Store.SDSolved(ctx, user.ID)
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/me/sd/activity":
+		rows, err := a.Store.MySDActivity(ctx, user.ID)
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/sd/leaderboard":
+		rows, err := a.Store.SDLeaderboard(ctx, 100, query["kind"])
+		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/sd/activity":
+		rows, err := a.Store.SDActivity(ctx, 50, query["kind"])
+		return dataOrError(rows, err)
 
 	case method == "POST" && path == "/me/theme":
 		var in struct {
@@ -281,6 +301,33 @@ func (a *API) admin(ctx context.Context, method, path, body string) (response, e
 		}
 		return reply(200, map[string]bool{"ok": true})
 
+	case method == "GET" && path == "/admin/leetcode-session":
+		expires, err := a.Store.GetSetting(ctx, "leetcode_session_expires_at")
+		if err != nil {
+			return serverError(err)
+		}
+		return reply(200, map[string]any{
+			"expiresAt": expires,
+			"hasToken":  config.Get(ctx, "LEETCODE_SESSION") != "",
+		})
+
+	case method == "POST" && path == "/admin/leetcode-session":
+		var in struct {
+			Token     string `json:"token"`
+			ExpiresAt string `json:"expiresAt"`
+		}
+		json.Unmarshal([]byte(body), &in)
+		if strings.TrimSpace(in.Token) != "" {
+			// Secret goes to SSM SecureString only - never the DB.
+			if err := config.Put(ctx, "LEETCODE_SESSION", strings.TrimSpace(in.Token)); err != nil {
+				return serverError(err)
+			}
+		}
+		if err := a.Store.SetSetting(ctx, "leetcode_session_expires_at", strings.TrimSpace(in.ExpiresAt)); err != nil {
+			return serverError(err)
+		}
+		return reply(200, map[string]bool{"ok": true})
+
 	case method == "DELETE" && len(parts) == 4 && parts[0] == "admin" && parts[1] == "users" && parts[3] == "purge":
 		return okOrError(a.Store.PurgeUser(ctx, parts[2]))
 
@@ -309,6 +356,10 @@ func authenticate(ctx context.Context, req request) (string, bool) {
 
 func displayName(req request) string {
 	return strings.TrimSpace(req.QueryStringParameters["name"])
+}
+
+func userEmail(req request) string {
+	return strings.TrimSpace(req.QueryStringParameters["email"])
 }
 
 func segments(path string) []string {

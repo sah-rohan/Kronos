@@ -1,53 +1,36 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Check, Network } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 import { api } from "../lib/api";
-import { SD_PROBLEMS } from "./problems";
+import { GENAI_PROBLEMS } from "./genai";
 import { completedSet } from "./progress";
 
-export function SystemDesignCard({
-  onOpen,
-  onOpenComponents,
-}: {
-  onOpen: (slug: string) => void;
-  onOpenComponents: () => void;
-}) {
+export function GenAICard({ onOpen }: { onOpen: (slug: string) => void }) {
   const { getToken } = useData();
-  // Start from the local optimistic set, then reconcile with the DB.
   const [solved, setSolved] = useState<Set<string>>(() => completedSet());
 
   useEffect(() => {
     api.sdSolved(getToken).then((s) => setSolved(new Set([...completedSet(), ...(s ?? [])]))).catch(() => {});
   }, [getToken]);
 
-  const solvedCount = SD_PROBLEMS.filter((p) => solved.has(p.slug)).length;
+  const solvedCount = GENAI_PROBLEMS.filter((p) => solved.has(p.slug)).length;
 
   return (
     <Card className="lg:col-span-1 h-full">
       <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">System Design</div>
-        <Network className="h-4 w-4 text-coral" />
+        <div className="text-[15px] font-medium">GenAI System Design</div>
+        <Sparkles className="h-4 w-4 text-coral" />
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Learn each piece, then drag the design together.
+        Design LLM and generative-AI systems, piece by piece.
       </p>
-
-      <button
-        onClick={onOpenComponents}
-        className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-sm font-medium transition hover:bg-muted"
-      >
-        <BookOpen className="h-4 w-4 shrink-0 text-coral" />
-        Main components
-        <span className="ml-auto text-[11px] text-muted-foreground">reference</span>
-      </button>
-
       <div className="mt-3 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        <span>{solvedCount}/{SD_PROBLEMS.length} solved</span>
-        <span>{SD_PROBLEMS.length} modules</span>
+        <span>{solvedCount}/{GENAI_PROBLEMS.length} solved</span>
+        <span>{GENAI_PROBLEMS.length} modules</span>
       </div>
-      <ul className="mt-3 h-60 space-y-2 overflow-y-auto pr-1">
-        {SD_PROBLEMS.map((p) => {
+      <ul className="mt-3 h-72 space-y-2 overflow-y-auto pr-1">
+        {GENAI_PROBLEMS.map((p) => {
           const done = solved.has(p.slug);
           return (
             <li key={p.slug}>

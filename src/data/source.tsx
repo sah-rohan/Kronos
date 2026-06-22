@@ -131,11 +131,14 @@ export function DataProvider({
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
+    // These can fail for a Google-only user who hasn't linked/approved their
+    // LeetCode account yet. Fall back to empty so the dashboard still renders
+    // (the LeetCode cards show locked/blurred); System Design stays usable.
     const [progress, leaders, recents, friendRows] = await Promise.all([
-      api.progress(getToken),
-      api.leaderboard(getToken),
-      api.recent(getToken),
-      api.friends(getToken),
+      api.progress(getToken).catch(() => []),
+      api.leaderboard(getToken).catch(() => []),
+      api.recent(getToken).catch(() => []),
+      api.friends(getToken).catch(() => []),
     ]);
     const days = await api.calendar(getToken).catch(() => []);
     const calProblems = await api.calendarProblems(getToken).catch(() => []);

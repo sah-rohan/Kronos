@@ -3,7 +3,10 @@ import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
 import { SystemDiagram } from "./SystemDiagram";
+import { ConceptDiagram } from "./ConceptDiagrams";
 import { markCompleted } from "./progress";
+import { useData } from "../data/source";
+import { api } from "../lib/api";
 
 type Stage = "learn" | "build" | "done";
 
@@ -14,6 +17,7 @@ export function SystemDesignModal({
   problem: SDProblem;
   onClose: () => void;
 }) {
+  const { getToken } = useData();
   const [stage, setStage] = useState<Stage>("learn");
   const [slide, setSlide] = useState(0);
   // Remembered quiz answers, keyed by slide index.
@@ -31,6 +35,7 @@ export function SystemDesignModal({
 
   const onSolved = () => {
     markCompleted(problem.slug);
+    api.sdSolve(getToken, problem.slug).catch(() => {});
     setStage("done");
   };
 
@@ -164,7 +169,11 @@ export function SystemDesignModal({
                 )}
               </div>
               <div className="rounded-2xl border border-border bg-background/40 p-4 sm:w-1/2">
-                <SystemDiagram problem={problem} revealed={revealed} current={currentType} />
+                {slides[slide].art ? (
+                  <ConceptDiagram id={slides[slide].art!} />
+                ) : (
+                  <SystemDiagram problem={problem} revealed={revealed} current={currentType} />
+                )}
               </div>
             </div>
             <div className="mt-6 flex items-center justify-between">
