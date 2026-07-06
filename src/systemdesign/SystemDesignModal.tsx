@@ -119,7 +119,9 @@ export function SystemDesignModal({
         {/* LEARN */}
         {stage === "learn" && (
           <div className="mt-6 flex min-h-0 flex-1 flex-col">
-            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto sm:flex-row sm:items-center">
+            {/* items-start (not center): centering overflowing flex content clips
+                its top past the scroll area, which hid the diagram/text. */}
+            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto sm:flex-row sm:items-start">
               <div className="sm:w-1/2">
                 <div className="font-display text-xl">{slides[slide].title}</div>
                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
@@ -232,7 +234,9 @@ export function SystemDesignModal({
                   </div>
                 )}
               </div>
-              <div className="rounded-2xl border border-border bg-background/40 p-4 sm:w-1/2">
+              {/* Sticky so the diagram stays in view while the text column scrolls;
+                  capped height so it always fits the viewport on any device. */}
+              <div className="shrink-0 rounded-2xl border border-border bg-background/40 p-4 sm:sticky sm:top-0 sm:w-1/2 [&_svg]:mx-auto [&_svg]:max-h-[42dvh] sm:[&_svg]:max-h-[62dvh]">
                 {slides[slide].art ? (
                   <ConceptDiagram id={slides[slide].art!} />
                 ) : (

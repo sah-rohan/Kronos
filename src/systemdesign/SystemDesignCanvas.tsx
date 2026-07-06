@@ -143,7 +143,10 @@ export function SystemDesignCanvas({
   const [result, setResult] = useState<SDResult | null>(null);
   const drag = useRef<{ id: string; offX: number; offY: number; moved: boolean } | null>(null);
 
-  const defOf = (t: SDComponentType) => problem.palette.find((c) => c.type === t)!;
+  // Fallback def so a node whose type isn't in this problem's palette (e.g.
+  // stale state) renders harmlessly instead of crashing on `.configs`.
+  const defOf = (t: SDComponentType) =>
+    problem.palette.find((c) => c.type === t) ?? { type: t, name: t, blurb: "", explain: "" };
   const center = (n: SDNode) => ({ x: n.x + NODE_W / 2, y: n.y + NODE_H / 2 });
   // Point on node n's border along the line from (fx,fy) - keeps arrowheads visible.
   const border = (fx: number, fy: number, n: SDNode) => {

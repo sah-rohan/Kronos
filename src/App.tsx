@@ -6,6 +6,7 @@ import { useData } from "./data/source";
 import { api, type TokenFn } from "./lib/api";
 import { daysUntil } from "./lib/date";
 import { LockOverlay } from "./components/LockOverlay";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LinkLeetCodeModal } from "./modals/LinkLeetCodeModal";
 import { effectiveDark } from "./lib/theme";
 import type { Friend, Month, ProblemRef, ProblemList } from "./types";
@@ -15,6 +16,8 @@ import { SystemDesignModal } from "./systemdesign/SystemDesignModal";
 import { ComponentsModal } from "./systemdesign/ComponentsModal";
 import { CloudCard } from "./systemdesign/CloudCard";
 import { CloudModal } from "./systemdesign/CloudModal";
+import { NetworkingCard } from "./systemdesign/NetworkingCard";
+import { NetworkingModal } from "./systemdesign/NetworkingModal";
 import { GenAICard } from "./systemdesign/GenAICard";
 import { GENAI_PROBLEMS } from "./systemdesign/genai";
 import { SD_PROBLEMS } from "./systemdesign/problems";
@@ -87,6 +90,7 @@ function App({
   const [sdSlug, setSdSlug] = useState<string | null>(null);
   const [sdComponents, setSdComponents] = useState(false);
   const [cloudOpen, setCloudOpen] = useState(false);
+  const [networkingOpen, setNetworkingOpen] = useState(false);
   // Admin-only: warn when the LeetCode session token is near/at expiry.
   const [sessionExpiry, setSessionExpiry] = useState<string>("");
   useEffect(() => {
@@ -173,6 +177,7 @@ function App({
           <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
           <GenAICard onOpen={setSdSlug} />
           <CloudCard onOpen={() => setCloudOpen(true)} />
+          <NetworkingCard onOpen={() => setNetworkingOpen(true)} />
         </div>
       </div>
 
@@ -191,14 +196,24 @@ function App({
       )}
       {changeUsername && <ChangeUsernameModal onClose={() => setChangeUsername(false)} isAdmin={isAdmin} />}
       {adminOpen && <AdminModal onClose={() => setAdminOpen(false)} />}
-      {sdSlug && (
-        <SystemDesignModal
-          problem={[...SD_PROBLEMS, ...GENAI_PROBLEMS].find((p) => p.slug === sdSlug)!}
-          onClose={() => setSdSlug(null)}
-        />
-      )}
+      {(() => {
+        // Guard the lookup: a stale slug (e.g. an old activity row for a renamed
+        // module) must not crash the app - just don't open anything.
+        if (!sdSlug) return null;
+        const sdProblem = [...SD_PROBLEMS, ...GENAI_PROBLEMS].find((p) => p.slug === sdSlug);
+        if (!sdProblem) return null;
+        return (
+          <ErrorBoundary label="System Design module" onReset={() => setSdSlug(null)}>
+            {/* Key by slug so opening a different module remounts the modal with
+                fresh canvas state - reused state from another module's palette
+                used to crash the renderer. */}
+            <SystemDesignModal key={sdProblem.slug} problem={sdProblem} onClose={() => setSdSlug(null)} />
+          </ErrorBoundary>
+        );
+      })()}
       {sdComponents && <ComponentsModal onClose={() => setSdComponents(false)} />}
       {cloudOpen && <CloudModal onClose={() => setCloudOpen(false)} />}
+      {networkingOpen && <NetworkingModal onClose={() => setNetworkingOpen(false)} />}
       {modal === "calendar" && (
         <CalendarModal
           cal={cal}
