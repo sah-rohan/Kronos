@@ -1,5 +1,6 @@
 create extension if not exists citext;
 create extension if not exists pgcrypto;
+create extension if not exists pg_trgm;
 
 create table if not exists users (
   id              uuid primary key default gen_random_uuid(),
@@ -166,3 +167,23 @@ create index if not exists idx_submissions_pending on submissions(enriched) wher
 create index if not exists idx_solutions_user_problem on solutions(user_id, problem_id);
 create index if not exists idx_members_user on group_members(user_id);
 create index if not exists idx_sync_next_poll on sync_state(next_poll_at) where true;
+
+-- Job listings scraped from GitHub README board
+-- canonicalized_url duplicates across sources
+create table if not exists job_listings (
+  id                uuid primary key default gen_random_uuid(),
+  source            text not null,
+  company           text not null,
+  role              text not null,
+  location          text not null default '',
+  apply_url         text not null,
+  canonicalized_url text unique,
+  date_posted       text not null defualt '',
+  is_open           boolean not null default true,
+  fetched_at        timestamptz not null default now(),
+  created_at        timestamptz not null default now()
+);
+
+create index if not exists idx_job_listings_source on job_listings(source);
+create index if not exists idx_job_listings_open on job_listings(is_open);
+create index if not exists idx_job_listings_fetched on job_listings(fetched_at desc);

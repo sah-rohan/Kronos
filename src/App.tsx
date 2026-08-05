@@ -38,6 +38,7 @@ import { FriendProgressModal } from "./modals/FriendProgressModal";
 import { FriendSolutionModal } from "./modals/FriendSolutionModal";
 import { ChangeUsernameModal } from "./modals/ChangeUsernameModal";
 import { AdminModal } from "./modals/AdminModal";
+import { JobAlertsCard } from "./sections/JobAlertsCard";
 
 type ThemeMode = "auto" | "light" | "dark";
 
@@ -178,6 +179,7 @@ function App({
           <GenAICard onOpen={setSdSlug} />
           <CloudCard onOpen={() => setCloudOpen(true)} />
           <NetworkingCard onOpen={() => setNetworkingOpen(true)} />
+          <JobAlertsCard onOpen={() => setModal("jobs")} />
         </div>
       </div>
 

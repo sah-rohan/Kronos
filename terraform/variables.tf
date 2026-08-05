@@ -47,3 +47,8 @@ variable "acm_certificate_arn" {
   type    = string
   default = "arn:aws:acm:us-east-1:185708268938:certificate/8d6dbc11-c38b-46b3-b548-a48edf585ff9"
 }
+
+variable "jobalerts_zip" {
+  type    = string
+  default = "../backend/dist/jobalerts_zip"
+}

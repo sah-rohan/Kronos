@@ -813,6 +813,67 @@ func (p *Postgres) FriendSolution(ctx context.Context, userID, friendID, slug st
 	return p.solutions(ctx, friendID, slug, recent)
 }
 
+// JobListing is one scraped job row for the frontend job board.
+type JobListing struct {
+    ID               string `json:"id"`
+    Source           string `json:"source"`
+    Company          string `json:"company"`
+    Role             string `json:"role"`
+    Location         string `json:"location"`
+    ApplyURL         string `json:"applyUrl"`
+    CanonicalizedURL string `json:"canonicalizedUrl"`
+    DatePosted       string `json:"datePosted"`
+    IsOpen           bool   `json:"isOpen"`
+    FetchedAt        string `json:"fetchedAt"`
+}
+
+// UpsertJobs inserts or updates job listings, deduplicating on canonicalized_url.
+// For rows without a canonicalized URL yet, it inserts only if the exact
+// (source, company, role, apply_url) tuple is new.
+func (p *Postgres) UpsertJobs(ctx context.Context, jobs []store_jobs_input) error {
+    // See Step 4b below for the full implementation.
+}
+
+// ListJobs returns recent open job listings, newest first.
+func (p *Postgres) ListJobs(ctx context.Context, limit int) ([]JobListing, error) {
+    rows, err := p.pool.Query(ctx, `
+        select id::text, source, company, role, location,
+               apply_url, coalesce(canonicalized_url, ''), date_posted, is_open,
+               to_char(fetched_at at time zone 'UTC', 'YYYY-MM-DDTHH24:MI:SSZ')
+        from job_listings
+        where is_open = true
+        order by fetched_at desc, created_at desc
+        limit $1`, limit)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+    out := []JobListing{}
+    for rows.Next() {
+        var j JobListing
+        if err := rows.Scan(
+            &j.ID, &j.Source, &j.Company, &j.Role, &j.Location,
+            &j.ApplyURL, &j.CanonicalizedURL, &j.DatePosted, &j.IsOpen, &j.FetchedAt,
+        ); err != nil {
+            return nil, err
+        }
+        out = append(out, j)
+    }
+    return out, rows.Err()
+}
+
+func (p *Postgres) InsertJobListing(ctx context.Context, j JobListingInput) error {
+    _, err := p.pool.Exec(ctx, `
+        insert into job_listings (source, company, role, location, apply_url, date_posted, is_open)
+        values ($1, $2, $3, $4, $5, $6, $7)
+        on conflict (canonicalized_url) do update set
+            is_open    = excluded.is_open,
+            fetched_at = now()`,
+        j.Source, j.Company, j.Role, j.Location, j.ApplyURL, j.Posted, j.IsOpen)
+    return err
+}
+
+
 func (p *Postgres) solutions(ctx context.Context, ownerID, slug string, recent bool) ([]SolutionRow, error) {
 	query := `
 		select slug, lang, code, runtime_ms, runtime_pct, is_optimal from (

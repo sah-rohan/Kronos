@@ -121,12 +121,15 @@ module "apigateway" {
 }
 
 module "scheduler" {
-  source               = "./modules/scheduler"
-  name                 = var.project
-  sync_function_arn    = module.sync.arn
-  sync_function_name   = module.sync.function_name
-  enrich_function_arn  = module.enrich.arn
-  enrich_function_name = module.enrich.function_name
+  source                  = "./modules/scheduler"
+  name                    = var.project
+  sync_function_arn       = module.sync.arn
+  sync_function_name      = module.sync.function_name
+  enrich_function_arn     = module.enrich.arn
+  enrich_function_name    = module.enrich.function_name
+  jobalerts_function_arn  = module.jobalerts.arn
+  jobalerts_function_name = module.jobalerts.function_name
+}
 }
 
 module "frontend" {
@@ -136,3 +139,16 @@ module "frontend" {
   domain_name         = var.domain_name
   acm_certificate_arn = var.acm_certificate_arn
 }
+
+module "jobalerts" {
+  source             = "./modules/lambda"
+  name               = "${var.project}-jobalerts"
+  zip_path           = var.jobalerts_zip
+  ssm_parameter_arns = [module.ssm.arn]
+  timeout            = 60  # README fetches can be slow
+  environment = {
+    DATABASE_URL_SSM = module.ssm.name
+    # GITHUB_TOKEN_SSM = ... add this once you put a token in Parameter Store
+  }
+}
+

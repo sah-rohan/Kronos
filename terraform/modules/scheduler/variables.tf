@@ -29,3 +29,17 @@ variable "enrich_schedule" {
   type    = string
   default = "rate(1 minute)"
 }
+
+variable "jobalerts_function_arn" {
+  type = string
+}
+
+variable "jobalerts_function_name" {
+  type = string
+}
+
+variable "jobalerts_schedule" {
+  type    = string
+  default = "rate(60 minutes)"
+}
+

@@ -86,6 +86,7 @@ export const api = {
   adminLeetcodeSession: (t: TokenFn) => call<LeetcodeSession>("/admin/leetcode-session", t),
   adminSetLeetcodeSession: (t: TokenFn, token: string, expiresAt: string) =>
     call("/admin/leetcode-session", t, { method: "POST", body: JSON.stringify({ token, expiresAt }) }),
+  jobAlerts: (t: TokenFn) => call<JobAlert[]>("/jobs", t),
 };
 
 export type LeetcodeSession = { expiresAt: string; hasToken: boolean };
@@ -139,3 +140,16 @@ export type ApiSolution = {
   runtimePct: number;
   optimal: boolean;
 };
+
+export type JobAlert = {
+  id: string;
+  source: "speedyapply" | "simplify-swe" | "simplify-pm";
+  company: string;
+  role: string;
+  location: string;
+  applyUrl: string;
+  datePosted: string;
+  isOpen: boolean;
+  fetchedAt: string;
+};
+
