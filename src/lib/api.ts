@@ -49,6 +49,7 @@ export const api = {
     call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
     call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
+  jobs: (t: TokenFn) => call<ApiJob[]>("/jobs", t),
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
@@ -101,6 +102,20 @@ export type MeResponse = {
   theme: string;
   season: number;
   requestedUsername?: string;
+};
+// One job posting, as returned by GET /jobs. Matches store.JobRow on the Go
+// side (backend/internal/store/jobs.go) field for field.
+export type ApiJob = {
+  id: string;
+  company: string;
+  position: string;
+  location: string;
+  salary?: string;
+  postingUrl?: string;
+  age?: string;
+  closed: boolean;
+  sourceRepo: string;
+  sourceSection: string;
 };
 export type ApiProblem = {
   slug: string;

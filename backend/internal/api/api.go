@@ -162,6 +162,9 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		rows, err := a.Store.MySolution(ctx, user.ID, parts[2], query["recent"] == "1")
 		return dataOrError(rows, err)
 
+	case method == "GET" && path == "/jobs":
+		return a.getJobs(ctx)
+
 	case method == "GET" && path == "/leaderboard":
 		rows, err := a.Store.Leaderboard(ctx, 100)
 		return dataOrError(rows, err)

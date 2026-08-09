@@ -28,6 +28,8 @@ import { LeaderboardCard } from "./sections/LeaderboardCard";
 import { MyFriendsCard } from "./sections/MyFriendsCard";
 import { CurrentStreakCard } from "./sections/CurrentStreakCard";
 import { RecentActivityCard } from "./sections/RecentActivityCard";
+import { JobBoardCard } from "./sections/JobBoardCard";
+import { JobBoardModal } from "./modals/JobBoardModal";
 import { ProgressModal } from "./modals/ProgressModal";
 import { MySolutionModal } from "./modals/MySolutionModal";
 import { CalendarModal } from "./modals/CalendarModal";
@@ -91,6 +93,7 @@ function App({
   const [sdComponents, setSdComponents] = useState(false);
   const [cloudOpen, setCloudOpen] = useState(false);
   const [networkingOpen, setNetworkingOpen] = useState(false);
+  const [jobBoardOpen, setJobBoardOpen] = useState(false);
   // Admin-only: warn when the LeetCode session token is near/at expiry.
   const [sessionExpiry, setSessionExpiry] = useState<string>("");
   useEffect(() => {
@@ -178,6 +181,7 @@ function App({
           <GenAICard onOpen={setSdSlug} />
           <CloudCard onOpen={() => setCloudOpen(true)} />
           <NetworkingCard onOpen={() => setNetworkingOpen(true)} />
+          <JobBoardCard onOpen={() => setJobBoardOpen(true)} />
         </div>
       </div>
 
@@ -214,6 +218,7 @@ function App({
       {sdComponents && <ComponentsModal onClose={() => setSdComponents(false)} />}
       {cloudOpen && <CloudModal onClose={() => setCloudOpen(false)} />}
       {networkingOpen && <NetworkingModal onClose={() => setNetworkingOpen(false)} />}
+      {jobBoardOpen && <JobBoardModal onClose={() => setJobBoardOpen(false)} />}
       {modal === "calendar" && (
         <CalendarModal
           cal={cal}

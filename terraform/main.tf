@@ -68,11 +68,24 @@ data "aws_ssm_parameter" "leetcode_session" {
   name = "/${var.project}/LEETCODE_SESSION"
 }
 
+# Job Board scraping (backend/cmd/jobsync) calls the GitHub API once a
+# minute for two repos. GitHub's unauthenticated rate limit is only 60
+# requests/hour, so at that cadence a token is required (5,000 req/hour
+# authenticated) - create it once with:
+#   aws ssm put-parameter --name /kronos/GITHUB_TOKEN --type SecureString --value <a GitHub personal access token, no scopes needed for public repos>
+data "aws_ssm_parameter" "github_token" {
+  name = "/${var.project}/GITHUB_TOKEN"
+}
+
 locals {
   secret_arns = [
     module.ssm.arn,
     data.aws_ssm_parameter.clerk_secret.arn,
     data.aws_ssm_parameter.leetcode_session.arn,
+  ]
+  jobsync_secret_arns = [
+    module.ssm.arn,
+    data.aws_ssm_parameter.github_token.arn,
   ]
 }
 
@@ -113,6 +126,28 @@ module "enrich" {
   }
 }
 
+module "emailsync" {
+  source             = "./modules/lambda"
+  name               = "${var.project}-emailsync"
+  zip_path           = var.emailsync_zip
+  ssm_parameter_arns = local.secret_arns
+  environment = {
+    DATABASE_URL_SSM     = module.ssm.name
+    LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
+  }
+}
+
+module "jobsync" {
+  source             = "./modules/lambda"
+  name               = "${var.project}-jobsync"
+  zip_path           = var.jobsync_zip
+  ssm_parameter_arns = local.jobsync_secret_arns
+  environment = {
+    DATABASE_URL_SSM = module.ssm.name
+    GITHUB_TOKEN_SSM = data.aws_ssm_parameter.github_token.name
+  }
+}
+
 module "apigateway" {
   source               = "./modules/apigateway"
   name                 = "${var.project}-http"
@@ -121,12 +156,16 @@ module "apigateway" {
 }
 
 module "scheduler" {
-  source               = "./modules/scheduler"
-  name                 = var.project
-  sync_function_arn    = module.sync.arn
-  sync_function_name   = module.sync.function_name
-  enrich_function_arn  = module.enrich.arn
-  enrich_function_name = module.enrich.function_name
+  source                   = "./modules/scheduler"
+  name                     = var.project
+  sync_function_arn        = module.sync.arn
+  sync_function_name       = module.sync.function_name
+  enrich_function_arn      = module.enrich.arn
+  enrich_function_name     = module.enrich.function_name
+  emailsync_function_arn   = module.emailsync.arn
+  emailsync_function_name  = module.emailsync.function_name
+  jobsync_function_arn     = module.jobsync.arn
+  jobsync_function_name    = module.jobsync.function_name
 }
 
 module "frontend" {
