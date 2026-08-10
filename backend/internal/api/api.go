@@ -163,7 +163,7 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 		return dataOrError(rows, err)
 
 	case method == "GET" && path == "/jobs":
-		return a.getJobs(ctx)
+		return a.getJobs(ctx, query)
 
 	case method == "GET" && path == "/leaderboard":
 		rows, err := a.Store.Leaderboard(ctx, 100)

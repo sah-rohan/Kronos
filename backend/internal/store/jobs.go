@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -13,16 +14,17 @@ import (
 // was scraped. backend/cmd/jobsync is the glue that converts one into the
 // other.
 type JobRow struct {
-	ID            string `json:"id"`
-	Company       string `json:"company"`
-	Position      string `json:"position"`
-	Location      string `json:"location"`
-	Salary        string `json:"salary,omitempty"`
-	PostingURL    string `json:"postingUrl,omitempty"`
-	Age           string `json:"age,omitempty"`
-	Closed        bool   `json:"closed"`
-	SourceRepo    string `json:"sourceRepo"`
-	SourceSection string `json:"sourceSection"`
+	ID            string    `json:"id"`
+	Company       string    `json:"company"`
+	Position      string    `json:"position"`
+	Location      string    `json:"location"`
+	Salary        string    `json:"salary,omitempty"`
+	PostingURL    string    `json:"postingUrl,omitempty"`
+	Age           string    `json:"age,omitempty"`
+	Closed        bool      `json:"closed"`
+	SourceRepo    string    `json:"sourceRepo"`
+	SourceSection string    `json:"sourceSection"`
+	FirstSeenAt   time.Time `json:"firstSeenAt"`
 }
 
 // UpsertJobs inserts newly-seen jobs and refreshes last_seen_at for jobs
@@ -62,32 +64,42 @@ func (p *Postgres) UpsertJobs(ctx context.Context, rows []JobRow) (int, error) {
 	return len(rows), nil
 }
 
-// Jobs returns the job board list, most-recently-first-seen-by-us first.
-// Only jobs seen within the last 6 hours are returned: jobsync re-scrapes
-// both READMEs in full roughly every hour (see terraform/modules/scheduler),
-// so a job that's been missing for 6 hours straight has almost certainly
-// closed or been removed from the source repo. Rows are never deleted
-// though - a stale row just stops being returned here - so a future
-// email-sync Lambda can still look one up by ID for history.
-func (p *Postgres) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
-	rows, err := p.pool.Query(ctx, `
-		select id, company, position, location, salary, posting_url, age, closed, source_repo, source_section
-		from jobs
-		where last_seen_at > now() - interval '6 hours'
-		order by first_seen_at desc
-		limit $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// Jobs returns one page of the job board list, most-recently-first-seen
+// first. Only jobs seen within the last 6 hours are returned (see the old
+// comment on staleness - that part is unchanged).
+//
+// Pagination: pass beforeID = "" and a zero time.Time for the very first
+// page. For every page after that, pass the ID and FirstSeenAt of the LAST
+// job from the previous page - the api Lambda sends these back to the
+// frontend as "nextCursor", and the frontend sends them right back as
+// beforeId/beforeTime when it asks for more. That tells this query "give me
+// jobs that come after that one in the sort order."
+//
+// This is why it's safe even though jobsync inserts new rows every minute:
+// a plain "OFFSET 20" approach would shift every later page by one slot
+// whenever a new job sneaks in between two page loads, causing skipped or
+// duplicated rows. Anchoring to an actual row's position instead of a
+// row count sidesteps that entirely.
+func (p *Postgres) Jobs(ctx context.Context, limit int, beforeID string, beforeTime time.Time) ([]JobRow, error) {
+      rows, err := p.pool.Query(ctx, `
+              select id, company, position, location, salary, posting_url, age, closed, source_repo, source_section, first_seen_at
+              from jobs
+              where last_seen_at > now() - interval '6 hours'
+                and ($1 = '' or first_seen_at < $2 or (first_seen_at = $2 and id < $1))
+              order by first_seen_at desc, id desc
+              limit $3`, beforeID, beforeTime, limit)
+      if err != nil {
+              return nil, err
+      }
+      defer rows.Close()
 
-	out := []JobRow{}
-	for rows.Next() {
-		var r JobRow
-		if err := rows.Scan(&r.ID, &r.Company, &r.Position, &r.Location, &r.Salary, &r.PostingURL, &r.Age, &r.Closed, &r.SourceRepo, &r.SourceSection); err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
+      out := []JobRow{}
+      for rows.Next() {
+              var r JobRow
+              if err := rows.Scan(&r.ID, &r.Company, &r.Position, &r.Location, &r.Salary, &r.PostingURL, &r.Age, &r.Closed, &r.SourceRepo, &r.SourceSection, &r.FirstSeenAt); err != nil {
+                      return nil, err
+              }
+              out = append(out, r)
+      }
+      return out, rows.Err()
 }

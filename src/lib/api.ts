@@ -49,7 +49,14 @@ export const api = {
     call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
     call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
-  jobs: (t: TokenFn) => call<ApiJob[]>("/jobs", t),
+  jobs: (t: TokenFn, limit = 20, cursor?: JobsCursor | null) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (cursor) {
+      params.set("beforeId", cursor.beforeId);
+      params.set("beforeTime", cursor.beforeTime);
+    }
+    return call<JobsPage>(`/jobs?${params.toString()}`, t);
+  },
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
@@ -117,6 +124,8 @@ export type ApiJob = {
   sourceRepo: string;
   sourceSection: string;
 };
+export type JobsCursor = { beforeId: string; beforeTime: string };
+export type JobsPage = { jobs: ApiJob[]; nextCursor: JobsCursor | null };
 export type ApiProblem = {
   slug: string;
   title: string;

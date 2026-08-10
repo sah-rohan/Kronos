@@ -16,8 +16,8 @@ export function JobBoardCard({ onOpen }: { onOpen: () => void }) {
 
   useEffect(() => {
     api
-      .jobs(getToken)
-      .then((rows) => setJobs(rows ?? []))
+      .jobs(getToken, 5)
+      .then((page) => setJobs(page.jobs ?? []))
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
   }, [getToken]);

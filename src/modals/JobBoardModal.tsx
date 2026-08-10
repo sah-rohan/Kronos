@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ExternalLink, Lock } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
-import { api, type ApiJob } from "../lib/api";
+import { api, type ApiJob, type JobsCursor } from "../lib/api";
 
 // JobBoardModal is the full-list view behind the Job Board card: every job
 // currently in Postgres (from GET /jobs), with a text search and a
@@ -13,16 +13,38 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
   const { getToken } = useData();
   const [jobs, setJobs] = useState<ApiJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState<JobsCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .jobs(getToken)
-      .then((rows) => setJobs(rows ?? []))
+      .jobs(getToken, 20)
+      .then((page) => {
+        setJobs(page.jobs ?? []);
+        setCursor(page.nextCursor);
+        setHasMore(page.nextCursor !== null);
+      })
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
   }, [getToken]);
+
+  // Fetches the next page using the cursor from the last response, and
+  // appends it to what's already on screen (rather than replacing it).
+  const loadMore = () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    api
+      .jobs(getToken, 20, cursor)
+      .then((page) => {
+        setJobs((prev) => [...prev, ...(page.jobs ?? [])]);
+        setCursor(page.nextCursor);
+        setHasMore(page.nextCursor !== null);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   // The chip bar: one chip per distinct sourceSection seen in the data
   // (e.g. "FAANG+", "Quant", "Other", "Software Engineering", "Product
@@ -131,6 +153,17 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
             </li>
           );
         })}
+        {hasMore && (
+          <li>
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full rounded-2xl border border-dashed border-border px-4 py-3 text-center text-sm font-medium text-muted-foreground transition hover:bg-muted disabled:opacity-60"
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          </li>
+        )}
       </ul>
     </Modal>
   );
