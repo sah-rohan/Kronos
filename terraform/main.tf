@@ -176,16 +176,16 @@ module "apigateway" {
 }
 
 module "scheduler" {
-  source                   = "./modules/scheduler"
-  name                     = var.project
-  sync_function_arn        = module.sync.arn
-  sync_function_name       = module.sync.function_name
-  enrich_function_arn      = module.enrich.arn
-  enrich_function_name     = module.enrich.function_name
-  emailsync_function_arn   = module.emailsync.arn
-  emailsync_function_name  = module.emailsync.function_name
-  jobsync_function_arn     = module.jobsync.arn
-  jobsync_function_name    = module.jobsync.function_name
+  source                  = "./modules/scheduler"
+  name                    = var.project
+  sync_function_arn       = module.sync.arn
+  sync_function_name      = module.sync.function_name
+  enrich_function_arn     = module.enrich.arn
+  enrich_function_name    = module.enrich.function_name
+  emailsync_function_arn  = module.emailsync.arn
+  emailsync_function_name = module.emailsync.function_name
+  jobsync_function_arn    = module.jobsync.arn
+  jobsync_function_name   = module.jobsync.function_name
 }
 
 module "frontend" {
