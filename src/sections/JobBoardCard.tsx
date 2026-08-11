@@ -2,10 +2,18 @@ import { useEffect, useState } from "react";
 import { Briefcase } from "lucide-react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
-import { api, type ApiJob } from "../lib/api";
+import { type ApiJob } from "../lib/api";
+import { fetchJobsPage } from "../lib/jobsCache";
+
+// How many jobs to show in the card's own scrollable preview - bigger than
+// a plain top-5 slice (matching CloudCard/NetworkingCard/GenAICard's
+// pattern of a scrollable list right on the dashboard tile, before you even
+// open the full modal), but still well short of the modal's full paginated
+// list.
+const PREVIEW_COUNT = 20;
 
 // JobBoardCard is the dashboard tile for the Job Board feature. It shows a
-// short preview (top 5) of new-grad/internship postings that the jobsync
+// scrollable preview of new-grad/internship postings that the jobsync
 // Lambda scraped from public GitHub job-list repos and cached in S3 - this
 // component never talks to GitHub, only to our own GET /jobs route.
 // Clicking the card opens JobBoardModal for the full, searchable list.
@@ -15,8 +23,7 @@ export function JobBoardCard({ onOpen }: { onOpen: () => void }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .jobs(getToken, 5)
+    fetchJobsPage(getToken, PREVIEW_COUNT, 0)
       .then((page) => setJobs(page.jobs ?? []))
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
@@ -31,22 +38,31 @@ export function JobBoardCard({ onOpen }: { onOpen: () => void }) {
       <p className="mt-1 text-xs text-muted-foreground">
         New grad &amp; internship roles, scraped from GitHub every minute.
       </p>
-      <ul className="mt-4 divide-y divide-border">
+      <div className="mt-3 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span>Job Board</span>
+        <span>{jobs.length} shown</span>
+      </div>
+      <ul className="modal-scroll mt-3 h-72 space-y-2 overflow-y-auto pr-1">
         {loading && (
-          <li className="py-3 text-sm text-muted-foreground">Loading…</li>
+          <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            Loading…
+          </li>
         )}
         {!loading && jobs.length === 0 && (
-          <li className="py-3 text-sm text-muted-foreground">
+          <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             No jobs yet — check back soon.
           </li>
         )}
-        {jobs.slice(0, 5).map((j) => (
-          <li key={j.id} className="flex items-center gap-4 py-3.5">
+        {jobs.map((j) => (
+          <li
+            key={j.id}
+            className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3"
+          >
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">
+              <div className="truncate text-sm font-medium">
                 {j.company} — {j.position}
               </div>
-              <div className="truncate text-xs text-muted-foreground">
+              <div className="truncate text-[11px] text-muted-foreground">
                 {j.location}
               </div>
             </div>

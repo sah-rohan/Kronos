@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ExternalLink, Lock } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
-import { api, type ApiJob } from "../lib/api";
+import { type ApiJob } from "../lib/api";
+import { fetchJobsPage } from "../lib/jobsCache";
 
 // JobBoardModal is the full-list view behind the Job Board card: every job
 // currently cached in S3 (from GET /jobs - see backend/internal/jobs/cache.go),
@@ -20,8 +21,7 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
   const [section, setSection] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .jobs(getToken, 20, 0)
+    fetchJobsPage(getToken, 20, 0)
       .then((page) => {
         setJobs(page.jobs ?? []);
         setNextOffset(page.nextOffset);
@@ -35,8 +35,7 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
   const loadMore = () => {
     if (nextOffset === null || loadingMore) return;
     setLoadingMore(true);
-    api
-      .jobs(getToken, 20, nextOffset)
+    fetchJobsPage(getToken, 20, nextOffset)
       .then((page) => {
         setJobs((prev) => [...prev, ...(page.jobs ?? [])]);
         setNextOffset(page.nextOffset);
@@ -100,7 +99,7 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      <ul className="mt-4 space-y-2">
+      <ul className="modal-scroll mt-4 max-h-[60vh] space-y-2 overflow-y-auto pr-1">
         {loading && (
           <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             Loading…
