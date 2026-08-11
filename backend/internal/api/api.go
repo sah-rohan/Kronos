@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/clerk/clerk-sdk-go/v2/jwt"
 
 	"kronos/internal/leetcode"
@@ -21,6 +22,13 @@ type API struct {
 	AdminClerkID string
 	Season       int64
 	Session      string
+
+	// Job Board: S3 client + where the cached job list lives. jobsync (a
+	// separate scheduled Lambda) is the only thing that writes to this
+	// object - see backend/internal/api/jobs.go and backend/cmd/jobsync.
+	S3         *s3.Client
+	JobsBucket string
+	JobsKey    string
 }
 
 type request = events.APIGatewayV2HTTPRequest

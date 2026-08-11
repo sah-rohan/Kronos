@@ -1,15 +1,16 @@
 // Package jobs scrapes public new-grad/internship job lists out of two
-// GitHub READMEs and turns them into a plain []Job slice. This package only
-// does scraping + parsing - it has no idea Postgres exists. backend/cmd/jobsync
-// is the layer above it that takes these Job structs and saves them (see
-// store.UpsertJobs), which keeps "how do we read a README" and "how do we
-// persist a job" independent of each other.
+// GitHub READMEs and turns them into a plain []Job slice. There is no
+// database involved anywhere in this feature: backend/cmd/jobsync (a
+// scheduled Lambda) calls this package, then writes the result as one JSON
+// file to S3 (see cache.go) as a refresh-every-minute cache. The api
+// Lambda's GET /jobs route reads that same file - it never talks to GitHub.
 package jobs
 
 import (
 	"crypto/sha1"
 	"encoding/hex"
 	"strings"
+	"time"
 )
 
 // Job is one job posting scraped from a GitHub README table.
@@ -47,4 +48,13 @@ func newID(company, position, postingURL string) string {
 		strings.ToLower(strings.TrimSpace(postingURL))
 	sum := sha1.Sum([]byte(key))
 	return hex.EncodeToString(sum[:])[:16]
+}
+
+// CachePayload is the JSON document jobsync writes to S3 and the api Lambda
+// reads back out. ScrapedAt lets the api Lambda tell "no jobs yet" (the zero
+// time) apart from "scraped, list happened to be empty," and lets the
+// frontend show "updated N minutes ago" if we want that later.
+type CachePayload struct {
+	ScrapedAt time.Time `json:"scrapedAt"`
+	Jobs      []Job     `json:"jobs"`
 }

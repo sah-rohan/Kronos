@@ -2,46 +2,44 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ExternalLink, Lock } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { useData } from "../data/source";
-import { api, type ApiJob, type JobsCursor } from "../lib/api";
+import { api, type ApiJob } from "../lib/api";
 
 // JobBoardModal is the full-list view behind the Job Board card: every job
-// currently in Postgres (from GET /jobs), with a text search and a
-// section filter (e.g. "FAANG+", "Software Engineering"). It fetches its
-// own data independently of JobBoardCard's preview fetch, the same way
-// FriendsModal/LeaderboardModal fetch their own full lists.
+// currently cached in S3 (from GET /jobs - see backend/internal/jobs/cache.go),
+// with a text search and a section filter (e.g. "FAANG+", "Software
+// Engineering"). It fetches its own data independently of JobBoardCard's
+// preview fetch, the same way FriendsModal/LeaderboardModal fetch their own
+// full lists.
 export function JobBoardModal({ onClose }: { onClose: () => void }) {
   const { getToken } = useData();
   const [jobs, setJobs] = useState<ApiJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [cursor, setCursor] = useState<JobsCursor | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .jobs(getToken, 20)
+      .jobs(getToken, 20, 0)
       .then((page) => {
         setJobs(page.jobs ?? []);
-        setCursor(page.nextCursor);
-        setHasMore(page.nextCursor !== null);
+        setNextOffset(page.nextOffset);
       })
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
   }, [getToken]);
 
-  // Fetches the next page using the cursor from the last response, and
-  // appends it to what's already on screen (rather than replacing it).
+  // Fetches the next page starting at nextOffset (from the last response),
+  // and appends it to what's already on screen (rather than replacing it).
   const loadMore = () => {
-    if (!cursor || loadingMore) return;
+    if (nextOffset === null || loadingMore) return;
     setLoadingMore(true);
     api
-      .jobs(getToken, 20, cursor)
+      .jobs(getToken, 20, nextOffset)
       .then((page) => {
         setJobs((prev) => [...prev, ...(page.jobs ?? [])]);
-        setCursor(page.nextCursor);
-        setHasMore(page.nextCursor !== null);
+        setNextOffset(page.nextOffset);
       })
       .finally(() => setLoadingMore(false));
   };
@@ -153,7 +151,7 @@ export function JobBoardModal({ onClose }: { onClose: () => void }) {
             </li>
           );
         })}
-        {hasMore && (
+        {nextOffset !== null && (
           <li>
             <button
               onClick={loadMore}

@@ -83,10 +83,25 @@ locals {
     data.aws_ssm_parameter.clerk_secret.arn,
     data.aws_ssm_parameter.leetcode_session.arn,
   ]
+  # jobsync never touches Postgres, so it only needs the GitHub token secret
+  # - not module.ssm.arn (that one's for DATABASE_URL).
   jobsync_secret_arns = [
-    module.ssm.arn,
     data.aws_ssm_parameter.github_token.arn,
   ]
+  jobs_cache_key = "jobs.json"
+}
+
+resource "random_string" "jobs_bucket" {
+  length  = 8
+  lower   = true
+  upper   = false
+  numeric = true
+  special = false
+}
+
+module "jobscache" {
+  source      = "./modules/jobscache"
+  bucket_name = "${var.project}-jobs-${random_string.jobs_bucket.result}"
 }
 
 module "api" {
@@ -94,12 +109,15 @@ module "api" {
   name               = "${var.project}-api"
   zip_path           = var.api_zip
   ssm_parameter_arns = local.secret_arns
+  s3_read_arns       = ["${module.jobscache.bucket_arn}/${local.jobs_cache_key}"]
   environment = {
     DATABASE_URL_SSM     = module.ssm.name
     CLERK_SECRET_KEY_SSM = data.aws_ssm_parameter.clerk_secret.name
     ADMIN_CLERK_ID       = var.admin_clerk_id
     SEASON_START         = var.season_start
     LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
+    JOBS_BUCKET          = module.jobscache.bucket_name
+    JOBS_KEY             = local.jobs_cache_key
   }
 }
 
@@ -142,9 +160,11 @@ module "jobsync" {
   name               = "${var.project}-jobsync"
   zip_path           = var.jobsync_zip
   ssm_parameter_arns = local.jobsync_secret_arns
+  s3_write_arns      = ["${module.jobscache.bucket_arn}/${local.jobs_cache_key}"]
   environment = {
-    DATABASE_URL_SSM = module.ssm.name
     GITHUB_TOKEN_SSM = data.aws_ssm_parameter.github_token.name
+    JOBS_BUCKET      = module.jobscache.bucket_name
+    JOBS_KEY         = local.jobs_cache_key
   }
 }
 

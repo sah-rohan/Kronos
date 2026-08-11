@@ -40,6 +40,30 @@ resource "aws_iam_role_policy" "ssm" {
   })
 }
 
+resource "aws_iam_role_policy" "s3" {
+  count = length(var.s3_read_arns) + length(var.s3_write_arns) > 0 ? 1 : 0
+  name  = "${var.name}-s3"
+  role  = aws_iam_role.this.id
+
+  # Two separate statements so a Lambda that only reads (api) never gets
+  # PutObject, and one that only writes (jobsync) never gets GetObject.
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat(
+      length(var.s3_read_arns) > 0 ? [{
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = var.s3_read_arns
+      }] : [],
+      length(var.s3_write_arns) > 0 ? [{
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = var.s3_write_arns
+      }] : []
+    )
+  })
+}
+
 resource "aws_lambda_function" "this" {
   function_name    = var.name
   role             = aws_iam_role.this.arn

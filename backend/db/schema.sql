@@ -161,28 +161,6 @@ create table if not exists sd_solves (
   primary key (user_id, slug)
 );
 
--- Job Board: one row per posting scraped from public GitHub job-list READMEs
--- (see backend/internal/jobs and backend/cmd/jobsync, a scheduled Lambda).
--- id is a stable hash of company+position+posting_url (see jobs.newID) so
--- re-scraping the same posting on the next run updates the row instead of
--- duplicating it, and so a future email-sync Lambda can recompute the same
--- hash from a parsed email to match it back to a specific job.
-create table if not exists jobs (
-  id              text primary key,
-  company         text not null,
-  position        text not null,
-  location        text not null default '',
-  salary          text not null default '',
-  posting_url     text not null default '',
-  age             text not null default '',    -- raw "3d" / "1mo" label copied from the README, not parsed into a real date
-  closed          boolean not null default false,
-  source_repo     text not null,
-  source_section  text not null,
-  first_seen_at   timestamptz not null default now(),
-  last_seen_at    timestamptz not null default now()
-);
-create index if not exists idx_jobs_last_seen on jobs(last_seen_at desc);
-
 create index if not exists idx_solves_user on solves(user_id);
 create index if not exists idx_submissions_pending on submissions(enriched) where not enriched;
 create index if not exists idx_solutions_user_problem on solutions(user_id, problem_id);

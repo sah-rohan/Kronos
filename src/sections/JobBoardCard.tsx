@@ -6,8 +6,8 @@ import { api, type ApiJob } from "../lib/api";
 
 // JobBoardCard is the dashboard tile for the Job Board feature. It shows a
 // short preview (top 5) of new-grad/internship postings that the jobsync
-// Lambda scraped from public GitHub job-list repos and saved to Postgres -
-// this component never talks to GitHub, only to our own GET /jobs route.
+// Lambda scraped from public GitHub job-list repos and cached in S3 - this
+// component never talks to GitHub, only to our own GET /jobs route.
 // Clicking the card opens JobBoardModal for the full, searchable list.
 export function JobBoardCard({ onOpen }: { onOpen: () => void }) {
   const { getToken } = useData();
