@@ -14,16 +14,17 @@ package jobs
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"strings"
 )
 
 // Job is one job posting scraped from a GitHub README table.
 type Job struct {
-	// ID is a short fingerprint of (Company, Position, PostingURL). It's
-	// deterministic - scraping the same posting twice always produces the
-	// same ID - so a future email-sync Lambda can compute this same ID from
-	// a parsed email (once it knows the company/role/link) and use it to
-	// find "which dashboard job is this email about". See the TODO below.
+	// ID is a short fingerprint identifying this posting - see newID for how
+	// it's derived. It's deterministic (scraping the same posting twice
+	// always produces the same ID) and canonicalized, so the same job
+	// written differently in the two source READMEs still lands on one ID.
+	// That lets Dedupe collapse cross-source duplicates, and lets a future
+	// email-sync Lambda compute the same ID from a parsed email to find
+	// "which dashboard job is this email about". See the TODO below.
 	ID            string `json:"id"`
 	Company       string `json:"company"`
 	Position      string `json:"position"`
@@ -31,9 +32,9 @@ type Job struct {
 	Salary        string `json:"salary,omitempty"`
 	PostingURL    string `json:"postingUrl,omitempty"`
 	Age           string `json:"age,omitempty"` // straight from the README, e.g. "3d", "1mo" - not parsed into a real duration
-	Closed        bool   `json:"closed"`         // true when the README marks the application as closed
-	SourceRepo    string `json:"sourceRepo"`     // e.g. "speedyapply/2027-SWE-College-Jobs"
-	SourceSection string `json:"sourceSection"`  // which table/heading it came from, e.g. "FAANG+", "Software Engineering"
+	Closed        bool   `json:"closed"`        // true when the README marks the application as closed
+	SourceRepo    string `json:"sourceRepo"`    // e.g. "speedyapply/2027-SWE-College-Jobs"
+	SourceSection string `json:"sourceSection"` // which table/heading it came from, e.g. "FAANG+", "Software Engineering"
 
 	// TODO(email-sync): the email-sync Lambda (backend/cmd/emailsync) will
 	// eventually look a job up by ID and attach fields like these:
@@ -43,13 +44,48 @@ type Job struct {
 	// two features can meet in the middle later.
 }
 
-// newID hashes the three fields that together identify a specific posting.
-// Hashing (instead of e.g. concatenating them raw) keeps the ID short and
-// free of characters that would need escaping in a URL or JSON key.
-func newID(company, position, postingURL string) string {
-	key := strings.ToLower(strings.TrimSpace(company)) + "|" +
-		strings.ToLower(strings.TrimSpace(position)) + "|" +
-		strings.ToLower(strings.TrimSpace(postingURL))
+// newID builds the fingerprint that decides whether two scraped rows are the
+// same posting. Hashing (instead of concatenating the fields raw) keeps the
+// ID short and free of characters that would need escaping in a URL or JSON
+// key.
+//
+// There are two identity schemes, tried in order:
+//
+//  1. The canonical posting URL, when there is one. Both READMEs link to the
+//     employer's real applicant-tracking page (Greenhouse, Lever, Workday),
+//     and when the same job appears in both they almost always point at the
+//     identical link. Identifying by URL therefore sidesteps the hardest
+//     problem entirely - two repos wording the same role differently still
+//     collapse to one ID, with no fuzzy title matching anywhere.
+//
+//  2. Company + position + location, when the posting has no link at all.
+//     SimplifyJobs renders a closed application as a lock emoji with no
+//     href, so this path is mostly closed listings. Location is part of the
+//     key because without it every closed role sharing a company and title
+//     merges into one entry regardless of city, hiding real openings.
+//
+// The two schemes are namespaced ("u|" vs "cpl|") so a canonical URL can
+// never collide with a company/position/location triple.
+//
+// Known limitation: a posting with a link and the same posting without one
+// produce different IDs and will not merge. That's under-merging - the job
+// shows up twice - which is the deliberate direction to fail in, since
+// over-merging would make a real posting disappear.
+func newID(company, position, location, postingURL string) string {
+	if u := canonicalURL(postingURL); u != "" {
+		return hashKey("u|" + u)
+	}
+	return hashKey("cpl|" +
+		canonicalCompany(company) + "|" +
+		canonicalPosition(position) + "|" +
+		canonicalLocation(location))
+}
+
+// hashKey reduces an identity key to 16 hex characters. Truncating SHA-1
+// this way is fine here: the risk is an accidental collision between two
+// real postings, not an adversary engineering one, and 64 bits is far more
+// than enough for a few thousand rows.
+func hashKey(key string) string {
 	sum := sha1.Sum([]byte(key))
 	return hex.EncodeToString(sum[:])[:16]
 }

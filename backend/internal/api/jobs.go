@@ -67,9 +67,19 @@ func (a *API) cachedJobs(ctx context.Context) ([]jobs.Job, time.Time, error) {
 		return nil, time.Time{}, errSpeedy
 	}
 
-	jobsCached = append(speedyJobs, simplifyJobs...)
+	// Source order is load-bearing: whichever record Dedupe sees first wins
+	// every field it has a value for. speedyapply goes first because it's
+	// the source carrying salary data.
+	combined := append(speedyJobs, simplifyJobs...)
+	jobsCached = jobs.Dedupe(combined)
 	jobsAt = time.Now().UTC()
-	log.Printf("scraped %d jobs (%d speedyapply, %d simplifyjobs)", len(jobsCached), len(speedyJobs), len(simplifyJobs))
+
+	// Log both counts. If the collapsed number ever jumps sharply after a
+	// canonicalization rule changes, that's the signal a rule is merging too
+	// aggressively and is quietly hiding postings - there's no other way to
+	// notice from production.
+	log.Printf("scraped %d jobs (%d speedyapply, %d simplifyjobs), %d after dedupe (%d collapsed)",
+		len(combined), len(speedyJobs), len(simplifyJobs), len(jobsCached), len(combined)-len(jobsCached))
 
 	return jobsCached, jobsAt, nil
 }

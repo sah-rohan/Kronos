@@ -15,6 +15,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"kronos/internal/jobs"
 )
@@ -71,5 +72,106 @@ func main() {
 	}
 	sample("SimplifyJobs (SimplifyJobs/New-Grad-Positions)", simplifyJobs, 8)
 
-	fmt.Printf("\nTotal: %d jobs scraped\n", len(speedyJobs)+len(simplifyJobs))
+	combined := append(speedyJobs, simplifyJobs...)
+	fmt.Printf("\nTotal: %d jobs scraped\n", len(combined))
+
+	// Lookalikes are measured on the deduped list on purpose: it's the list a
+	// user actually sees, so the count reflects duplication still visible in
+	// the dashboard rather than duplication the rules already handled.
+	reportLookalikes(reportDedupe(combined, 12), 12)
+}
+
+// reportLookalikes finds rows a human would call duplicates - same company,
+// title and location - that URL-first identity deliberately keeps apart
+// because their posting links genuinely differ. This is the other half of the
+// picture: reportDedupe says what the rules DID merge, this says what a user
+// would still see listed twice.
+func reportLookalikes(all []jobs.Job, maxGroups int) {
+	key := func(j jobs.Job) string {
+		norm := func(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
+		return norm(j.Company) + "|" + norm(j.Position) + "|" + norm(j.Location)
+	}
+
+	groups := map[string][]jobs.Job{}
+	var order []string
+	for _, j := range all {
+		k := key(j)
+		if _, seen := groups[k]; !seen {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], j)
+	}
+
+	total, shown := 0, 0
+	for _, k := range order {
+		g := groups[k]
+		if len(g) < 2 {
+			continue
+		}
+		total += len(g) - 1
+		if shown >= maxGroups {
+			continue
+		}
+		shown++
+		fmt.Printf("\n[%d rows] %s\n", len(g), truncate(k, 90))
+		for _, j := range g {
+			link := j.PostingURL
+			if link == "" {
+				link = "(no link)"
+			}
+			fmt.Printf("   %-14s -> %s\n", truncate(j.SourceRepo, 14), link)
+		}
+	}
+
+	fmt.Printf("\n=== lookalikes: %d rows share company+title+location with an earlier row ===\n", total)
+}
+
+// reportDedupe runs the real dedupe pass and prints what collapsed, so the
+// canonicalization rules can be eyeballed against live data. The counts alone
+// aren't enough to judge calibration: what matters is whether the rows that
+// merged really are the same posting, which needs seeing them side by side.
+func reportDedupe(combined []jobs.Job, maxGroups int) []jobs.Job {
+	deduped := jobs.Dedupe(combined)
+
+	fmt.Printf("\n=== dedupe: %d -> %d (%d collapsed) ===\n",
+		len(combined), len(deduped), len(combined)-len(deduped))
+
+	// Regroup by ID to find which rows merged. Iterate the slice (not a map)
+	// so the report is stable between runs.
+	groups := map[string][]jobs.Job{}
+	var order []string
+	for _, j := range combined {
+		if _, seen := groups[j.ID]; !seen {
+			order = append(order, j.ID)
+		}
+		groups[j.ID] = append(groups[j.ID], j)
+	}
+
+	shown := 0
+	for _, id := range order {
+		g := groups[id]
+		if len(g) < 2 {
+			continue
+		}
+		if shown >= maxGroups {
+			fmt.Printf("... and more collapsed groups\n")
+			break
+		}
+		shown++
+		fmt.Printf("\n[%s] %d rows merged:\n", id, len(g))
+		for _, j := range g {
+			link := j.PostingURL
+			if link == "" {
+				link = "(no link)"
+			}
+			fmt.Printf("   %-18s | %-40s | %-18s | %s\n",
+				truncate(j.Company, 18), truncate(j.Position, 40), truncate(j.Location, 18), truncate(link, 60))
+		}
+	}
+
+	if shown == 0 {
+		fmt.Println("(nothing collapsed)")
+	}
+
+	return deduped
 }

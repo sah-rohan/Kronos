@@ -92,7 +92,7 @@ func speedyApplyRowToJob(cols []string, sectionTitle string) (Job, bool) {
 	age := cleanText(stripTags(cols[5]))
 
 	return Job{
-		ID:            newID(company, position, postingURL),
+		ID:            newID(company, position, location, postingURL),
 		Company:       company,
 		Position:      position,
 		Location:      location,
