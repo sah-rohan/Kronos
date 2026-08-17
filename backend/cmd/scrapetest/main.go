@@ -1,7 +1,7 @@
 // scrapetest is a manual, local-only debug tool - NOT a deployed Lambda.
 // It is not built by backend/build.sh and not referenced anywhere in
 // terraform, so running it never touches AWS or Postgres. All it does is
-// call the same two functions jobsync calls (jobs.FetchSpeedyApplyJobs and
+// call the same two functions GET /jobs calls (jobs.FetchSpeedyApplyJobs and
 // jobs.FetchSimplifyJobsNewGrad) and print what they found, so you can check
 // the GitHub scraping + Markdown/HTML parsing actually works before wiring
 // up anything else.

@@ -41,12 +41,3 @@ variable "ssm_parameter_arns" {
   default = []
 }
 
-variable "s3_read_arns" {
-  type    = list(string)
-  default = []
-}
-
-variable "s3_write_arns" {
-  type    = list(string)
-  default = []
-}

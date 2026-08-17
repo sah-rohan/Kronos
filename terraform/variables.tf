@@ -38,11 +38,6 @@ variable "emailsync_zip" {
   default = "../backend/dist/emailsync.zip"
 }
 
-variable "jobsync_zip" {
-  type    = string
-  default = "../backend/dist/jobsync.zip"
-}
-
 variable "admin_clerk_id" {
   type    = string
   default = "user_3EmSENtZcQZXU9q9ptLa7uedUGK"

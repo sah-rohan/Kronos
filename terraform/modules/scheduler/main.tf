@@ -38,21 +38,3 @@ resource "aws_lambda_permission" "emailsync" {
 # runs the enricher inline every pass (enricher.Run), so a separate per-minute
 # enrich invocation was duplicate work (extra Lambda + KMS decrypts). The enrich
 # Lambda itself is left defined but un-triggered.
-
-resource "aws_cloudwatch_event_rule" "jobsync" {
-  name                = "${var.name}-jobsync"
-  schedule_expression = var.jobsync_schedule
-}
-
-resource "aws_cloudwatch_event_target" "jobsync" {
-  rule = aws_cloudwatch_event_rule.jobsync.name
-  arn  = var.jobsync_function_arn
-}
-
-resource "aws_lambda_permission" "jobsync" {
-  statement_id  = "AllowJobsyncSchedule"
-  action        = "lambda:InvokeFunction"
-  function_name = var.jobsync_function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.jobsync.arn
-}

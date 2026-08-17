@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/clerk/clerk-sdk-go/v2/jwt"
 
 	"kronos/internal/leetcode"
@@ -23,12 +22,13 @@ type API struct {
 	Season       int64
 	Session      string
 
-	// Job Board: S3 client + where the cached job list lives. jobsync (a
-	// separate scheduled Lambda) is the only thing that writes to this
-	// object - see backend/internal/api/jobs.go and backend/cmd/jobsync.
-	S3         *s3.Client
-	JobsBucket string
-	JobsKey    string
+	// Job Board: GET /jobs scrapes the two public GitHub READMEs on demand
+	// (see backend/internal/api/jobs.go). There is no server-side store for
+	// this feature at all - no bucket, no table - because the data is
+	// derived from a public source that can be re-fetched at any time, and
+	// is cached in process memory here plus localStorage in the browser.
+	// The token just lifts GitHub's rate limit from 60/hr to 5000/hr.
+	GithubToken string
 }
 
 type request = events.APIGatewayV2HTTPRequest

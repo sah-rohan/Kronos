@@ -1,16 +1,20 @@
 import { api, type JobsPage, type TokenFn } from "./api";
 
-// Browser-side cache for GET /jobs pages, stored in localStorage. This sits
-// entirely in front of the existing pipeline (jobsync -> S3 -> GET /jobs) -
-// nothing server-side changes. It just means reopening the Job Board modal,
-// or the card re-mounting, within a short window doesn't always trigger a
-// fresh network call for data we already have.
+// Browser-side cache for GET /jobs pages, stored in localStorage. This is
+// the outer of the two caches behind the Job Board: it sits in front of
+// GET /jobs, which itself scrapes two GitHub READMEs on demand and keeps
+// the result in the api Lambda's process memory for 5 minutes (see
+// backend/internal/api/jobs.go). There is no server-side store beyond that
+// - no bucket, no table - because the job data is public and re-fetchable
+// at any time.
 //
-// How long a cached page is considered fresh enough to reuse. The backend's
-// own cache (the S3 file) only refreshes once a minute (see
-// backend/cmd/jobsync), so anything in this ballpark just avoids redundant
-// requests - it's not serving meaningfully staler data than the server
-// would anyway.
+// This layer just means reopening the Job Board modal, or the card
+// re-mounting, within a short window doesn't trigger a fresh network call
+// for data we already have.
+//
+// How long a cached page is considered fresh enough to reuse. Kept shorter
+// than the server's own 5-minute memory cache, so this never serves data
+// meaningfully staler than the server would.
 const TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 type CacheEntry = { page: JobsPage; cachedAt: number };

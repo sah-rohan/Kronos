@@ -68,10 +68,11 @@ data "aws_ssm_parameter" "leetcode_session" {
   name = "/${var.project}/LEETCODE_SESSION"
 }
 
-# Job Board scraping (backend/cmd/jobsync) calls the GitHub API once a
-# minute for two repos. GitHub's unauthenticated rate limit is only 60
-# requests/hour, so at that cadence a token is required (5,000 req/hour
-# authenticated) - create it once with:
+# Job Board scraping happens inside the api Lambda's GET /jobs route, which
+# reads two GitHub READMEs on demand and caches the result in process memory
+# (backend/internal/api/jobs.go). GitHub's unauthenticated rate limit is only
+# 60 requests/hour, so a token is used to lift it to 5,000/hour - create it
+# once with:
 #   aws ssm put-parameter --name /kronos/GITHUB_TOKEN --type SecureString --value <a GitHub personal access token, no scopes needed for public repos>
 data "aws_ssm_parameter" "github_token" {
   name = "/${var.project}/GITHUB_TOKEN"
@@ -83,41 +84,25 @@ locals {
     data.aws_ssm_parameter.clerk_secret.arn,
     data.aws_ssm_parameter.leetcode_session.arn,
   ]
-  # jobsync never touches Postgres, so it only needs the GitHub token secret
-  # - not module.ssm.arn (that one's for DATABASE_URL).
-  jobsync_secret_arns = [
+  # The api Lambda additionally needs the GitHub token, since it's the one
+  # scraping the job board now.
+  api_secret_arns = concat(local.secret_arns, [
     data.aws_ssm_parameter.github_token.arn,
-  ]
-  jobs_cache_key = "jobs.json"
-}
-
-resource "random_string" "jobs_bucket" {
-  length  = 8
-  lower   = true
-  upper   = false
-  numeric = true
-  special = false
-}
-
-module "jobscache" {
-  source      = "./modules/jobscache"
-  bucket_name = "${var.project}-jobs-${random_string.jobs_bucket.result}"
+  ])
 }
 
 module "api" {
   source             = "./modules/lambda"
   name               = "${var.project}-api"
   zip_path           = var.api_zip
-  ssm_parameter_arns = local.secret_arns
-  s3_read_arns       = ["${module.jobscache.bucket_arn}/${local.jobs_cache_key}"]
+  ssm_parameter_arns = local.api_secret_arns
   environment = {
     DATABASE_URL_SSM     = module.ssm.name
     CLERK_SECRET_KEY_SSM = data.aws_ssm_parameter.clerk_secret.name
     ADMIN_CLERK_ID       = var.admin_clerk_id
     SEASON_START         = var.season_start
     LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
-    JOBS_BUCKET          = module.jobscache.bucket_name
-    JOBS_KEY             = local.jobs_cache_key
+    GITHUB_TOKEN_SSM     = data.aws_ssm_parameter.github_token.name
   }
 }
 
@@ -155,19 +140,6 @@ module "emailsync" {
   }
 }
 
-module "jobsync" {
-  source             = "./modules/lambda"
-  name               = "${var.project}-jobsync"
-  zip_path           = var.jobsync_zip
-  ssm_parameter_arns = local.jobsync_secret_arns
-  s3_write_arns      = ["${module.jobscache.bucket_arn}/${local.jobs_cache_key}"]
-  environment = {
-    GITHUB_TOKEN_SSM = data.aws_ssm_parameter.github_token.name
-    JOBS_BUCKET      = module.jobscache.bucket_name
-    JOBS_KEY         = local.jobs_cache_key
-  }
-}
-
 module "apigateway" {
   source               = "./modules/apigateway"
   name                 = "${var.project}-http"
@@ -184,8 +156,6 @@ module "scheduler" {
   enrich_function_name    = module.enrich.function_name
   emailsync_function_arn  = module.emailsync.arn
   emailsync_function_name = module.emailsync.function_name
-  jobsync_function_arn    = module.jobsync.arn
-  jobsync_function_name   = module.jobsync.function_name
 }
 
 module "frontend" {

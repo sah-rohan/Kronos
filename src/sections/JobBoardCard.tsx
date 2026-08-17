@@ -13,9 +13,9 @@ import { fetchJobsPage } from "../lib/jobsCache";
 const PREVIEW_COUNT = 20;
 
 // JobBoardCard is the dashboard tile for the Job Board feature. It shows a
-// scrollable preview of new-grad/internship postings that the jobsync
-// Lambda scraped from public GitHub job-list repos and cached in S3 - this
-// component never talks to GitHub, only to our own GET /jobs route.
+// scrollable preview of new-grad/internship postings that our GET /jobs
+// route scrapes from public GitHub job-list repos on demand - this
+// component never talks to GitHub itself, only to our own API.
 // Clicking the card opens JobBoardModal for the full, searchable list.
 export function JobBoardCard({ onOpen }: { onOpen: () => void }) {
   const { getToken } = useData();

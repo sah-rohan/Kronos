@@ -14,11 +14,11 @@ import (
 // step for a beginner-friendly scraper.
 //
 // token is optional: an empty string still works, just at GitHub's lower
-// unauthenticated rate limit (60 requests/hour per caller). jobsync fetches
-// two files roughly once an hour (see terraform/modules/scheduler), so it
-// runs fine without a token. Pass one via the GITHUB_TOKEN env var (or a
-// GITHUB_TOKEN_SSM parameter, same pattern as LEETCODE_SESSION) if that ever
-// changes.
+// unauthenticated rate limit (60 requests/hour per caller). These days the
+// caller is the api Lambda's GET /jobs route, which fetches both files at
+// most once every 5 minutes thanks to its in-memory cache - so a token
+// isn't strictly required, but it's wired up (GITHUB_TOKEN_SSM, same
+// pattern as LEETCODE_SESSION) to keep well clear of that limit.
 func fetchReadme(ctx context.Context, token, owner, repo, ref, path string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref)
 
