@@ -18,6 +18,19 @@ variable "enrich_function_name" {
   type = string
 }
 
+variable "emailsync_function_arn" {
+  type = string
+}
+
+variable "emailsync_function_name" {
+  type = string
+}
+
+variable "emailsync_schedule" {
+  type    = string
+  default = "rate(15 minutes)"
+}
+
 variable "sync_schedule" {
   type    = string
   default = "rate(1 minute)"

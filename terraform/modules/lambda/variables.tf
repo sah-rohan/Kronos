@@ -40,3 +40,4 @@ variable "ssm_parameter_arns" {
   type    = list(string)
   default = []
 }
+

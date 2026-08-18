@@ -33,6 +33,11 @@ variable "enrich_zip" {
   default = "../backend/dist/enrich.zip"
 }
 
+variable "emailsync_zip" {
+  type    = string
+  default = "../backend/dist/emailsync.zip"
+}
+
 variable "admin_clerk_id" {
   type    = string
   default = "user_3EmSENtZcQZXU9q9ptLa7uedUGK"

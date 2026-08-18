@@ -30,6 +30,7 @@ func main() {
 		AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID"),
 		Season:       season,
 		Session:      config.Get(ctx, "LEETCODE_SESSION"),
+		GithubToken:  config.Get(ctx, "GITHUB_TOKEN"),
 	}
 	lambda.Start(handler.Handle)
 }

@@ -49,6 +49,8 @@ export const api = {
     call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
   setTheme: (t: TokenFn, theme: string) =>
     call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
+  jobs: (t: TokenFn, limit = 20, offset = 0) =>
+    call<JobsPage>(`/jobs?limit=${limit}&offset=${offset}`, t),
   progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
   leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
   recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
@@ -102,6 +104,23 @@ export type MeResponse = {
   season: number;
   requestedUsername?: string;
 };
+// One job posting, as returned by GET /jobs. Matches jobs.Job on the Go
+// side (backend/internal/jobs/job.go) field for field.
+export type ApiJob = {
+  id: string;
+  company: string;
+  position: string;
+  location: string;
+  salary?: string;
+  postingUrl?: string;
+  age?: string;
+  closed: boolean;
+  sourceRepo: string;
+  sourceSection: string;
+};
+// nextOffset is the offset to pass on the next call to keep paging, or null
+// once you've reached the end of the cached list.
+export type JobsPage = { jobs: ApiJob[]; scrapedAt: string; nextOffset: number | null };
 export type ApiProblem = {
   slug: string;
   title: string;

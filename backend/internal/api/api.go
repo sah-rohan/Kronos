@@ -21,6 +21,14 @@ type API struct {
 	AdminClerkID string
 	Season       int64
 	Session      string
+
+	// Job Board: GET /jobs scrapes the two public GitHub READMEs on demand
+	// (see backend/internal/api/jobs.go). There is no server-side store for
+	// this feature at all - no bucket, no table - because the data is
+	// derived from a public source that can be re-fetched at any time, and
+	// is cached in process memory here plus localStorage in the browser.
+	// The token just lifts GitHub's rate limit from 60/hr to 5000/hr.
+	GithubToken string
 }
 
 type request = events.APIGatewayV2HTTPRequest
@@ -161,6 +169,9 @@ func (a *API) member(ctx context.Context, method, path string, user store.User, 
 	case method == "GET" && len(parts) == 3 && parts[0] == "me" && parts[1] == "problem":
 		rows, err := a.Store.MySolution(ctx, user.ID, parts[2], query["recent"] == "1")
 		return dataOrError(rows, err)
+
+	case method == "GET" && path == "/jobs":
+		return a.getJobs(ctx, query)
 
 	case method == "GET" && path == "/leaderboard":
 		rows, err := a.Store.Leaderboard(ctx, 100)
