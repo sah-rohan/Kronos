@@ -6,20 +6,12 @@ import (
 	"strings"
 )
 
-const (
-	simplifyOwner = "SimplifyJobs"
-	simplifyRepo  = "New-Grad-Positions"
-	// The repo's default branch is "dev", not "main" - worth calling out
-	// since almost every other GitHub repo defaults to "main".
-	simplifyRef  = "dev"
-	simplifyPath = "README.md"
-)
-
 // FetchSimplifyJobsNewGrad downloads the SimplifyJobs New-Grad-Positions
 // README and extracts jobs from the two sections the issue asked for:
 // Software Engineering and Product Management. (The README also has Data
 // Science/AI, Quant, and Hardware sections - not scraped here, but adding
-// one is a one-line call to parseSimplifySection, see below.)
+// one is a one-line call to parseSimplifySection, see below.) The repo it
+// reads is declared in sources.go.
 func FetchSimplifyJobsNewGrad(ctx context.Context, githubToken string) ([]Job, error) {
 	md, err := fetchReadme(ctx, githubToken, simplifyOwner, simplifyRepo, simplifyRef, simplifyPath)
 	if err != nil {

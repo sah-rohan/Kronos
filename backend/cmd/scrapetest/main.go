@@ -75,10 +75,40 @@ func main() {
 	combined := append(speedyJobs, simplifyJobs...)
 	fmt.Printf("\nTotal: %d jobs scraped\n", len(combined))
 
+	// Section counts matter because both scrapers locate sections by matching
+	// heading text. If an upstream README renames a heading, that section
+	// quietly yields zero rows instead of erroring - a count of 0 here is the
+	// only way to notice.
+	reportSections("SpeedyApply", speedyJobs)
+	reportSections("SimplifyJobs", simplifyJobs)
+
 	// Lookalikes are measured on the deduped list on purpose: it's the list a
 	// user actually sees, so the count reflects duplication still visible in
 	// the dashboard rather than duplication the rules already handled.
 	reportLookalikes(reportDedupe(combined, 12), 12)
+}
+
+// reportSections prints how many jobs came out of each section heading, in
+// first-seen order. A section listed with 0 rows - or missing entirely - means
+// the heading match in the scraper no longer lines up with the README.
+func reportSections(label string, all []jobs.Job) {
+	counts := map[string]int{}
+	var order []string
+	for _, j := range all {
+		if _, seen := counts[j.SourceSection]; !seen {
+			order = append(order, j.SourceSection)
+		}
+		counts[j.SourceSection]++
+	}
+
+	fmt.Printf("\n=== %s sections ===\n", label)
+	for _, s := range order {
+		name := s
+		if name == "" {
+			name = "(no section)"
+		}
+		fmt.Printf("   %-34s %3d\n", truncate(name, 34), counts[s])
+	}
 }
 
 // reportLookalikes finds rows a human would call duplicates - same company,

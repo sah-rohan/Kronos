@@ -6,15 +6,9 @@ import (
 	"strings"
 )
 
-const (
-	speedyApplyOwner = "speedyapply"
-	speedyApplyRepo  = "2027-SWE-College-Jobs"
-	speedyApplyRef   = "main"
-	speedyApplyPath  = "README.md"
-)
-
 // FetchSpeedyApplyJobs downloads the SpeedyApply internship README and turns
-// its Markdown tables into Job structs.
+// its Markdown tables into Job structs. The repo it reads is declared in
+// sources.go.
 func FetchSpeedyApplyJobs(ctx context.Context, githubToken string) ([]Job, error) {
 	md, err := fetchReadme(ctx, githubToken, speedyApplyOwner, speedyApplyRepo, speedyApplyRef, speedyApplyPath)
 	if err != nil {
