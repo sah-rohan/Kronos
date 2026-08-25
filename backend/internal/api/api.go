@@ -1,403 +1,134 @@
+// Package api is the composition root for the HTTP surface. It builds every
+// feature's repo -> service -> controller chain once at cold start, then
+// dispatches each request to the first controller that claims it.
+//
+// The features themselves know nothing about each other's routes; adding one
+// means writing its four files and appending it to the slice in New.
 package api
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"log"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/clerk/clerk-sdk-go/v2/jwt"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"kronos/internal/leetcode"
-	"kronos/internal/poller"
-	"kronos/internal/config"
-	"kronos/internal/store"
+	"kronos/internal/admin"
+	"kronos/internal/design"
+	"kronos/internal/platform/httpx"
+	"kronos/internal/progress"
+	"kronos/internal/social"
+	"kronos/internal/syncing"
+	"kronos/internal/user"
 )
 
-type API struct {
-	Store        *store.Postgres
+// Config is everything the API needs from the environment, resolved once by
+// the caller so no feature reaches for a secret on its own.
+type Config struct {
 	AdminClerkID string
 	Season       int64
-	Session      string
+	LeetCodeSess string
 }
 
-type request = events.APIGatewayV2HTTPRequest
-type response = events.APIGatewayV2HTTPResponse
+// API dispatches authenticated requests across the feature controllers.
+type API struct {
+	users *user.Service
 
-func (a *API) Handle(ctx context.Context, req request) (response, error) {
+	// member controllers serve approved members, tried in order.
+	member []httpx.Controller
+	// adminC serves /admin/*, reached only by users whose role is admin.
+	adminC httpx.Controller
+}
+
+// New wires the whole backend. Each feature owns its own chain; the only
+// things shared are the connection pool and the domain types.
+func New(pool *pgxpool.Pool, cfg Config) *API {
+	// Repositories - one per feature, all over the same pool.
+	userRepo := user.NewRepo(pool)
+	adminRepo := admin.NewRepo(pool)
+	progressRepo := progress.NewRepo(pool)
+	socialRepo := social.NewRepo(pool)
+	designRepo := design.NewRepo(pool)
+	syncRepo := syncing.NewRepo(pool)
+
+	// Services - where the cross-feature dependencies are declared explicitly:
+	// social needs progress data, admin needs the user repo's username rules.
+	userSvc := user.NewService(userRepo, cfg.AdminClerkID)
+	progressSvc := progress.NewService(progressRepo)
+	socialSvc := social.NewService(socialRepo, progressRepo)
+	designSvc := design.NewService(designRepo)
+	syncSvc := syncing.NewService(syncRepo, cfg.LeetCodeSess, cfg.Season)
+	adminSvc := admin.NewService(adminRepo, userRepo)
+
+	return &API{
+		users: userSvc,
+		member: []httpx.Controller{
+			user.NewController(userSvc, cfg.Season),
+			progress.NewController(progressSvc),
+			social.NewController(socialSvc),
+			design.NewController(designSvc),
+			syncing.NewController(syncSvc),
+		},
+		adminC: admin.NewController(adminSvc),
+	}
+}
+
+// preApproval are the only routes a member may reach before an admin approves
+// them: reading their own record, and linking a LeetCode account (which is
+// what gets them approved in the first place).
+var preApproval = map[string]bool{
+	"/me":         true,
+	"/me/profile": true,
+}
+
+// Handle authenticates the caller, then dispatches to the feature controllers.
+func (a *API) Handle(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	method := req.RequestContext.HTTP.Method
 	path := req.RawPath
 
 	if method == "OPTIONS" {
-		return reply(204, nil)
+		return httpx.Reply(204, nil)
 	}
 
 	clerkID, ok := authenticate(ctx, req)
 	if !ok {
-		return reply(401, map[string]string{"error": "unauthorized"})
+		return httpx.Error(401, "unauthorized")
 	}
 
-	user, err := a.Store.EnsureUser(ctx, clerkID, displayName(req), userEmail(req))
+	u, err := a.users.Authenticate(ctx, clerkID, displayName(req), userEmail(req))
 	if err != nil {
-		return serverError(err)
+		return httpx.ServerError(err)
 	}
 
-	if a.AdminClerkID != "" && clerkID == a.AdminClerkID &&
-		(user.Role != "admin" || user.Status != "approved") {
-		if err := a.Store.MakeAdmin(ctx, user.ID); err == nil {
-			user.Role = "admin"
-			user.Status = "approved"
+	r := &httpx.Request{
+		Method: method,
+		Path:   path,
+		Parts:  httpx.Segments(path),
+		Body:   req.Body,
+		Query:  req.QueryStringParameters,
+		User:   u,
+	}
+
+	// Admins reach /admin/* directly; the controller trusts this gate.
+	if u.IsAdmin() && len(r.Parts) > 0 && r.Parts[0] == "admin" {
+		return dispatch(a.adminC, r)
+	}
+
+	if !u.Approved() && !preApproval[path] {
+		return httpx.Error(403, "pending approval")
+	}
+
+	for _, c := range a.member {
+		if resp, handled, err := c.Route(r); handled {
+			return resp, err
 		}
 	}
-
-	if method == "GET" && path == "/me" {
-		return reply(200, struct {
-			store.User
-			Season int64 `json:"season"`
-		}{user, a.Season})
-	}
-
-	if method == "POST" && path == "/me/profile" {
-		var in struct {
-			Username string `json:"username"`
-			Github   string `json:"github"`
-		}
-		json.Unmarshal([]byte(req.Body), &in)
-		if err := a.Store.SetProfile(ctx, user.ID, in.Username, in.Github); err != nil {
-			if errors.Is(err, store.ErrUsernameTaken) {
-				return reply(409, map[string]string{"error": "username taken"})
-			}
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-	}
-
-	if user.Role == "admin" && strings.HasPrefix(path, "/admin/") {
-		return a.admin(ctx, method, path, req.Body)
-	}
-
-	if user.Status != "approved" {
-		return reply(403, map[string]string{"error": "pending approval"})
-	}
-
-	return a.member(ctx, method, path, user, req.Body, req.QueryStringParameters)
+	return httpx.NotFound()
 }
 
-func (a *API) member(ctx context.Context, method, path string, user store.User, body string, query map[string]string) (response, error) {
-	parts := segments(path)
-
-	switch {
-	case method == "POST" && path == "/me/sync":
-		if user.LeetcodeUser == "" {
-			return reply(200, map[string]bool{"ok": true})
-		}
-		catalog, err := a.Store.Catalog(ctx)
-		if err != nil {
-			return serverError(err)
-		}
-		engine := &poller.Engine{Source: leetcode.New(), Store: a.Store, Catalog: catalog, Season: a.Season}
-		if _, err := engine.SyncMember(ctx, poller.Member{UserID: user.ID, LeetCodeUser: user.LeetcodeUser}); err != nil {
-			return serverError(err)
-		}
-		enricher := &poller.Enricher{Detailer: leetcode.New(), Store: a.Store, Session: a.Session}
-		if _, err := enricher.Run(ctx, 50); err != nil {
-			log.Printf("on-demand enrich error: %v", err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "POST" && path == "/me/username-request":
-		var in struct {
-			Username string `json:"username"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if strings.TrimSpace(in.Username) == "" {
-			return reply(400, map[string]string{"error": "username required"})
-		}
-		return okOrError(a.Store.RequestUsername(ctx, user.ID, strings.TrimSpace(in.Username)))
-
-	case method == "POST" && path == "/me/visit":
-		return okOrError(a.Store.RecordVisit(ctx, user.ID))
-
-	case method == "POST" && len(parts) == 3 && parts[0] == "me" && parts[1] == "sd":
-		return okOrError(a.Store.RecordSDSolve(ctx, user.ID, parts[2]))
-
-	case method == "GET" && path == "/me/sd":
-		rows, err := a.Store.SDSolved(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/me/sd/activity":
-		rows, err := a.Store.MySDActivity(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/sd/leaderboard":
-		rows, err := a.Store.SDLeaderboard(ctx, 100, query["kind"])
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/sd/activity":
-		rows, err := a.Store.SDActivity(ctx, 50, query["kind"])
-		return dataOrError(rows, err)
-
-	case method == "POST" && path == "/me/theme":
-		var in struct {
-			Theme string `json:"theme"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		return okOrError(a.Store.SetTheme(ctx, user.ID, in.Theme))
-
-	case method == "GET" && path == "/me/progress":
-		rows, err := a.Store.Progress(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/me/calendar":
-		rows, err := a.Store.Calendar(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/me/calendar/problems":
-		rows, err := a.Store.CalendarProblems(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && len(parts) == 3 && parts[0] == "me" && parts[1] == "problem":
-		rows, err := a.Store.MySolution(ctx, user.ID, parts[2], query["recent"] == "1")
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/leaderboard":
-		rows, err := a.Store.Leaderboard(ctx, 100)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/recent":
-		rows, err := a.Store.Recent(ctx, 25)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/group/difficulty":
-		rows, err := a.Store.GroupDifficulty(ctx)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/me/circle":
-		rows, err := a.Store.CircleDifficulty(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/friends":
-		rows, err := a.Store.Friends(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/users":
-		rows, err := a.Store.Directory(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "GET" && path == "/friends/requests":
-		rows, err := a.Store.IncomingRequests(ctx, user.ID)
-		return dataOrError(rows, err)
-
-	case method == "POST" && path == "/friends/requests/accept":
-		var in struct {
-			ID string `json:"id"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if err := a.Store.AcceptRequest(ctx, user.ID, in.ID); err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				return reply(404, map[string]string{"error": "no such request"})
-			}
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "POST" && path == "/friends/requests/decline":
-		var in struct {
-			ID string `json:"id"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		return okOrError(a.Store.DeclineRequest(ctx, user.ID, in.ID))
-
-	case method == "POST" && path == "/friends":
-		var in struct {
-			Username string `json:"username"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if err := a.Store.SendFriendRequest(ctx, user.ID, in.Username); err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				return reply(404, map[string]string{"error": "no approved user with that username"})
-			}
-			if errors.Is(err, store.ErrSelfFriend) {
-				return reply(400, map[string]string{"error": "you can't add yourself"})
-			}
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "DELETE" && len(parts) == 2 && parts[0] == "friends":
-		if err := a.Store.RemoveFriend(ctx, user.ID, parts[1]); err != nil {
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "GET" && len(parts) == 3 && parts[0] == "friends" && parts[2] == "progress":
-		rows, err := a.Store.FriendProgress(ctx, user.ID, parts[1])
-		if errors.Is(err, store.ErrNotFound) {
-			return reply(404, map[string]string{"error": "not a friend"})
-		}
-		return dataOrError(rows, err)
-
-	case method == "GET" && len(parts) == 3 && parts[0] == "friends" && parts[2] == "calendar":
-		rows, err := a.Store.FriendCalendar(ctx, user.ID, parts[1])
-		if errors.Is(err, store.ErrNotFound) {
-			return reply(404, map[string]string{"error": "not a friend"})
-		}
-		return dataOrError(rows, err)
-
-	case method == "GET" && len(parts) == 4 && parts[0] == "friends" && parts[2] == "calendar" && parts[3] == "problems":
-		rows, err := a.Store.FriendCalendarProblems(ctx, user.ID, parts[1])
-		if errors.Is(err, store.ErrNotFound) {
-			return reply(404, map[string]string{"error": "not a friend"})
-		}
-		return dataOrError(rows, err)
-
-	case method == "GET" && len(parts) == 4 && parts[0] == "friends" && parts[2] == "problem":
-		sol, err := a.Store.FriendSolution(ctx, user.ID, parts[1], parts[3], query["recent"] == "1")
-		if errors.Is(err, store.ErrNotFound) {
-			return reply(404, map[string]string{"error": "no solution"})
-		}
-		return dataOrError(sol, err)
+// dispatch runs a single controller, turning an unclaimed route into a 404.
+func dispatch(c httpx.Controller, r *httpx.Request) (events.APIGatewayV2HTTPResponse, error) {
+	if resp, handled, err := c.Route(r); handled {
+		return resp, err
 	}
-
-	return reply(404, map[string]string{"error": "not found"})
-}
-
-func (a *API) admin(ctx context.Context, method, path, body string) (response, error) {
-	parts := segments(path)
-
-	switch {
-	case method == "GET" && path == "/admin/pending":
-		users, err := a.Store.ListPending(ctx)
-		return dataOrError(users, err)
-
-	case method == "GET" && path == "/admin/users":
-		users, err := a.Store.AllUsers(ctx)
-		return dataOrError(users, err)
-
-	case method == "GET" && path == "/admin/analytics":
-		stats, err := a.Store.Analytics(ctx)
-		return dataOrError(stats, err)
-
-	case method == "POST" && path == "/admin/approve":
-		var in struct {
-			ID string `json:"id"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		return okOrError(a.Store.Approve(ctx, in.ID))
-
-	case method == "POST" && path == "/admin/username":
-		var in struct {
-			ID       string `json:"id"`
-			Username string `json:"username"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if err := a.Store.SetUsername(ctx, in.ID, in.Username); err != nil {
-			if errors.Is(err, store.ErrUsernameTaken) {
-				return reply(409, map[string]string{"error": "username taken"})
-			}
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "GET" && path == "/admin/leetcode-session":
-		expires, err := a.Store.GetSetting(ctx, "leetcode_session_expires_at")
-		if err != nil {
-			return serverError(err)
-		}
-		return reply(200, map[string]any{
-			"expiresAt": expires,
-			"hasToken":  config.Get(ctx, "LEETCODE_SESSION") != "",
-		})
-
-	case method == "POST" && path == "/admin/leetcode-session":
-		var in struct {
-			Token     string `json:"token"`
-			ExpiresAt string `json:"expiresAt"`
-		}
-		json.Unmarshal([]byte(body), &in)
-		if strings.TrimSpace(in.Token) != "" {
-			// Secret goes to SSM SecureString only - never the DB.
-			if err := config.Put(ctx, "LEETCODE_SESSION", strings.TrimSpace(in.Token)); err != nil {
-				return serverError(err)
-			}
-		}
-		if err := a.Store.SetSetting(ctx, "leetcode_session_expires_at", strings.TrimSpace(in.ExpiresAt)); err != nil {
-			return serverError(err)
-		}
-		return reply(200, map[string]bool{"ok": true})
-
-	case method == "DELETE" && len(parts) == 4 && parts[0] == "admin" && parts[1] == "users" && parts[3] == "purge":
-		return okOrError(a.Store.PurgeUser(ctx, parts[2]))
-
-	case method == "DELETE" && len(parts) == 3 && parts[0] == "admin" && parts[1] == "users":
-		return okOrError(a.Store.DeleteUser(ctx, parts[2]))
-	}
-
-	return reply(404, map[string]string{"error": "not found"})
-}
-
-func authenticate(ctx context.Context, req request) (string, bool) {
-	header := req.Headers["authorization"]
-	if header == "" {
-		header = req.Headers["Authorization"]
-	}
-	token := strings.TrimPrefix(header, "Bearer ")
-	if token == "" {
-		return "", false
-	}
-	claims, err := jwt.Verify(ctx, &jwt.VerifyParams{Token: token})
-	if err != nil {
-		return "", false
-	}
-	return claims.Subject, true
-}
-
-func displayName(req request) string {
-	return strings.TrimSpace(req.QueryStringParameters["name"])
-}
-
-func userEmail(req request) string {
-	return strings.TrimSpace(req.QueryStringParameters["email"])
-}
-
-func segments(path string) []string {
-	return strings.FieldsFunc(path, func(r rune) bool { return r == '/' })
-}
-
-func serverError(err error) (response, error) {
-	log.Printf("server error: %v", err)
-	return reply(500, map[string]string{"error": "internal error"})
-}
-
-func dataOrError(data any, err error) (response, error) {
-	if err != nil {
-		return serverError(err)
-	}
-	return reply(200, data)
-}
-
-func okOrError(err error) (response, error) {
-	if err != nil {
-		return serverError(err)
-	}
-	return reply(200, map[string]bool{"ok": true})
-}
-
-func reply(status int, body any) (response, error) {
-	headers := map[string]string{
-		"Content-Type":                 "application/json",
-		"Access-Control-Allow-Origin":  "*",
-		"Access-Control-Allow-Headers": "authorization,content-type",
-		"Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-	}
-	if body == nil {
-		return response{StatusCode: status, Headers: headers}, nil
-	}
-	payload, err := json.Marshal(body)
-	if err != nil {
-		return response{StatusCode: 500, Headers: headers}, nil
-	}
-	return response{StatusCode: status, Headers: headers, Body: string(payload)}, nil
+	return httpx.NotFound()
 }

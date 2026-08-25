@@ -10,7 +10,7 @@ import (
 
 	"kronos/internal/api"
 	"kronos/internal/config"
-	"kronos/internal/store"
+	"kronos/internal/platform/db"
 )
 
 func main() {
@@ -18,18 +18,17 @@ func main() {
 
 	clerk.SetKey(config.Get(ctx, "CLERK_SECRET_KEY"))
 
-	db, err := store.NewPostgres(ctx, config.Get(ctx, "DATABASE_URL"))
+	pool, err := db.Open(ctx, config.Get(ctx, "DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	season, _ := strconv.ParseInt(config.Get(ctx, "SEASON_START"), 10, 64)
 
-	handler := &api.API{
-		Store:        db,
+	handler := api.New(pool, api.Config{
 		AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID"),
 		Season:       season,
-		Session:      config.Get(ctx, "LEETCODE_SESSION"),
-	}
+		LeetCodeSess: config.Get(ctx, "LEETCODE_SESSION"),
+	})
 	lambda.Start(handler.Handle)
 }

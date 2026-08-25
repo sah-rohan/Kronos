@@ -1,4 +1,4 @@
-package store
+package syncing
 
 import (
 	"context"
@@ -11,21 +11,16 @@ import (
 	"kronos/internal/poller"
 )
 
-type Postgres struct {
+// Repo serves the poller: the problem catalog, per-member sync state, and
+// the solve/submission write path.
+type Repo struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgres(ctx context.Context, dsn string) (*Postgres, error) {
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		return nil, err
-	}
-	return &Postgres{pool: pool}, nil
-}
+// NewRepo wires the repository to the shared connection pool.
+func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
 
-func (p *Postgres) Close() { p.pool.Close() }
-
-func (p *Postgres) Catalog(ctx context.Context) (poller.Catalog, error) {
+func (p *Repo) Catalog(ctx context.Context) (poller.Catalog, error) {
 	rows, err := p.pool.Query(ctx, `select slug, id from problems`)
 	if err != nil {
 		return nil, err
@@ -43,7 +38,7 @@ func (p *Postgres) Catalog(ctx context.Context) (poller.Catalog, error) {
 	return catalog, rows.Err()
 }
 
-func (p *Postgres) DueMembers(ctx context.Context, limit int) ([]poller.Member, error) {
+func (p *Repo) DueMembers(ctx context.Context, limit int) ([]poller.Member, error) {
 	rows, err := p.pool.Query(ctx, `
 		select u.id, u.leetcode_user::text
 		from users u
@@ -69,7 +64,7 @@ func (p *Postgres) DueMembers(ctx context.Context, limit int) ([]poller.Member, 
 	return members, rows.Err()
 }
 
-func (p *Postgres) LoadState(ctx context.Context, userID string) (poller.State, error) {
+func (p *Repo) LoadState(ctx context.Context, userID string) (poller.State, error) {
 	var state poller.State
 	err := p.pool.QueryRow(ctx,
 		`select last_ac_count, last_seen_ac_ts, next_poll_at from sync_state where user_id = $1`, userID).
@@ -80,7 +75,7 @@ func (p *Postgres) LoadState(ctx context.Context, userID string) (poller.State, 
 	return state, err
 }
 
-func (p *Postgres) SaveState(ctx context.Context, userID string, state poller.State) error {
+func (p *Repo) SaveState(ctx context.Context, userID string, state poller.State) error {
 	_, err := p.pool.Exec(ctx, `
 		insert into sync_state (user_id, last_ac_count, last_seen_ac_ts, next_poll_at, last_polled_at)
 		values ($1, $2, $3, $4, now())
@@ -93,7 +88,7 @@ func (p *Postgres) SaveState(ctx context.Context, userID string, state poller.St
 	return err
 }
 
-func (p *Postgres) RecordSolve(ctx context.Context, solve poller.Solve) error {
+func (p *Repo) RecordSolve(ctx context.Context, solve poller.Solve) error {
 	if _, err := p.pool.Exec(ctx, `
 		insert into solves (user_id, problem_id, first_season_ac_at, season_ac_count, submission_id)
 		values ($1, $2, to_timestamp($3), 1, $4)
@@ -112,14 +107,14 @@ func (p *Postgres) RecordSolve(ctx context.Context, solve poller.Solve) error {
 	return err
 }
 
-func (p *Postgres) FlagOverflow(ctx context.Context, userID string, missing int) error {
+func (p *Repo) FlagOverflow(ctx context.Context, userID string, missing int) error {
 	_, err := p.pool.Exec(ctx,
 		`insert into pending_confirmations (user_id, missing_count) values ($1, $2)`,
 		userID, missing)
 	return err
 }
 
-func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.Pending, error) {
+func (p *Repo) PendingEnrichment(ctx context.Context, limit int) ([]poller.Pending, error) {
 	rows, err := p.pool.Query(ctx, `
 		select user_id, problem_id, submission_id, extract(epoch from solved_at)::bigint
 		from submissions
@@ -141,7 +136,7 @@ func (p *Postgres) PendingEnrichment(ctx context.Context, limit int) ([]poller.P
 	return pending, rows.Err()
 }
 
-func (p *Postgres) SaveDetail(ctx context.Context, pending poller.Pending, detail leetcode.SubmissionDetail) error {
+func (p *Repo) SaveDetail(ctx context.Context, pending poller.Pending, detail leetcode.SubmissionDetail) error {
 	if detail.Language != "" {
 		if _, err := p.pool.Exec(ctx, `
 			insert into solutions (user_id, problem_id, submission_id, lang, code, runtime_ms, memory_kb, runtime_pct, is_optimal, solved_at)
