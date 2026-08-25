@@ -123,7 +123,7 @@ func runDetail(ctx context.Context, session string) {
 	if err != nil {
 		fmt.Println("  error:", err)
 		return
-	} 
+	}
 	if detail == nil {
 		fmt.Println("  nil (session expired)")
 		return

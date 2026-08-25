@@ -9,61 +9,27 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 
 	"kronos/internal/config"
-	"kronos/internal/leetcode"
-	"kronos/internal/poller"
-	"kronos/internal/store"
+	"kronos/internal/platform/db"
+	"kronos/internal/syncing"
 )
 
-// run executes one sync+enrich pass. The DB pool, secrets, and season are
-// resolved once at cold-start (in main) and reused across invocations so the
-// per-minute cron doesn't re-decrypt SSM secrets (KMS) or reopen the pool.
-func run(ctx context.Context, db *store.Postgres, session string, season int64) error {
-	catalog, err := db.Catalog(ctx)
-	if err != nil {
-		return err
-	}
-
-	engine := &poller.Engine{
-		Source:  leetcode.New(),
-		Store:   db,
-		Catalog: catalog,
-		Season:  season,
-	}
-
-	members, err := db.DueMembers(ctx, 1000)
-	if err != nil {
-		return err
-	}
-
-	results := engine.SyncAll(ctx, members, 16)
-	log.Printf("polled %d due members", len(results))
-
-	enricher := &poller.Enricher{
-		Detailer: leetcode.New(),
-		Store:    db,
-		Session:  session,
-	}
-	enriched, err := enricher.Run(ctx, 200)
-	if err != nil {
-		log.Printf("enrich pass error: %v", err)
-		return nil
-	}
-	log.Printf("enriched %d submissions", enriched)
-	return nil
-}
-
+// The DB pool, secrets, and season are resolved once at cold start and reused
+// across invocations, so the per-minute cron doesn't re-decrypt SSM secrets
+// (KMS) or reopen the pool on every run.
 func main() {
 	ctx := context.Background()
 
-	db, err := store.NewPostgres(ctx, config.Get(ctx, "DATABASE_URL"))
+	pool, err := db.Open(ctx, config.Get(ctx, "DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	session := config.Get(ctx, "LEETCODE_SESSION")
 	season, _ := strconv.ParseInt(os.Getenv("SEASON_START"), 10, 64)
+	svc := syncing.NewService(
+		syncing.NewRepo(pool),
+		config.Get(ctx, "LEETCODE_SESSION"),
+		season,
+	)
 
-	lambda.Start(func(ctx context.Context) error {
-		return run(ctx, db, session, season)
-	})
+	lambda.Start(func(ctx context.Context) error { return svc.RunOnce(ctx) })
 }
