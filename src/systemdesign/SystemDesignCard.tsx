@@ -24,7 +24,10 @@ export function SystemDesignCard({
   const solvedCount = SD_PROBLEMS.filter((p) => solved.has(p.slug)).length;
 
   return (
-    <Card className="lg:col-span-1 h-full">
+    <Card className="lg:col-span-1 h-full" onClick={(e) => { 
+          if ((e.target as HTMLElement).closest("ul")) return; // the click came from inside the topic list, so let the row's own button handle it. Also catches scrollbar drags, which target the <ul>
+          onOpen(SD_PROBLEMS[0].slug) // otherwise, open the module at SD_PROBLEMS[0].slug
+        }}>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">System Design</div>
         <Network className="h-4 w-4 text-coral" />

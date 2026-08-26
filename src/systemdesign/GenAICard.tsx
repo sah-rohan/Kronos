@@ -17,7 +17,10 @@ export function GenAICard({ onOpen }: { onOpen: (slug: string) => void }) {
   const solvedCount = GENAI_PROBLEMS.filter((p) => solved.has(p.slug)).length;
 
   return (
-    <Card className="lg:col-span-1 h-full">
+    <Card className="lg:col-span-1 h-full" onClick={(e) => { 
+          if ((e.target as HTMLElement).closest("ul")) return; // the click came from inside the topic list, so let the row's own button handle it. Also catches scrollbar drags, which target the <ul>
+          onOpen(GENAI_PROBLEMS[0].slug) // otherwise, open the module at GENAI_PROBLEMS[0].slug
+        }}>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">GenAI System Design</div>
         <Sparkles className="h-4 w-4 text-coral" />
