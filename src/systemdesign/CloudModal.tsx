@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CLOUD_DOCS } from "./cloud";
 
-export function CloudModal({ onClose }: { onClose: () => void }) {
-  const [activeId, setActiveId] = useState(CLOUD_DOCS[0].id);
+export function CloudModal({ initialId, onClose }: { initialId?: string; onClose: () => void }) {
+  const [activeId, setActiveId] = useState(
+    () => CLOUD_DOCS.find((c) => c.id === initialId)?.id ?? CLOUD_DOCS[0].id,
+  );
   const active = CLOUD_DOCS.find((c) => c.id === activeId)!;
+  const activeRef = useRef<HTMLButtonElement | null>(null);
 
+  useLayoutEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", inline: "nearest"});
+  }, []);
+ 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-sky-foreground/25 backdrop-blur-sm" onClick={onClose} />
@@ -31,6 +38,7 @@ export function CloudModal({ onClose }: { onClose: () => void }) {
             {CLOUD_DOCS.map((c) => (
               <button
                 key={c.id}
+                ref={c.id === activeId? activeRef : null}
                 onClick={() => setActiveId(c.id)}
                 className={`shrink-0 rounded-xl px-3 py-2 text-left text-sm font-medium transition ${
                   c.id === activeId ? "bg-coral text-coral-foreground" : "text-muted-foreground hover:bg-muted"

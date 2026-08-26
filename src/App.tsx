@@ -89,8 +89,8 @@ function App({
   };
   const [sdSlug, setSdSlug] = useState<string | null>(null);
   const [sdComponents, setSdComponents] = useState(false);
-  const [cloudOpen, setCloudOpen] = useState(false);
-  const [networkingOpen, setNetworkingOpen] = useState(false);
+  const [cloudTopic, setCloudTopic] = useState<string | null>(null);
+  const [networkingTopic, setNetworkingTopic] = useState<string | null>(null);
   // Admin-only: warn when the LeetCode session token is near/at expiry.
   const [sessionExpiry, setSessionExpiry] = useState<string>("");
   useEffect(() => {
@@ -176,8 +176,8 @@ function App({
           {lock(<RecentActivityCard onOpen={() => setModal("recent")} onOpenModule={setSdSlug} userName={userName} />)}
           <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
           <GenAICard onOpen={setSdSlug} />
-          <CloudCard onOpen={() => setCloudOpen(true)} />
-          <NetworkingCard onOpen={() => setNetworkingOpen(true)} />
+          <CloudCard onOpen={setCloudTopic} />
+          <NetworkingCard onOpen={setNetworkingTopic} />
         </div>
       </div>
 
@@ -212,8 +212,8 @@ function App({
         );
       })()}
       {sdComponents && <ComponentsModal onClose={() => setSdComponents(false)} />}
-      {cloudOpen && <CloudModal onClose={() => setCloudOpen(false)} />}
-      {networkingOpen && <NetworkingModal onClose={() => setNetworkingOpen(false)} />}
+      {cloudTopic && <CloudModal initialId={cloudTopic} onClose={() => setCloudTopic(null)} />}
+      {networkingTopic && <NetworkingModal initialId={networkingTopic} onClose={() => setNetworkingTopic(null)} />}
       {modal === "calendar" && (
         <CalendarModal
           cal={cal}

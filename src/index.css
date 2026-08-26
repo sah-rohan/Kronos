@@ -24,6 +24,17 @@
   --color-sky-foreground: #0b4a6b;
 }
 
+/*
+  Tailwind v4's preflight dropped v3's `button { cursor: pointer }` rule.
+  Restore it here, in the base layer so any explicit cursor-* utility wins.
+*/
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 html,
 body,
 #root {
