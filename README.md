@@ -4,25 +4,46 @@
 
 **Live at [usekronos.tech](https://usekronos.tech)**
 
-A seasonal LeetCode leaderboard and study dashboard for a small group. Members
-link a LeetCode account, a lambda polls their accepted submissions every minute,
-and the dashboard turns that into progress rings, streaks, a friends graph, and
-a group leaderboard — alongside interactive System Design, GenAI, Cloud, and
-Networking learning modules.
+An upskilling ecosystem for the software engineering grind — LeetCode practice, system
+design, and cloud fundamentals in one place, with your friends there to keep you sharp.
+Link your LeetCode account and Kronos picks up new solves within the minute, turning 
+them into progress rings, streaks, and a leaderboard you'd rather not be sitting at the bottom of.
 
 ![The Kronos dashboard](src/assets/Kronos%20Screenshot.png)
 
-## What's in it
+## Features
 
-- **Progress** — solved counts per roadmap (Blind 75, NeetCode 150/250), by
-  category and difficulty, with a solutions viewer.
-- **Leaderboard** — group ranking for the current season, scoped by roadmap.
-- **Streaks & calendar** — daily activity, backfilled from LeetCode timestamps.
-- **Friends** — requests, accept/decline, and side-by-side progress.
-- **Study modules** — System Design and GenAI problems with a drag-and-drop
-  design canvas, plus Cloud and Networking reference curricula.
-- **Admin** — approve pending members, rename users, view analytics, rotate the
-  LeetCode session cookie.
+**Interview prep**
+
+- Roadmaps — Blind 75, NeetCode 150, NeetCode 250, or every problem
+- Progress broken down by category and by difficulty
+- Automatic LeetCode sync, plus a manual re-sync
+- Solutions viewer with runtime, the submitted code, and an optimal-solution tag
+
+**Study modules**
+
+- System Design problems with a drag-and-drop design canvas
+- GenAI system design — designing LLM and generative-AI systems piece by piece
+- Main components reference — the reusable building blocks and when to reach for
+  each
+- Cloud engineering — AWS and Azure services side by side
+- Networking curriculum — packets through VPCs, security groups, and the edge
+
+**Community**
+
+- Group leaderboard, scoped by roadmap, with a difficulty breakdown
+- Daily streaks and a calendar, backfilled from LeetCode timestamps
+- Recent activity feed across the group
+- Friends — requests, accept/decline, side-by-side progress, and a friend's
+  solutions
+
+**Account & admin**
+
+- Clerk OAuth sign-in behind an admin approval gate
+- Username change requests
+- Light and dark themes
+- Admin tools — approve pending members, rename users, view analytics, rotate
+  the LeetCode session cookie
 
 ## Architecture
 
@@ -75,22 +96,6 @@ values at runtime, so rotating a credential needs no redeploy.
 | Data | RDS Postgres via pgx |
 | Infra | Terraform — API Gateway HTTP API, EventBridge, S3 + CloudFront |
 | CI/CD | GitHub Actions, OIDC to AWS, secrets in SSM Parameter Store |
-
-## Layout
-
-```
-src/                 React app
-  auth/              Clerk gate: sign-in, onboarding, pending approval
-  sections/          dashboard cards (progress, leaderboard, friends, streak)
-  modals/            full-screen detail view behind each card
-  systemdesign/      study modules + the drag-and-drop design canvas
-  components/        shared primitives (Card, Modal, pickers, charts)
-  data/              data provider; falls back to local fixtures with no API
-  lib/               api client, theme, roadmaps, date/rank helpers
-backend/             Go lambdas + domain packages   -> backend/README.md
-terraform/           AWS infrastructure             -> terraform/README.md
-.github/workflows/   ci.yml (build, vet, validate), deploy.yml (apply, publish)
-```
 
 ## Prerequisites
 
