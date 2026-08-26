@@ -35,7 +35,7 @@ export function SystemDesignCard({
 
       <button
         onClick={onOpenComponents}
-        className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-sm font-medium transition hover:bg-muted"
+        className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-sm font-medium transition cursor-pointer hover:bg-muted"
       >
         <BookOpen className="h-4 w-4 shrink-0 text-coral" />
         Main components
@@ -53,7 +53,7 @@ export function SystemDesignCard({
             <li key={p.slug}>
               <button
                 onClick={() => onOpen(p.slug)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
+                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{p.title}</div>

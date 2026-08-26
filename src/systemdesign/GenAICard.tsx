@@ -36,7 +36,7 @@ export function GenAICard({ onOpen }: { onOpen: (slug: string) => void }) {
             <li key={p.slug}>
               <button
                 onClick={() => onOpen(p.slug)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
+                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{p.title}</div>
