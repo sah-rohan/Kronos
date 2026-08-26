@@ -1,73 +1,177 @@
-# React + TypeScript + Vite
+# Kronos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![CI](https://github.com/sah-rohan/leetcode-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/sah-rohan/leetcode-dashboard/actions/workflows/ci.yml)
 
-Currently, two official plugins are available:
+**Live at [usekronos.tech](https://usekronos.tech)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+A seasonal LeetCode leaderboard and study dashboard for a small group. Members
+link a LeetCode account, a lambda polls their accepted submissions every minute,
+and the dashboard turns that into progress rings, streaks, a friends graph, and
+a group leaderboard — alongside interactive System Design, GenAI, Cloud, and
+Networking learning modules.
 
-## React Compiler
+![The Kronos dashboard](src/assets/Kronos%20Screenshot.png)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## What's in it
 
-## Expanding the ESLint configuration
+- **Progress** — solved counts per roadmap (Blind 75, NeetCode 150/250), by
+  category and difficulty, with a solutions viewer.
+- **Leaderboard** — group ranking for the current season, scoped by roadmap.
+- **Streaks & calendar** — daily activity, backfilled from LeetCode timestamps.
+- **Friends** — requests, accept/decline, and side-by-side progress.
+- **Study modules** — System Design and GenAI problems with a drag-and-drop
+  design canvas, plus Cloud and Networking reference curricula.
+- **Admin** — approve pending members, rename users, view analytics, rotate the
+  LeetCode session cookie.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Architecture
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```mermaid
+flowchart LR
+    U["Browser<br/>React + Vite"]
+    CK["Clerk<br/>OAuth + JWT"]
+    LC["LeetCode<br/>GraphQL"]
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+    subgraph AWS
+        direction TB
+        CF["CloudFront + S3<br/>static build"]
+        AG["API Gateway<br/>HTTP API"]
+        API["api lambda"]
+        SYNC["sync lambda"]
+        ENR["enrich lambda"]
+        EB["EventBridge<br/>schedules"]
+        SSM["SSM<br/>Parameter Store"]
+        DB[("RDS Postgres")]
+    end
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+    U --> CF
+    U --> CK
+    U -->|JWT| AG
+    AG --> API
+    API --> DB
+
+    EB -->|every 1 min| SYNC
+    EB -->|every 5 min| ENR
+    SYNC --> LC
+    ENR --> LC
+    SYNC --> DB
+    ENR --> DB
+
+    SSM -.->|secrets at runtime| API
+    SSM -.-> SYNC
+    SSM -.-> ENR
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Three Go lambdas share one codebase. `api` serves the dashboard, `sync` polls
+for new solves, and `enrich` backfills solution detail. None of them hold
+secrets — their environment carries SSM *parameter names*, and each reads the
+values at runtime, so rotating a credential needs no redeploy.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Layer | |
+|---|---|
+| Frontend | React 19 + TypeScript, Vite, Tailwind v4 |
+| Auth | Clerk (OAuth, with admin approval) |
+| Backend | Go on AWS Lambda (`provided.al2023`, arm64) |
+| Data | RDS Postgres via pgx |
+| Infra | Terraform — API Gateway HTTP API, EventBridge, S3 + CloudFront |
+| CI/CD | GitHub Actions, OIDC to AWS, secrets in SSM Parameter Store |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Layout
+
 ```
+src/                 React app
+  auth/              Clerk gate: sign-in, onboarding, pending approval
+  sections/          dashboard cards (progress, leaderboard, friends, streak)
+  modals/            full-screen detail view behind each card
+  systemdesign/      study modules + the drag-and-drop design canvas
+  components/        shared primitives (Card, Modal, pickers, charts)
+  data/              data provider; falls back to local fixtures with no API
+  lib/               api client, theme, roadmaps, date/rank helpers
+backend/             Go lambdas + domain packages   -> backend/README.md
+terraform/           AWS infrastructure             -> terraform/README.md
+.github/workflows/   ci.yml (build, vet, validate), deploy.yml (apply, publish)
+```
+
+## Prerequisites
+
+| Tool | Version | Needed for |
+|---|---|---|
+| Node | 20.19+ or 22.12+ | frontend (CI runs Node 20) |
+| Go | 1.23 | backend lambdas |
+| Terraform | 1.x | infrastructure, deploy only |
+
+> **Node 22.8 will not do.** If `npm run build` prints
+> `You are using Node.js 22.8.0. Vite requires Node.js version 20.19+ or 22.12+`,
+> you're in the gap between the two supported ranges. The build still completes,
+> but it's an unsupported combination — move to 22.12+ or drop back to 20.19+.
+
+## Run locally
+
+The frontend runs standalone — with no API and no Clerk key it renders the
+dashboard on local fixtures, which is enough for most UI work.
+
+```bash
+npm install
+npm run dev
+```
+
+To point it at a deployed backend, create `.env.local` (git-ignored):
+
+| Variable | Effect |
+|---|---|
+| `VITE_API_URL` | Base URL of the HTTP API. Unset → local fixtures. |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk key. Unset → auth is skipped entirely. |
+
+For the Go side — sync engine, seed generation, live verification against a real
+LeetCode user — see [`backend/README.md`](backend/README.md).
+
+## Scripts
+
+| Command | Does |
+|---|---|
+| `npm run dev` | Vite dev server with HMR |
+| `npm run build` | `tsc -b` then production build to `dist/` |
+| `npm run lint` | ESLint |
+| `npm run preview` | Serve the built `dist/` |
+
+## API surface
+
+One lambda behind API Gateway, routed by path prefix. Every request carries a
+Clerk JWT; unapproved members get `403` outside a small pre-approval allowlist,
+and `/admin/*` requires the admin flag.
+
+```
+/me/*           profile, progress, calendar, streak, sync, theme, username
+/leaderboard    group ranking       /group/difficulty   /recent   /users
+/friends/*      list, requests, accept, decline
+/sd/*           system-design progress and activity
+/admin/*        pending, approve, users, analytics, leetcode-session
+```
+
+## How syncing works
+
+An EventBridge rule polls due members once a minute. The accepted-submission
+count acts as a cheap delta guard — zero means back off, a small delta is
+captured whole, a burst is flagged for confirmation. A second rule enriches
+solutions (runtime, code, optimality) every five minutes using an authenticated
+session. Details and the delta table are in
+[`backend/README.md`](backend/README.md).
+
+## Deploy
+
+Pushing to `main` builds the lambdas, applies Terraform, loads the schema, and
+publishes the frontend. AWS auth is keyless via GitHub OIDC. Full one-time setup
+— state bucket, Parameter Store entries, OIDC role, Clerk config — is in
+[`DEPLOY.md`](DEPLOY.md). The deploy run logs print the live site URL.
+
+## Links
+
+| | |
+|---|---|
+| Live site | <https://usekronos.tech> |
+| Repository | <https://github.com/sah-rohan/leetcode-dashboard> |
+
+## License
+
+No `LICENSE` file is present, so the default applies: all rights reserved by the
+repository owners. Add one if you intend to make the project reusable.
