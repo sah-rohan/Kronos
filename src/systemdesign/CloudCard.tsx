@@ -5,7 +5,10 @@ import { CLOUD_DOCS } from "./cloud";
 export function CloudCard({ onOpen }: { onOpen: (id: string) => void }) { // make the id required, not optional
   return (
     // clicking on the card doesn't click on any particular topic, it just opens the card
-    <Card className="lg:col-span-1 h-full">
+    <Card className="lg:col-span-1 h-full" onClick={(e) => { 
+      if ((e.target as HTMLElement).closest("ul")) return; // the click came from inside the topic list, so let the row's own button handle it. Also catches scrollbar drags, which target the <ul>
+      onOpen(CLOUD_DOCS[0].id) // otherwise, open the module at CLOUD_DOCS[0].id
+    }}>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">Cloud Engineering</div>
         <Cloud className="h-4 w-4 text-coral" />

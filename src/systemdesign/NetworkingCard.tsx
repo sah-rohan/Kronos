@@ -4,7 +4,10 @@ import { NETWORKING_DOCS } from "./networking";
 
 export function NetworkingCard({ onOpen }: { onOpen: (id: string) => void }) {
   return (
-    <Card className="lg:col-span-1 h-full">
+    <Card className="lg:col-span-1 h-full" onClick={(e) => { 
+          if ((e.target as HTMLElement).closest("ul")) return; // the click came from inside the topic list, so let the row's own button handle it. Also catches scrollbar drags, which target the <ul>
+          onOpen(NETWORKING_DOCS[0].id) // otherwise, open the module at NETWORKING_DOCS[0].id
+    }}>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">Networking</div>
         <Network className="h-4 w-4 text-coral" />

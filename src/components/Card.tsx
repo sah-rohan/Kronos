@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 export function Card({
   children,
@@ -7,7 +7,7 @@ export function Card({
 }: {
   children: ReactNode;
   className?: string;
-  onClick?: () => void;
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void; // MouseEvent lets callers inspect 'e.target' to see what was clicked
 }) {
   return (
     <div
