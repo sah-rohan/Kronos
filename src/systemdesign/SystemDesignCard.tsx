@@ -37,7 +37,11 @@ export function SystemDesignCard({
       </p>
 
       <button
-        onClick={onOpenComponents}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation(); // keep the card's own onClick from also opening the System Design module
+          onOpenComponents();
+        }}
         className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-sm font-medium transition cursor-pointer hover:bg-muted"
       >
         <BookOpen className="h-4 w-4 shrink-0 text-coral" />
