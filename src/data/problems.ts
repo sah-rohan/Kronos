@@ -1,4 +1,5 @@
 import type { Problem } from "../types";
+import { DIFFICULTY, difficultyFill } from "../lib/difficulty";
 
 const DMAP = { E: "Easy", M: "Medium", H: "Hard" } as const;
 
@@ -211,8 +212,12 @@ for (const c of categories) {
 export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
 
-export const diffStyles: Record<string, string> = {
-  Easy: "bg-sky text-sky-foreground",
-  Medium: "bg-[#f5c26b] text-[#5a3a0a]",
-  Hard: "bg-coral text-white",
-};
+/**
+ * Difficulty badge classes, derived from the single DIFFICULTY source rather
+ * than hand-written. This used to be one of four independent definitions of the
+ * same three colours (audit finding #3); now changing a token changes every
+ * badge, bar, swatch and legend entry at once.
+ */
+export const diffStyles: Record<string, string> = Object.fromEntries(
+  DIFFICULTY.map((d) => [d.label, difficultyFill(d)]),
+);

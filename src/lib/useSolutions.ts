@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { ApiSolution } from "./api";
-import { useData } from "../data/source";
+import { useData } from "../data/context";
 import type { Solution } from "../types";
 
 function toSolutions(rows: ApiSolution[]): Solution[] {

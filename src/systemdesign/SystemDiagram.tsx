@@ -99,8 +99,8 @@ export function SystemDiagram({
         if (!hit) break;
         const bcx = hit.x + NODE_W / 2;
         const bcy = hit.y + NODE_H / 2;
-        let vx = mx - bcx;
-        let vy = my - bcy;
+        const vx = mx - bcx;
+        const vy = my - bcy;
         const vl = Math.hypot(vx, vy) || 1;
         mx += (vx / vl) * 10;
         my += (vy / vl) * 10;

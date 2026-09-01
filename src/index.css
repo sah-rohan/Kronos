@@ -22,6 +22,41 @@
 
   --color-sky: #d1eef9;
   --color-sky-foreground: #0b4a6b;
+
+  /*
+    Difficulty — audit finding #3. One definition, consumed by both the chart
+    marks and the legend swatches through DIFFICULTY in lib/difficulty.ts, so
+    the two cannot drift apart the way the old bubble chart's did.
+
+    Chosen for LIGHTNESS separation, not hue alone, so they survive deuteranopia
+    and protanopia and read correctly in greyscale. Relative luminance is
+    46 / 20 / 2 (easy / medium / hard); every pair clears 1.86:1 under normal,
+    deuteranope and protanope simulation, and easy/hard and medium/hard both
+    clear 3:1. Colour is reinforcement only — every row and series is also
+    labelled in text.
+  */
+  --color-difficulty-easy: #79bde9;
+  --color-difficulty-easy-foreground: #0a2f45;
+  --color-difficulty-medium: #b8660f;
+  --color-difficulty-medium-foreground: #ffffff;
+  --color-difficulty-hard: #521022;
+  --color-difficulty-hard-foreground: #ffffff;
+
+  /*
+    Calendar day states — audit finding #4. Deliberately NOT the difficulty
+    tokens: a day is not a difficulty, and reusing them is what let "solved" and
+    "today" read as the same thing. Greyscale luminance is monotonic
+    (21 / 49 / 75 / 89) so the four states stay ordered without colour.
+  */
+  --color-streak-today: #d94f45;
+  --color-streak-today-foreground: #ffffff;
+  --color-streak-active: #f4a988;
+  --color-streak-active-foreground: #3d1508;
+  --color-streak-solved: #cfe4f2;
+  --color-streak-solved-foreground: #0a2f45;
+  --color-streak-empty: #eaf3fb;
+  --color-streak-empty-foreground: #6b7e91;
+
 }
 
 /*
@@ -82,6 +117,25 @@ body {
 
   --color-sky: #2a6f93;
   --color-sky-foreground: #d3ecfa;
+
+  /* Difficulty, lifted for the dark surface. Greyscale luminance 64 / 33 / 17. */
+  --color-difficulty-easy: #a8d8f8;
+  --color-difficulty-easy-foreground: #0a2f45;
+  --color-difficulty-medium: #d98a24;
+  --color-difficulty-medium-foreground: #21160a;
+  --color-difficulty-hard: #c2455f;
+  --color-difficulty-hard-foreground: #ffffff;
+
+  /* Calendar day states, re-spaced for dark. Greyscale luminance 39 / 16 / 8 / 2. */
+  --color-streak-today: #f5897c;
+  --color-streak-today-foreground: #2b0c07;
+  --color-streak-active: #a85a35;
+  --color-streak-active-foreground: #ffffff;
+  --color-streak-solved: #2f5570;
+  --color-streak-solved-foreground: #d3ecfa;
+  --color-streak-empty: #1c2b39;
+  --color-streak-empty-foreground: #93a4b5;
+
 }
 
 .dark .clouds {
@@ -185,3 +239,26 @@ body {
 .dark .hljs-title, .dark .hljs-section, .dark .hljs-title.function_, .dark .hljs-function .hljs-title { color: #74c0fc; }
 .dark .hljs-type, .dark .hljs-class .hljs-title, .dark .hljs-title.class_ { color: #b197fc; }
 .dark .hljs-meta, .dark .hljs-symbol, .dark .hljs-operator { color: #adb5bd; }
+
+/*
+  Series hatch for the difficulty chart (audit finding #3).
+
+  The bar's hue already encodes difficulty, so the You/Friends distinction has to
+  be carried by something other than colour. A diagonal hatch survives greyscale
+  and colour-blind rendering, and is drawn in translucent white/black over
+  whatever token fills the bar, so it needs no per-token variant.
+*/
+.series-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.55) 0 3px,
+    transparent 3px 7px
+  );
+}
+.dark .series-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.45) 0 3px,
+    transparent 3px 7px
+  );
+}

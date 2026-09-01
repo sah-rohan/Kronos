@@ -1,81 +1,16 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../lib/api";
 import type { TokenFn, ApiProblem } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { LoadingScreen } from "../components/LoadingScreen";
-import type {
-  CalendarProblem,
-  Category,
-  DifficultyTotal,
-  Friend,
-  Member,
-  Problem,
-  RecentItem,
-} from "../types";
-
-export type Calendar = {
-  byDate: Record<string, number>;
-  byDateProblems: Record<string, CalendarProblem[]>;
-  streak: number;
-};
-
-function fmtDate(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
-function computeStreak(
-  byDate: Record<string, number>,
-  seasonStart?: number,
-): number {
-  const d = new Date();
-  if ((byDate[fmtDate(d)] ?? 0) === 0) {
-    d.setUTCDate(d.getUTCDate() - 1);
-  }
-  const floor = seasonStart ? fmtDate(new Date(seasonStart * 1000)) : "";
-  let streak = 0;
-  while ((byDate[fmtDate(d)] ?? 0) > 0 && fmtDate(d) >= floor) {
-    streak++;
-    d.setUTCDate(d.getUTCDate() - 1);
-  }
-  return streak;
-}
-
-type Data = {
-  loading: boolean;
-  categories: Category[];
-  solved: number;
-  total: number;
-  difficultyBars: {
-    label: string;
-    color: string;
-    done: number;
-    total: number;
-  }[];
-  members: Member[];
-  recent: RecentItem[];
-  friends: Friend[];
-  friendsDifficulty: { label: string; val: number }[];
-  groupTotals: DifficultyTotal[];
-  calendar: Calendar;
-  addFriend: (username: string) => Promise<void>;
-  removeFriend: (id: string) => Promise<void>;
-  refresh: () => Promise<void>;
-  getToken: TokenFn;
-};
-
-const DataContext = createContext<Data | null>(null);
-
-export function useData(): Data {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData must be used within DataProvider");
-  return ctx;
-}
+import { DataContext, type Data } from "./context";
+import { streakLength, todayKey } from "../lib/calendar";
+import {
+  DIFFICULTY_BY_KEY,
+  difficultyBg,
+  type DifficultyKey,
+} from "../lib/difficulty";
+import type { CalendarProblem, Category, Friend, Problem } from "../types";
 
 function difficultyBars(categories: Category[]) {
   return (["Easy", "Medium", "Hard"] as const).map((label) => {
@@ -84,12 +19,8 @@ function difficultyBars(categories: Category[]) {
       .filter((p) => p.diff === label);
     return {
       label,
-      color:
-        label === "Easy"
-          ? "bg-sky"
-          : label === "Medium"
-            ? "bg-[#f5c26b]"
-            : "bg-coral",
+      // Single source: see lib/difficulty.ts.
+      color: difficultyBg(DIFFICULTY_BY_KEY[label.toLowerCase() as DifficultyKey]),
       done: items.filter((p) => p.done).length,
       total: items.length,
     };
@@ -213,7 +144,13 @@ export function DataProvider({
       friends: apiFriends,
       friendsDifficulty: circleData,
       groupTotals: groupTotals ?? [],
-      calendar: { byDate, byDateProblems, streak: computeStreak(byDate, seasonStart) },
+      // Streak is computed from the same local-date logic the calendar UI uses;
+      // it used to have its own UTC copy, which disagreed with the grid.
+      calendar: {
+        byDate,
+        byDateProblems,
+        streak: streakLength(byDate, todayKey(), seasonStart),
+      },
       async addFriend(username) {
         await api.addFriend(getToken, username);
         await refresh();
