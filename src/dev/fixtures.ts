@@ -1,29 +1,5 @@
-/**
- * Dev-only canned API responses.
- *
- * Turn on with `VITE_FIXTURES=1` in `.env.local`, then `npm run dev`. Every
- * request from `src/lib/api.ts` is answered from here instead of the network, so
- * the dashboard fills with coherent data and cold loads are instant.
- *
- * NEVER SHIPS. `api.ts` guards the call with `import.meta.env.DEV && useFixtures`,
- * and Vite replaces `import.meta.env.DEV` with `false` when building for
- * production — so the branch is dead code, the dynamic `import()` below is never
- * reachable, and Rollup drops this module from the bundle entirely. There is a
- * check for that in the notes at the bottom of docs/REVIEW.md.
- *
- * Design rules for the data:
- *
- * - **Anchored to today, not to a fixed date.** Streaks, calendars and the
- *   activity feed are generated relative to the current local day, so the
- *   fixtures never go stale and the streak card always has something to show.
- * - **Internally consistent.** The leaderboard totals, the per-difficulty
- *   breakdown and the `/me/circle` combined figure are all derived from the same
- *   generated problem set, so the derived Friends series (`circle − mine`) comes
- *   out sensible instead of clamping to zero.
- * - **Matches the real shapes.** Everything is typed against the `Api*` types in
- *   `src/lib/api.ts`, so a fixture that drifts from the real contract is a
- *   compile error rather than a runtime surprise.
- */
+// Dev-only canned API responses. Turn on with VITE_FIXTURES=1 in .env.local.
+// The data is anchored to today rather than a fixed date, so streaks and calendars never go stale.
 import { dateKey } from "../lib/calendar";
 import type {
   Analytics,
@@ -41,13 +17,11 @@ import type {
   SdLeader,
 } from "../lib/api";
 
-/** The signed-in dev user. Matches DEFAULT_SHELL.userName in app/shell.ts. */
+// The signed-in dev user.
 const ME = "Jordan Dev";
 const ME_HANDLE = "jordan_dev";
 
-/* -------------------------------------------------------------------------- */
-/* Date helpers — everything is relative to "now"                              */
-/* -------------------------------------------------------------------------- */
+// Date helpers — everything is relative to "now"
 
 function daysAgo(n: number): Date {
   const d = new Date();
@@ -55,16 +29,11 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-/** An ISO timestamp at midday, n days back — the shape `at` fields use. */
 function at(n: number): string {
   const d = daysAgo(n);
   d.setHours(12, 0, 0, 0);
   return d.toISOString();
 }
-
-/* -------------------------------------------------------------------------- */
-/* The problem catalog                                                         */
-/* -------------------------------------------------------------------------- */
 
 type Seed = [category: string, title: string, diff: "Easy" | "Medium" | "Hard"];
 
@@ -109,13 +78,6 @@ const CATALOG: Seed[] = [
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-/**
- * Builds a problem list with a deterministic solved pattern.
- *
- * `solveRate` is applied per difficulty so the breakdown looks like a real
- * person's — lots of Easy, fewer Medium, a handful of Hard — rather than a flat
- * percentage across the board.
- */
 function buildProgress(rates: { Easy: number; Medium: number; Hard: number }): ApiProblem[] {
   const seen: Record<string, number> = { Easy: 0, Medium: 0, Hard: 0 };
   return CATALOG.map(([category, title, difficulty]) => {
@@ -154,17 +116,13 @@ function countByDifficulty(rows: ApiProblem[]) {
 const MINE = countByDifficulty(MY_PROGRESS);
 const MY_TOTAL = MINE.easy + MINE.medium + MINE.hard;
 
-/* -------------------------------------------------------------------------- */
-/* People                                                                      */
-/* -------------------------------------------------------------------------- */
-
 const FRIENDS: ApiFriend[] = [
   { id: "f-mira", name: "Mira Chen", username: "mirac", solved: 24 },
   { id: "f-ari", name: "Ari Patel", username: "arip", solved: 11 },
   { id: "f-sam", name: "Sam Ortega", username: "sortega", solved: 6 },
 ];
 
-/** Per-friend solve rates, so each profile looks different from the others. */
+// Per-friend solve rates
 const FRIEND_RATES: Record<string, { Easy: number; Medium: number; Hard: number }> = {
   "f-mira": { Easy: 1, Medium: 0.75, Hard: 0.5 },
   "f-ari": { Easy: 0.6, Medium: 0.25, Hard: 0 },
@@ -220,8 +178,7 @@ const LEADERS: ApiLeader[] = [
       ...c,
     };
   })(),
-  // Someone on the leaderboard who is NOT a friend, so the profile's
-  // "streaks are shared between friends" path is reachable in dev.
+  // Someone on the leaderboard who is NOT a friend
   {
     name: "Lena Park",
     username: "lenap",
@@ -235,62 +192,18 @@ const LEADERS: ApiLeader[] = [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Activity + calendars                                                        */
-/* -------------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------------- */
-/* Calendars — built so every legend state is demonstrable                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The calendar fixtures exist to exercise all four day states the legend
- * describes: **Today**, **Streak day**, **Solved**, **No solves**.
- *
- * Writing them as a flat list of "n days ago" (which is what this used to be)
- * has a nasty edge: near the start of a month every entry lands in the
- * *previous* month, so the dashboard streak card — which always renders the
- * current month — shows nothing but Today and a field of empty cells. On the 1st
- * of a month the current month has exactly one past day, so "Streak day" and
- * "Solved" are not renderable there at all, no matter what the data says.
- *
- * So these are generated per calendar month instead:
- *
- * - a streak of `STREAK_LENGTH` days ending today (it crosses the month
- *   boundary naturally, which is itself worth testing);
- * - non-streak solve days on fixed day-of-month anchors, so every month in the
- *   navigable range has a realistic mix;
- * - everything else left empty.
- *
- * See DEMO_FUTURE_DAYS below for the one deliberate compromise.
- */
-
-/** Days in the current streak, counting back from today. */
+/// Days in the current streak, counting back from today.
 const STREAK_LENGTH = 5;
 
-/** Day-of-month positions for non-streak solve days. Spread, not clustered. */
+// Day-of-month positions for non-streak solve days.
 const SOLVED_ANCHORS = [3, 8, 13, 19, 25];
 
-/**
- * When today falls in the first days of a month there are no earlier days left
- * to mark as "Solved", so the current month's grid would only ever show Today
- * and empty cells. These forward-dated entries keep the Solved swatch
- * demonstrable on the dashboard on those days.
- *
- * They are the one knowingly unrealistic thing in these fixtures — you cannot
- * have solved something tomorrow. Set to `false` for a strictly plausible
- * calendar; you will then need to open the calendar overlay and step back a
- * month to see the Solved state during the first week of a month.
- */
 const DEMO_FUTURE_DAYS = true;
 
 const MONTH_MS_ANCHOR = new Date();
 
-/** Every (year, month) pair the calendar overlay can navigate to, plus today's. */
 function navigableMonths(): { year: number; month: number }[] {
   const months: { year: number; month: number }[] = [];
-  // CAL_START/CAL_END in src/data/calendar.ts bound the overlay; seed a year
-  // back from today as well so the range is covered whenever those move.
   const now = MONTH_MS_ANCHOR;
   for (let back = 12; back >= 0; back--) {
     const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
@@ -299,18 +212,10 @@ function navigableMonths(): { year: number; month: number }[] {
   return months;
 }
 
-/** Deterministic 1-4 solve count, so a month has visible variation. */
 function countFor(year: number, month: number, day: number): number {
   return (((year * 12 + month) * 31 + day * 7) % 4) + 1;
 }
 
-/**
- * Builds a calendar.
- *
- * @param streakLength  days ending today; 0 for someone with no streak
- * @param streakOffset  0 = streak includes today, 1 = it ended yesterday
- * @param density       fraction of SOLVED_ANCHORS used, so friends differ
- */
 function buildCalendar(
   streakLength: number,
   streakOffset = 0,
@@ -320,7 +225,6 @@ function buildCalendar(
   const now = MONTH_MS_ANCHOR;
   const todayDay = now.getDate();
 
-  // --- non-streak solve days, across every navigable month ---
   const anchors = SOLVED_ANCHORS.slice(
     0,
     Math.max(1, Math.round(SOLVED_ANCHORS.length * density)),
@@ -336,13 +240,11 @@ function buildCalendar(
     }
   }
 
-  // --- the streak, last so it wins over any anchor it overlaps ---
   for (let i = 0; i < streakLength; i++) {
     const d = daysAgo(i + streakOffset);
     byDate.set(dateKey(d), ((i * 2) % 3) + 1);
   }
 
-  // A streak that "ended yesterday" must have nothing today, or it is not ended.
   if (streakOffset > 0) byDate.delete(dateKey(new Date()));
 
   return [...byDate.entries()]
@@ -350,16 +252,11 @@ function buildCalendar(
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-/** You: a live streak ending today. */
 const MY_DAYS: ApiDay[] = buildCalendar(STREAK_LENGTH);
 
 const FRIEND_DAYS: Record<string, ApiDay[]> = {
-  // Mira: longer live streak, dense history.
   "f-mira": buildCalendar(8),
-  // Ari: streak ran through yesterday but nothing today — exercises the
-  // "a day with no solves does not break yesterday's streak" rule.
   "f-ari": buildCalendar(3, 1, 0.6),
-  // Sam: no streak at all, sparse solves.
   "f-sam": buildCalendar(0, 0, 0.4),
 };
 
@@ -395,10 +292,6 @@ function calendarProblems(days: ApiDay[]): ApiCalendarProblem[] {
   }
   return out;
 }
-
-/* -------------------------------------------------------------------------- */
-/* System Design                                                               */
-/* -------------------------------------------------------------------------- */
 
 const SD_SOLVED = ["design-url-shortener", "design-rate-limiter", "genai-rag"];
 
@@ -450,10 +343,6 @@ const SOLUTIONS: ApiSolution[] = [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* The router                                                                  */
-/* -------------------------------------------------------------------------- */
-
 const ME_RESPONSE: MeResponse = {
   id: "u-jordan",
   username: ME_HANDLE,
@@ -461,14 +350,12 @@ const ME_RESPONSE: MeResponse = {
   name: ME,
   email: "jordan@example.dev",
   status: "active",
-  // Flip to "admin" to exercise the Manage members dialog and the session alert.
   role: "user",
   theme: "auto",
-  // Season start, ~90 days ago, so streaks are not clipped by the floor.
   season: Math.floor(daysAgo(90).getTime() / 1000),
 };
 
-/** Combined "you + friends" difficulty totals, kept consistent with the rest. */
+// Combined "you + friends" difficulty totals, kept consistent with the rest. */
 function circleTotals(): ApiDifficultyTotal[] {
   const totals = { easy: MINE.easy, medium: MINE.medium, hard: MINE.hard };
   for (const f of FRIENDS) {
@@ -488,20 +375,11 @@ function friendIdFrom(path: string): string | undefined {
   return path.match(/^\/friends\/([^/]+)/)?.[1];
 }
 
-/**
- * Answers one request. Order matters — more specific patterns first.
- *
- * Unrecognised paths return `[]` rather than throwing, so adding a new endpoint
- * to `api.ts` degrades to "empty" in fixture mode instead of crashing the app.
- */
 export function fixtureFor(path: string, init?: RequestInit): unknown {
   const method = (init?.method ?? "GET").toUpperCase();
 
-  // Writes succeed and change nothing. Fixture data is immutable by design: a
-  // reload always returns you to a known state.
   if (method !== "GET") return {};
 
-  // --- friends/:id/* ---
   if (/^\/friends\/[^/]+\/progress/.test(path)) {
     const id = friendIdFrom(path);
     return buildProgress(FRIEND_RATES[id ?? ""] ?? { Easy: 0.3, Medium: 0.1, Hard: 0 });
@@ -516,7 +394,6 @@ export function fixtureFor(path: string, init?: RequestInit): unknown {
   if (path.startsWith("/friends/requests")) return [];
   if (path === "/friends") return FRIENDS;
 
-  // --- me/* ---
   if (path === "/me") return ME_RESPONSE;
   if (path === "/me/progress") return MY_PROGRESS;
   if (path === "/me/calendar/problems") return calendarProblems(MY_DAYS);
@@ -526,11 +403,9 @@ export function fixtureFor(path: string, init?: RequestInit): unknown {
   if (path === "/me/sd") return SD_SOLVED;
   if (path.startsWith("/me/problem/")) return SOLUTIONS;
 
-  // --- collections ---
   if (path === "/leaderboard") return LEADERS;
   if (path === "/recent") return RECENT;
   if (path === "/users") {
-    // Directory = everyone on the leaderboard, in ApiFriend shape.
     return LEADERS.map<ApiFriend>((l, i) => ({
       id: `u-${l.username}`,
       name: l.name,
@@ -543,7 +418,6 @@ export function fixtureFor(path: string, init?: RequestInit): unknown {
   if (path.startsWith("/sd/leaderboard")) return SD_LEADERS;
   if (path.startsWith("/sd/activity")) return SD_ACTIVITY;
 
-  // --- admin ---
   if (path === "/admin/pending") return [];
   if (path === "/admin/users") return [ME_RESPONSE];
   if (path === "/admin/analytics") {

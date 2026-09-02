@@ -1,10 +1,3 @@
-/**
- * `/u/:handle/activity` — one person's activity history, paginated via `?page=`.
- *
- * This is the half of the old `RecentActivityModal` that used to be the
- * "Friends" tab plus a friend picker. As a route the person is in the path, so
- * the picker disappears and each friend's history is its own linkable address.
- */
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";

@@ -1,11 +1,3 @@
-/**
- * Transient overlay — the LeetCode unlock flow, opened from `LockOverlay` on the
- * dashboard. A small form, so it stays local state rather than becoming a route,
- * and it only works in the Clerk branch (it needs a real token).
- *
- * Migrated from `modals/LinkLeetCodeModal.tsx`; body unchanged apart from the
- * shell it renders into.
- */
 import { useState } from "react";
 import { Dialog } from "../components/Dialog";
 import { api, type TokenFn } from "../lib/api";

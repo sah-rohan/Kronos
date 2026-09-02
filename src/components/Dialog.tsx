@@ -1,22 +1,3 @@
-/**
- * The transient-overlay primitive: confirm dialogs and small forms that do NOT
- * deserve a URL.
- *
- * Phase 0 found that the old `Modal` had no focus trap, no Escape handling, no
- * focus restore, no `aria-modal`, and no body scroll lock — Escape did nothing
- * anywhere in the app. Rather than hand-roll all five, this uses the native
- * `<dialog>` element with `showModal()`, which gives four of them from the
- * platform:
- *
- *   - focus trap ......... native to the top layer
- *   - Escape to close .... native `cancel` event
- *   - restore focus ...... native on `close()`
- *   - aria-modal ......... implicit for a modal `<dialog>`
- *   - body scroll lock ... NOT native; done manually below
- *
- * Anything that is full-screen content should be a route instead. See the
- * modal-migration decision table in docs/REVIEW.md.
- */
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -38,8 +19,6 @@ export function Dialog({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Only showModal() puts the element in the top layer, which is what gives
-    // us the focus trap. show() and open={true} do not.
     if (!el.open) el.showModal();
 
     // Body scroll lock — the one piece <dialog> does not handle. Compensate for
@@ -61,8 +40,6 @@ export function Dialog({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // `cancel` fires on Escape. Prevent the default close so React stays the
-    // owner of the open/closed state instead of the DOM diverging from it.
     const onCancel = (e: Event) => {
       e.preventDefault();
       onClose();
@@ -71,27 +48,12 @@ export function Dialog({
     return () => el.removeEventListener("cancel", onCancel);
   }, [onClose]);
 
-  // NOTE: deliberately no listener on the native `close` event.
-  //
-  // The cleanup above calls el.close(), which fires `close`. Under StrictMode
-  // React mounts effects, tears them down, and mounts again — so a `close`
-  // handler that called onClose() would fire during that teardown and unmount
-  // the dialog the instant it opened. It is also redundant: every way this
-  // dialog can close (Escape via `cancel`, the X button, a backdrop click)
-  // already routes through onClose, so React state is never out of step.
-
   return (
     <dialog
       ref={ref}
       aria-labelledby={labelledBy}
-      // `<dialog>` ships with UA margin/padding/border and a default max-size;
-      // strip them so our own surface controls the layout. backdrop:* styles the
-      // native ::backdrop pseudo-element.
       className="m-0 max-h-none max-w-none border-0 bg-transparent p-0 backdrop:bg-sky-foreground/25 backdrop:backdrop-blur-sm"
       onClick={(e) => {
-        // Clicking the backdrop targets the <dialog> itself, because the inner
-        // surface covers the rest. Compare against currentTarget to tell them
-        // apart without a separate backdrop element.
         if (e.target === e.currentTarget) onClose();
       }}
     >

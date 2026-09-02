@@ -3,38 +3,14 @@ import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { ABOVE_STRETCH, EntryPoint } from "../components/EntryPoint";
 
-/**
- * The shared shape of the four curriculum cards (System Design, GenAI System
- * Design, Cloud Engineering, Networking).
- *
- * They were ~90% identical, which is why the same `closest("ul")` workaround had
- * to be written twice and why their list heights drifted apart (`h-60` vs
- * `h-72`, so the four cards in a row did not line up). One component now.
- *
- * Audit finding #6 — the nested scroll trap
- * -----------------------------------------
- * Each card used to carry a fixed-height `overflow-y-auto` list holding all
- * 10–16 topics, nested inside the page scroller. Putting the pointer over one
- * and scrolling stalled the page while a short list consumed the wheel.
- *
- * The fix follows the brief's preferred option — the page is the only scroller —
- * by showing a bounded *preview* of the curriculum rather than a scrollable copy
- * of all of it. There is no inner scroll container at all, so there is nothing to
- * trap the wheel, and the cards keep a uniform height. The complete list is one
- * click away at the index route that Phase 1 created, which is exactly what the
- * card's entry-point affordance points at.
- */
-
 export type CurriculumItem = {
   slug: string;
   title: string;
-  /** Secondary line: difficulty for modules, tagline for topics. */
   detail?: string;
   href: string;
   done?: boolean;
 };
 
-/** How many rows a card previews. Uniform across all four so the grid lines up. */
 export const PREVIEW_COUNT = 5;
 
 export function CurriculumCard({
@@ -54,23 +30,14 @@ export function CurriculumCard({
   title: string;
   blurb: string;
   icon: LucideIcon;
-  /** Already sliced to PREVIEW_COUNT by the caller. */
   items: CurriculumItem[];
   total: number;
-  /** "modules" or "topics". */
   noun: string;
-  /** Omitted for curricula that have no completion tracking. */
   solvedCount?: number;
-  /**
-   * Left-hand label for curricula without completion tracking ("AWS + Azure",
-   * "Curriculum"). Without it the row would read "14 topics ... 14 topics".
-   */
   meta?: string;
   indexHref: string;
   action: string;
-  /** Networking is an ordered curriculum, so its preview rows are numbered. */
   numbered?: boolean;
-  /** Extra content between the blurb and the list (the Components reference). */
   children?: React.ReactNode;
 }) {
   const remaining = total - items.length;
@@ -99,10 +66,6 @@ export function CurriculumCard({
         </span>
       </div>
 
-      {/*
-        No overflow container, no fixed height: the page is the only scroller.
-        Rows are links and must sit above the card's stretched hit area.
-      */}
       <ul className="mt-3 space-y-2">
         {items.map((item, i) => (
           <li key={item.slug}>

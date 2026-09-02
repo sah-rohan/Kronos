@@ -1,19 +1,3 @@
-/**
- * `/leaderboard` — the full leaderboard.
- *
- * Migrated from `modals/LeaderboardModal.tsx`. Everything that used to be
- * component state or localStorage is now the URL:
- *
- *   ?board=  which roadmap / SD ranking   (was `type` + the `lb-type` key)
- *   ?scope=  everyone | friends           (was the `kronos.lb.scope` key)
- *   ?q=      search                       (was `query`)
- *
- * `?scope=everyone` is the default and is never written, so the plain
- * `/leaderboard` URL is the Everyone board.
- *
- * The per-member detail panel is gone from here: it is now `/u/:handle`, which
- * is a real page with its own address.
- */
 import { useEffect, useState } from "react";
 import { Crown, Search } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -38,7 +22,6 @@ import { SD_PROBLEMS } from "../systemdesign/problems";
 import { GENAI_PROBLEMS } from "../systemdesign/genai";
 import type { Member } from "../types";
 
-/** Difficulty bar fills, from the single DIFFICULTY source. */
 const barColor: Record<string, string> = Object.fromEntries(
   DIFFICULTY.map((d) => [d.label, difficultyBg(d)]),
 );
@@ -50,7 +33,6 @@ export function Leaderboard() {
   const today = useToday();
   const [board, setBoard] = useDashboardBoard();
   const [scope, setScope] = useLeaderboardScope();
-  // Reuse the tracker's `?q=` handling; only the query field is used here.
   const { query, setQuery } = useTrackFilters();
 
   const showSd = board === "sd" || board === "genai";
@@ -82,8 +64,6 @@ export function Leaderboard() {
       : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
 
-  // Competition ranking within the chosen scope, as a fold rather than a loop
-  // over reassigned locals (which tripped react-hooks/immutability).
   const ranked = [...members]
     .filter((m) => inScope(m.name, m.username))
     .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))

@@ -1,15 +1,3 @@
-/**
- * The dashboard leaderboard card.
- *
- * Audit finding #5 — scope and rank are on the card, not hidden behind a click:
- * the Everyone/Friends control is a real radio group here, bound to the same
- * `useLeaderboardScope()` hook the `/leaderboard` route uses, so both read the
- * same `?scope=` param. Tier badges render on the rows too.
- *
- * Audit finding #2 — every row is an `EntryPoint` to that person's profile, with
- * the same chevron affordance the cards use, and the card itself carries the
- * standard "View full leaderboard ›" entry point at its trailing edge.
- */
 import { useEffect, useState } from "react";
 import { Crown } from "lucide-react";
 import { ABOVE_STRETCH, EntryPoint } from "../components/EntryPoint";
@@ -28,12 +16,6 @@ import { SD_PROBLEMS } from "../systemdesign/problems";
 import { GENAI_PROBLEMS } from "../systemdesign/genai";
 import type { Member, ProblemList } from "../types";
 
-/**
- * Competition ranking: tied solvers share a rank (1, 2, 2, 4).
- *
- * A fold rather than a loop over reassigned locals, which tripped
- * `react-hooks/immutability` when this logic was duplicated across two files.
- */
 function withCompetitionRanks<T>(rows: T[], valueOf: (row: T) => number) {
   return rows.reduce<{ row: T; rank: number }[]>((acc, row, i) => {
     const value = valueOf(row);
@@ -66,8 +48,7 @@ export function LeaderboardCard({
     }
   }, [isSD, board, getToken]);
 
-  // Carry the current scope into the full leaderboard, but keep the default out
-  // of the URL so Everyone links stay clean.
+  // Carry the current scope into the full leaderboard
   const fullHref =
     scope === DEFAULT_SCOPE
       ? paths.leaderboard()
@@ -164,8 +145,6 @@ export function LeaderboardCard({
           : lcRanked.slice(0, 4).map(({ row: m, rank }) => {
               const solved = m.solvedByList[roadmap] ?? 0;
               const tier = rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW);
-              // Delta since last week, composed from the /recent feed — no new
-              // endpoint. Always non-negative; see lib/momentum.ts.
               const week = weeklyDelta(solvedInWindow(recent, m.name, today.key));
               return (
                 <li key={m.name}>
@@ -188,12 +167,6 @@ export function LeaderboardCard({
                     </div>
                     <div className="w-36 min-w-0">
                       <div className="truncate text-sm font-medium">{m.name}</div>
-                      {/* Finding #5: the tier badge used to be modal-only. */}
-                      {/*
-                        Every row states its own status: tier badge, this
-                        week's momentum, and the solved count on the right.
-                        Nothing here requires a hover to learn.
-                      */}
                       <div className="mt-0.5 flex items-center gap-1.5">
                         <span
                           className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tier.badge}`}

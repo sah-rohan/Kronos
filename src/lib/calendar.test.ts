@@ -1,16 +1,3 @@
-/**
- * Regression tests for the calendar date logic — audit finding #4.
- *
- * The bug these pin down: the streak card computed its grid and its header in
- * UTC while the calendar overlay computed its grid in local time, so two
- * independent notions of "today" existed. For anyone west of Greenwich in the
- * evening, the header read one day while the user's own clock read another.
- *
- * Every case sets `process.env.TZ` explicitly rather than trusting the machine's
- * zone, so the suite gives the same answer on a developer laptop and in a UTC CI
- * container. Node re-reads TZ when the variable changes, so this works at
- * runtime without `cross-env`.
- */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dateKey,
@@ -23,7 +10,6 @@ import {
   todayKey,
 } from "./calendar";
 
-/** Pin both the wall clock and the zone, the way a user's browser would be. */
 function pin(tz: string, instant: string) {
   process.env.TZ = tz;
   vi.useFakeTimers();
@@ -37,15 +23,11 @@ afterEach(() => {
 
 describe("todayKey", () => {
   it("uses the LOCAL day, not the UTC day, west of Greenwich", () => {
-    // 2026-08-27T00:00Z is still 2026-08-26 20:00 in New York.
-    // The old UTC-based code produced "2026-08-27" and the header rendered
-    // "Thu, August 27" while the user's clock said Wednesday the 26th.
     pin("America/New_York", "2026-08-27T00:00:00Z");
     expect(todayKey()).toBe("2026-08-26");
   });
 
   it("uses the LOCAL day east of Greenwich too", () => {
-    // Same instant, Tokyo: already the 27th locally.
     pin("Asia/Tokyo", "2026-08-26T16:00:00Z");
     expect(todayKey()).toBe("2026-08-27");
   });
@@ -59,9 +41,8 @@ describe("todayKey", () => {
 describe("dateKey", () => {
   it("never goes through toISOString, which would shift the day", () => {
     process.env.TZ = "America/Los_Angeles";
-    const d = new Date("2026-03-02T04:00:00Z"); // = Mar 1, 20:00 PST
+    const d = new Date("2026-03-02T04:00:00Z");
     expect(dateKey(d)).toBe("2026-03-01");
-    // Demonstrates the trap the implementation must avoid.
     expect(d.toISOString().slice(0, 10)).toBe("2026-03-02");
   });
 
@@ -73,8 +54,8 @@ describe("dateKey", () => {
 
 describe("monthGridCells", () => {
   it("marks exactly one cell as today, and it is the correct cell", () => {
-    pin("America/New_York", "2026-08-27T00:00:00Z"); // local: Wed Aug 26
-    const cells = monthGridCells(2026, 7, todayKey()); // month is 0-based: August
+    pin("America/New_York", "2026-08-27T00:00:00Z");
+    const cells = monthGridCells(2026, 7, todayKey());
     const todays = cells.filter((c) => c.isToday);
     expect(todays).toHaveLength(1);
     expect(todays[0].day).toBe(26);
@@ -89,7 +70,6 @@ describe("monthGridCells", () => {
 
   it("pads the first row to the correct weekday and keeps day 1 in place", () => {
     process.env.TZ = "UTC";
-    // 1 Aug 2026 is a Saturday -> six leading blanks.
     const cells = monthGridCells(2026, 7, "2026-08-01");
     expect(cells[0].day).toBe(1);
     expect(cells[0].weekdayIndex).toBe(6);
@@ -98,7 +78,7 @@ describe("monthGridCells", () => {
 
   it("handles a leap day", () => {
     process.env.TZ = "UTC";
-    const cells = monthGridCells(2028, 1, "2028-02-29"); // February 2028
+    const cells = monthGridCells(2028, 1, "2028-02-29");
     expect(cells).toHaveLength(29);
     expect(cells.at(-1)?.key).toBe("2028-02-29");
     expect(cells.at(-1)?.isToday).toBe(true);
@@ -110,18 +90,16 @@ describe("monthGridCells", () => {
   });
 
   it("gets the first and last cell of the grid right across a month boundary", () => {
-    pin("America/New_York", "2026-09-01T02:00:00Z"); // local: Aug 31, 22:00
+    pin("America/New_York", "2026-09-01T02:00:00Z");
     const key = todayKey();
     expect(key).toBe("2026-08-31");
     const cells = monthGridCells(2026, 7, key);
-    // Last cell of August is today; nothing in September is.
     expect(cells.at(-1)?.isToday).toBe(true);
     expect(monthGridCells(2026, 8, key).filter((c) => c.isToday)).toHaveLength(0);
   });
 
   it("survives a DST transition without shifting a day", () => {
     process.env.TZ = "America/New_York";
-    // US DST ends 1 Nov 2026; the 1st must still be day 1 of the grid.
     const cells = monthGridCells(2026, 10, "2026-11-01");
     expect(cells[0].key).toBe("2026-11-01");
     expect(cells).toHaveLength(30);
@@ -149,7 +127,6 @@ describe("streakKeys", () => {
 
   it("does not break the streak when today has no solves yet", () => {
     process.env.TZ = "America/New_York";
-    // Nothing today, but yesterday and the day before are solved.
     const byDate = { "2026-08-25": 1, "2026-08-26": 1 };
     expect(streakKeys(byDate, "2026-08-27").size).toBe(2);
   });
@@ -178,8 +155,7 @@ describe("dayState", () => {
   const streak = new Set(["2026-08-25", "2026-08-26"]);
 
   it("gives every day exactly one state, with today winning", () => {
-    // Today is also a streak day; it must report as "today" so the legend reads
-    // literally and no cell carries two meanings.
+    // Today is also a streak day; it must report as "today"
     expect(dayState("2026-08-26", "2026-08-26", 2, streak)).toBe("today");
     expect(dayState("2026-08-25", "2026-08-26", 1, streak)).toBe("streak");
     expect(dayState("2026-08-20", "2026-08-26", 3, streak)).toBe("solved");
@@ -194,7 +170,6 @@ describe("dayState", () => {
 describe("monthOf / clampMonth", () => {
   it("reads the month in local time, not UTC", () => {
     process.env.TZ = "America/New_York";
-    // 2026-09-01T02:00Z is still 31 Aug locally, so this is August (month 7).
     expect(monthOf(new Date("2026-09-01T02:00:00Z"))).toEqual({ year: 2026, month: 7 });
   });
 

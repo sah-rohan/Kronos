@@ -1,22 +1,9 @@
-/**
- * `/cloud/:topicSlug` — one topic, with the sibling list as a sidebar.
- *
- * The sidebar is `NavLink`s rather than `setActiveId` state, so switching topics
- * is a navigation: each one has its own URL, back works between them, and a
- * hard refresh lands on the same topic.
- *
- * Slug handling: cloud ids are snake_case (`object_storage`) and the URL is
- * kebab, so the param goes through a bidirectional map built from the content's
- * own id list. An unknown slug renders the 404 boundary rather than falling back
- * to the first topic, which would silently lie about what you asked for.
- */
 import { NavLink, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { NotFound } from "../app/NotFound";
 import { createSlugMap, paths } from "../lib/slugs";
 import { CLOUD_DOCS } from "../systemdesign/cloud";
 
-// Built once at module scope, inside this lazily-loaded chunk.
 const slugs = createSlugMap(CLOUD_DOCS.map((c) => c.id));
 
 export function CloudTopic() {
@@ -24,8 +11,6 @@ export function CloudTopic() {
   const id = slugs.toId(topicSlug);
   const active = CLOUD_DOCS.find((c) => c.id === id);
 
-  // No non-null assertion: an unmatched slug is a real possibility (a typo, a
-  // renamed topic, a stale bookmark) and must render the not-found screen.
   if (!active) return <NotFound />;
 
   return (

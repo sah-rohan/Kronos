@@ -1,18 +1,9 @@
-/**
- * Pagination maths, kept out of the component file so that file exports only a
- * component (`react-refresh/only-export-components`).
- */
-
+// Kept out of the component file so that file exports only a component
 export const PAGE_SIZE = 25;
 
 export type Paged<T> = {
   items: T[];
   pageCount: number;
-  /**
-   * The page actually rendered. A `?page=` beyond the end clamps to the last
-   * page instead of rendering an empty list — deep links go stale as rows are
-   * added and removed, and an empty screen looks like a bug.
-   */
   safePage: number;
 };
 

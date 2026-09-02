@@ -4,27 +4,6 @@ import {
   type LeaderboardScope,
 } from "../lib/searchParams";
 
-/**
- * Everyone / Friends segmented control.
- *
- * Audit finding #5: the dashboard's leaderboard card showed a flat top-4 with no
- * indication it was scoped to Everyone, and the toggle only existed inside the
- * detail view. The user should not have to open something to learn what they
- * were already looking at — so this control lives on the card *and* on the
- * `/leaderboard` page, both bound to the same `useLeaderboardScope()` hook and
- * therefore to the same `?scope=` URL param.
- *
- * Implemented as a real radio group rather than two buttons:
- *
- * - `role="radiogroup"` on the container, `role="radio"` + `aria-checked` on each
- *   option, so assistive tech announces "2 of 2, Friends, radio button" instead
- *   of two unrelated buttons.
- * - Roving tabindex: only the checked option is tabbable, so the group is one
- *   stop in the tab order (which is what a radio group should be), and the arrow
- *   keys move between options.
- * - Arrow keys wrap, and Home/End jump to the ends, per the WAI-ARIA radio group
- *   pattern. Moving selects, which is the expected behaviour for radios.
- */
 export function ScopeRadioGroup({
   scope,
   onChange,

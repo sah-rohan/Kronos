@@ -1,16 +1,3 @@
-/**
- * The shared `errorElement`, hoisted to the shell layout route so a throw
- * anywhere below it renders here instead of white-screening the app.
- *
- * Two error shapes arrive here:
- *   - a `Response` thrown by a loader (`throw new Response(..., {status: 404})`),
- *     which `isRouteErrorResponse` narrows for us;
- *   - any other thrown value, i.e. a render-time crash or a rejected fetch.
- *
- * It deliberately renders its own full-page surface rather than assuming the
- * shell chrome is around it, because it is also used as the root route's
- * `errorElement`, where nothing above it has mounted.
- */
 import { Link, isRouteErrorResponse, useRouteError } from "react-router-dom";
 import { paths } from "../lib/slugs";
 

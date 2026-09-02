@@ -23,7 +23,6 @@ type Row =
       label: string;
       at?: string;
       slug: string;
-      /** GenAI modules live under a different route than System Design ones. */
       genai: boolean;
     };
 
@@ -31,12 +30,6 @@ function isDiff(s: string): s is "Easy" | "Medium" | "Hard" {
   return s === "Easy" || s === "Medium" || s === "Hard";
 }
 
-/**
- * Audit finding #2: "See all" here was a plain text link — the only one of the
- * three patterns that actually looked clickable, which is precisely why the
- * inconsistency was confusing. It now uses the same `EntryPoint` affordance as
- * every other navigating card, so all three read identically.
- */
 export function RecentActivityCard({ userName }: { userName: string }) {
   const { recent, getToken } = useData();
   const [sd, setSd] = useState<SdActivity[]>([]);

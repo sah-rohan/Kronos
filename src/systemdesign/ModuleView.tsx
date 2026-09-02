@@ -1,17 +1,3 @@
-/**
- * A single System Design / GenAI module, as a page.
- *
- * Migrated from `SystemDesignModal.tsx`. The modal shell is gone; `stage` and
- * `slide` now live in the URL as `?stage=` and `?slide=`, so a specific step of
- * a specific module is linkable and survives a refresh.
- *
- * Push vs replace: stepping through slides uses `replace`, matching the house
- * rule that moving *within* a screen is not history-worthy while moving
- * *between* screens is. A 20-slide module would otherwise bury the back button
- * under 20 entries before you could get back to the index.
- *
- * `answers` and `walkStep` stay local: they are working state, not a location.
- */
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
@@ -34,7 +20,6 @@ export function ModuleView({
   backLabel,
 }: {
   problem: SDProblem;
-  /** "System Design" or "GenAI System Design" — shown above the title. */
   kicker: string;
   backTo: string;
   backLabel: string;
@@ -43,21 +28,11 @@ export function ModuleView({
   const [searchParams, setSearchParams] = useSearchParams();
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
-  /**
-   * Walkthrough position, stored together with the slide it belongs to.
-   *
-   * Storing the pair means "arriving at a different slide resets the step" falls
-   * out of a plain read instead of needing `useEffect(() => setWalkStep(0),
-   * [slide])` — which is the pattern react-hooks/set-state-in-effect flags, and
-   * which caused a cascading render on every slide change.
-   */
   const [walk, setWalk] = useState<{ slide: number; step: number }>({
     slide: 0,
     step: 0,
   });
 
-  // Intro slides, then a flow walkthrough, then one slide per component so every
-  // part is explained before the user has to place it.
   const slides = useMemo<SDSlide[]>(
     () => [
       ...problem.slides,
@@ -75,8 +50,6 @@ export function ModuleView({
   const stage: Stage = STAGES.includes(rawStage as Stage) ? (rawStage as Stage) : "learn";
 
   const rawSlide = Number(searchParams.get("slide"));
-  // Clamp rather than throw: a hand-edited or stale `?slide=` must not break the
-  // page, and slide counts differ per module.
   const slide =
     Number.isInteger(rawSlide) && rawSlide >= 0
       ? Math.min(rawSlide, slides.length - 1)
@@ -119,9 +92,6 @@ export function ModuleView({
   const answered = quiz ? answers[slide] !== undefined : true;
   const nextLocked = !answered; // must answer a quiz before moving on
 
-  // Reveal components on the diagram. A slide with `focus` shows just those
-  // components (a sub-diagram, e.g. the write path); otherwise the diagram builds
-  // up progressively as the user reaches each component slide.
   const introCount = problem.slides.length + 1; // +1 for the walkthrough slide
   const isWalk = !!slides[slide]?.walk;
   const focus = slides[slide]?.focus;
@@ -134,13 +104,10 @@ export function ModuleView({
     return set;
   }, [slide, introCount, problem, focus]);
 
-  // The component being taught on this slide (undefined on primer/focus slides).
   const currentType =
     !focus && slide >= introCount ? problem.palette[slide - introCount].type : undefined;
   const nameOf = (t: SDComponentType) =>
     problem.palette.find((c) => c.type === t)?.name ?? t;
-  // Only explain connections to components already introduced, so reasons appear
-  // in step with the diagram (e.g. analytics isn't mentioned before it's taught).
   const outgoing = currentType
     ? problem.connections.filter(([f, t]) => f === currentType && revealed.has(t))
     : [];
@@ -264,7 +231,6 @@ export function ModuleView({
                 )}
               </div>
 
-              {/* Sticky so the diagram stays in view while the text column scrolls. */}
               <div className="shrink-0 rounded-2xl border border-border bg-background/40 p-4 sm:sticky sm:top-4 sm:w-1/2 [&_svg]:mx-auto [&_svg]:max-h-[42dvh] sm:[&_svg]:max-h-[62dvh]">
                 {slides[slide].art ? (
                   <ConceptDiagram id={slides[slide].art!} />
@@ -334,7 +300,6 @@ export function ModuleView({
           </div>
         )}
 
-        {/* DONE */}
         {stage === "done" && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="grid h-14 w-14 place-items-center rounded-full bg-[#3fae6a]/15 text-[#3fae6a]">
@@ -359,10 +324,6 @@ export function ModuleView({
   );
 }
 
-/**
- * The flow walkthrough. Controlled, because the diagram beside it highlights the
- * same step and the two must not drift apart.
- */
 function Walkthrough({
   problem,
   totalSteps,

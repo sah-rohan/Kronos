@@ -13,15 +13,6 @@ import {
 export function MyFriendsCard() {
   const { friends, friendsDifficulty, categories } = useData();
 
-  /**
-   * The API exposes one combined series: `/me/circle` is "you + friends". There
-   * is no friends-only endpoint, so the friends series is derived by subtracting
-   * your own solves from the combined total, clamped at zero.
-   *
-   * Both operands are counted over the whole catalog so the subtraction is
-   * comparable. Flagged in FOLLOWUPS.md (D-1): if the backend ever exposes a
-   * friends-only breakdown, read it and delete this.
-   */
   const { mine, friendsOnly } = useMemo(() => {
     const mineCounts = countSolvedByDifficulty(categories);
     const combined = countsFromLabelled(friendsDifficulty);

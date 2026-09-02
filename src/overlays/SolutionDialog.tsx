@@ -1,18 +1,3 @@
-/**
- * Transient overlay — a single problem's solutions, opened from a row on the
- * problem tracker, a user profile, or an activity list.
- *
- * Decision (recorded in docs/REVIEW.md): this stays an overlay rather
- * than becoming a route. It is not in the Phase 1 route table; it is row detail
- * whose meaning depends on the list behind it, and it always has that list as
- * its natural back destination. Promoting it to a route would need a
- * `/problem/:slug` entry that the brief does not define.
- *
- * Merged from `modals/MySolutionModal.tsx` and `modals/FriendSolutionModal.tsx`,
- * which differed only in whose solutions they fetched and the header row. This
- * is also the only place `highlight.js` is reachable from (via `SolutionSlider`),
- * so it stays inside lazily-loaded route chunks and out of the shell bundle.
- */
 import { ExternalLink } from "lucide-react";
 import { Dialog } from "../components/Dialog";
 import { SolutionSlider } from "../components/SolutionSlider";
@@ -71,7 +56,6 @@ export function FriendSolutionDialog({
   );
 }
 
-/** The LeetCode link + difficulty pill shared by both dialogs. */
 function ProblemLinks({ problem }: { problem: ProblemRef }) {
   return (
     <>

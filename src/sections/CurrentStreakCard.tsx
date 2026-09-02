@@ -11,31 +11,8 @@ import {
   formatDayLabel,
 } from "../lib/calendar";
 
-/**
- * Audit finding #4, as actually diagnosed.
- *
- * The report said "August 4th was highlighted in bright red as if it were today,
- * while the header read Thu, August 27". Reproducing it against the code showed
- * the audit's three hypotheses (cell-index vs day-of-month, month off-by-one,
- * UTC boundary in the highlight) were all wrong. There was **no today marker at
- * all**. Cell colour was purely a solve-count heat ramp — `count >= 3` painted
- * full-strength coral, `count === 2` and `count === 1` painted translucent
- * variants. August 4th was simply the day with the most solves, and the most
- * saturated cell was reasonably read as "today". The "unexplained dark maroon"
- * on the 17th, 20th, 26th and 27th was the same ramp at lower opacity.
- *
- * There *was* a real UTC bug, just not in the highlight: the header was rendered
- * with `timeZone: "UTC"` while the grid was built from UTC getters, so for
- * anyone west of Greenwich in the evening the header showed tomorrow's date.
- * That is the "Thu, August 27" half of the report.
- *
- * Both are fixed here: a single `useToday()` feeds the header and the grid, all
- * comparisons run on local `YYYY-MM-DD` keys, and the three meaningful states
- * (Today / Streak day / Solved) are distinct, legended and named in text.
- */
 export function CurrentStreakCard({ onOpenCalendar }: { onOpenCalendar: () => void }) {
   const { calendar } = useData();
-  // ONE today, shared by the header and the grid below.
   const today = useToday();
 
   const streak = streakKeys(calendar.byDate, today.key);

@@ -1,15 +1,4 @@
-/**
- * The data context and its hook, split out from `source.tsx`.
- *
- * Why a separate file: `source.tsx` exports the `DataProvider` component, and
- * exporting a hook alongside it breaks Fast Refresh — which is what
- * `react-refresh/only-export-components` was flagging on `useData`. Keeping the
- * component in `source.tsx` and everything else here satisfies the rule and
- * means editing the provider no longer forces a full reload during development.
- *
- * Consumers import `useData` from here; only the router's session gate imports
- * `DataProvider` from `source.tsx`.
- */
+// Split out of source.tsx so that file exports only the DataProvider component — exporting a hook alongside it breaks Fast Refresh
 import { createContext, useContext } from "react";
 import type { TokenFn } from "../lib/api";
 import type {

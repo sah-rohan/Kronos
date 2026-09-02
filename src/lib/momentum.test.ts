@@ -1,8 +1,3 @@
-/**
- * The "social comparison without shame" rule is a product constraint, so it is
- * pinned by tests rather than left to review. These assert that no code path
- * can produce a negative delta or deficit phrasing.
- */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   comparisonNote,

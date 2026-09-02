@@ -15,7 +15,6 @@ import {
   type DifficultyKey,
 } from "../lib/difficulty";
 
-// The board selector shares its value type with the `?board=` search param.
 type View = Board;
 
 const SD_OPTIONS: { key: View; label: string }[] = [
@@ -23,16 +22,6 @@ const SD_OPTIONS: { key: View; label: string }[] = [
   { key: "genai", label: "AI System Design" },
 ];
 
-/**
- * Audit finding #2: this is the entry point to the most important screen in the
- * product, and it had no affordance at all — the whole card was a `<div onClick>`
- * with no chevron, no label, and nothing signalling it was a button.
- *
- * It now goes through `EntryPoint` like every other navigating card, so it
- * carries the same persistent "Open tracker ›" cue in the same position. The
- * `<select>` gets `ABOVE_STRETCH` so it stays operable over the card's stretched
- * hit area — which is what let the old `stopPropagation` wrapper go away.
- */
 export function MyProgressCard({
   board,
   onBoard,
@@ -53,7 +42,6 @@ export function MyProgressCard({
       .catch(() => {});
   }, [getToken]);
 
-  // Build the difficulty buckets + totals for whichever view is active.
   let total: number;
   let solved: number;
   let label: string;
@@ -110,10 +98,6 @@ export function MyProgressCard({
     >
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">My Progress</div>
-        {/*
-          A control inside a stretched-link card: it must sit above the stretched
-          hit area, or the card's link would swallow its clicks.
-        */}
         <div className={`${ABOVE_STRETCH}`}>
           <select
             value={view}

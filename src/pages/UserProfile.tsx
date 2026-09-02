@@ -1,30 +1,3 @@
-/**
- * `/u/:handle` — a first-class profile.
- *
- * Phase 4's "Shared Arena" surfaces. Everything here is composed from endpoints
- * `src/lib/api.ts` already exposed; no endpoint was added. Specifically:
- *
- *   header stats      <- /leaderboard (byDiff, solvedByList) + /recent (momentum)
- *   current streak    <- /friends/:id/calendar, through the same streakKeys()
- *                        the calendar UI uses
- *   difficulty split  <- /leaderboard byDiff, available for ANY member
- *   recent activity   <- /recent, filtered to this person
- *   comparison strip  <- the Phase 3 DifficultyBars with the series swapped
- *   solve history     <- /friends/:id/progress
- *
- * Two fields the design calls for genuinely do not exist in the API, and are
- * noted in FOLLOWUPS.md rather than invented:
- *   - **track**: nothing records "which roadmap is this person working". Their
- *     per-track counts are shown instead, which is real data and arguably more
- *     useful than one guessed label.
- *   - **streak for a non-friend**: there is no calendar endpoint for someone who
- *     is not your friend, so the streak tile only resolves for friends.
- *
- * Tone follows the Strava/Duolingo rule the audit cites: momentum, never
- * deficit. Nothing here renders a negative number or a "behind" state, and the
- * comparison copy comes from `comparisonNote`, which is tested never to state a
- * gap.
- */
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Flame, Search, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -76,7 +49,6 @@ export function UserProfile() {
   const member = members.find((m) => m.username === handle || m.name === handle);
   const friendId = friend?.id;
 
-  // Their solve history — /friends/:id/progress needs a friend id.
   useEffect(() => {
     if (!friendId) return;
     let cancelled = false;
@@ -260,10 +232,6 @@ export function UserProfile() {
         />
       </div>
 
-      {/*
-        Per-track counts stand in for "track": nothing in the API records which
-        roadmap someone is working on. See FOLLOWUPS.md.
-      */}
       {member && (
         <section className="mt-8">
           <h2 className="text-[15px] font-medium">Tracks</h2>
@@ -274,8 +242,6 @@ export function UserProfile() {
                 value={member.solvedByList[r.key] ?? 0}
                 total={Math.max(
                   member.solvedByList[r.key] ?? 0,
-                  // inList() rather than indexing Problem directly: ProblemList
-                  // includes "all", which is not a flag on a problem.
                   categories.reduce(
                     (n, c) => n + c.items.filter((p) => inList(p, r.key)).length,
                     0,
@@ -288,7 +254,6 @@ export function UserProfile() {
         </section>
       )}
 
-      {/* ---- You vs them: the Phase 3 chart, series swapped ----------------- */}
       <section className="mt-8">
         <h2 className="text-[15px] font-medium">You and {displayName}</h2>
         <p className="mt-1 text-xs text-muted-foreground">

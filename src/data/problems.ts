@@ -212,12 +212,6 @@ for (const c of categories) {
 export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
 
-/**
- * Difficulty badge classes, derived from the single DIFFICULTY source rather
- * than hand-written. This used to be one of four independent definitions of the
- * same three colours (audit finding #3); now changing a token changes every
- * badge, bar, swatch and legend entry at once.
- */
 export const diffStyles: Record<string, string> = Object.fromEntries(
   DIFFICULTY.map((d) => [d.label, difficultyFill(d)]),
 );

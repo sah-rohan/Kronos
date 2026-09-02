@@ -2,10 +2,6 @@
 @source "./";
 @source "../index.html";
 
-/*
-  Theme tokens used by the dashboard. Colors picked to echo Craft.do:
-  a soft sky blue up top fading into white below.
-*/
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
@@ -23,18 +19,7 @@
   --color-sky: #d1eef9;
   --color-sky-foreground: #0b4a6b;
 
-  /*
-    Difficulty — audit finding #3. One definition, consumed by both the chart
-    marks and the legend swatches through DIFFICULTY in lib/difficulty.ts, so
-    the two cannot drift apart the way the old bubble chart's did.
-
-    Chosen for LIGHTNESS separation, not hue alone, so they survive deuteranopia
-    and protanopia and read correctly in greyscale. Relative luminance is
-    46 / 20 / 2 (easy / medium / hard); every pair clears 1.86:1 under normal,
-    deuteranope and protanope simulation, and easy/hard and medium/hard both
-    clear 3:1. Colour is reinforcement only — every row and series is also
-    labelled in text.
-  */
+  /* Separated by LIGHTNESS, not hue alone, so they survive deuteranopia/protanopia and greyscale. */
   --color-difficulty-easy: #79bde9;
   --color-difficulty-easy-foreground: #0a2f45;
   --color-difficulty-medium: #b8660f;
@@ -42,12 +27,7 @@
   --color-difficulty-hard: #521022;
   --color-difficulty-hard-foreground: #ffffff;
 
-  /*
-    Calendar day states — audit finding #4. Deliberately NOT the difficulty
-    tokens: a day is not a difficulty, and reusing them is what let "solved" and
-    "today" read as the same thing. Greyscale luminance is monotonic
-    (21 / 49 / 75 / 89) so the four states stay ordered without colour.
-  */
+  /* Deliberately not the difficulty tokens; greyscale luminance is monotonic so the states stay ordered. */
   --color-streak-today: #d94f45;
   --color-streak-today-foreground: #ffffff;
   --color-streak-active: #f4a988;
@@ -59,10 +39,6 @@
 
 }
 
-/*
-  Tailwind v4's preflight dropped v3's `button { cursor: pointer }` rule.
-  Restore it here, in the base layer so any explicit cursor-* utility wins.
-*/
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -87,10 +63,6 @@ body,
 body {
   font-family: var(--font-sans);
   color: var(--color-foreground);
-  /*
-    Craft-style sky: deep blue at the very top, lots of blue across the upper
-    band, easing into our near-white at the bottom. Fixed so it spans the page.
-  */
   background:
     linear-gradient(
       to bottom,
@@ -187,7 +159,6 @@ body {
   background-color: color-mix(in oklab, var(--color-muted-foreground) 70%, transparent);
 }
 
-/* "+N" overflow chip on avatar stacks — readable in both themes. */
 .count-chip {
   background: #d4dde8;
   color: #1a2b3c;
@@ -205,13 +176,11 @@ body {
   box-shadow: 0 0 0 2px #16273b;
 }
 
-/* Editorial serif headings, exactly like Craft's display type. */
 .font-display {
   font-family: var(--font-serif);
   font-weight: 500;
 }
 
-/* Drifting clouds layered over the blue band. */
 @keyframes cloud-drift {
   from {
     transform: translateX(-6%);
@@ -221,7 +190,6 @@ body {
   }
 }
 
-/* Syntax highlighting (highlight.js token classes) — light + dark. */
 .hljs { color: inherit; background: transparent; }
 .hljs-comment, .hljs-quote { color: #8a93a3; font-style: italic; }
 .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-name, .hljs-tag { color: #b5179e; }
@@ -240,14 +208,6 @@ body {
 .dark .hljs-type, .dark .hljs-class .hljs-title, .dark .hljs-title.class_ { color: #b197fc; }
 .dark .hljs-meta, .dark .hljs-symbol, .dark .hljs-operator { color: #adb5bd; }
 
-/*
-  Series hatch for the difficulty chart (audit finding #3).
-
-  The bar's hue already encodes difficulty, so the You/Friends distinction has to
-  be carried by something other than colour. A diagonal hatch survives greyscale
-  and colour-blind rendering, and is drawn in translucent white/black over
-  whatever token fills the bar, so it needs no per-token variant.
-*/
 .series-hatch {
   background-image: repeating-linear-gradient(
     45deg,

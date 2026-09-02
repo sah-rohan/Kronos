@@ -1,14 +1,3 @@
-/**
- * Transient overlay — admin member management.
- *
- * Decision (recorded in docs/REVIEW.md): this stays an overlay rather
- * than becoming a route. It is not in the Phase 1 route table, it is a settings
- * surface reached from the avatar menu rather than a place you navigate to, and
- * nothing about it is worth linking or bookmarking. It does get real dialog
- * semantics via `Dialog`.
- *
- * Migrated from `modals/AdminModal.tsx`; body unchanged apart from the shell.
- */
 import { useEffect, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Dialog } from "../components/Dialog";
@@ -16,8 +5,6 @@ import { useData } from "../data/context";
 import { api, type Analytics, type LeetcodeSession, type MeResponse } from "../lib/api";
 import { daysUntil } from "../lib/date";
 
-// ISO timestamp -> value for <input type="datetime-local">, shown in UTC
-// (LeetCode session cookies expire in UTC, so we keep the whole field in UTC).
 function toUtcInput(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -65,14 +52,12 @@ export function AdminDialog({ onClose }: { onClose: () => void }) {
   };
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveSession = async () => {
     setSavingSession(true);
     setSessionMsg("");
     try {
-      // expiryVal is a UTC datetime-local string; append Z so it's parsed as UTC.
       const iso = expiryVal ? new Date(`${expiryVal}:00Z`).toISOString() : "";
       await api.adminSetLeetcodeSession(getToken, tokenVal.trim(), iso);
       setTokenVal("");

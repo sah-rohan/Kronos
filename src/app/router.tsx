@@ -1,24 +1,6 @@
-/**
- * The route table.
- *
- * Data router (`createBrowserRouter`), not `<BrowserRouter>` + `<Routes>`,
- * because Phase 1 needs four things that only the data router provides:
- * route-level `lazy()`, `errorElement` boundaries, `useNavigation()` for pending
- * UI, and `<ScrollRestoration />`.
- *
- * Nesting, outermost first:
- *
- *   AuthBoundary      ClerkProvider (wired to useNavigate) or passthrough
- *     RequireSession  session gate; provides DataProvider + shell context
- *       AppShell      persistent header/chrome, does not remount on navigation
- *         Dashboard   index
- *         RequireLeetCode   the routes that need a linked LeetCode account
- *         ...content routes (no LeetCode needed)
- *         NotFound    *
- *
- * Every path string comes from `paths` in lib/slugs.ts. The literals below are
- * the one exception — they are the definitions those helpers point at.
- */
+// The route table. A data router, because route-level lazy(), errorElement, useNavigation() and
+// <ScrollRestoration /> only exist there. Nesting: AuthBoundary > RequireSession > AppShell > routes.
+// The literals here are the definitions that `paths` in lib/slugs.ts points at; everywhere else imports it.
 import { createBrowserRouter, redirect } from "react-router-dom";
 import { AuthBoundary } from "./AuthBoundary";
 import { RequireSession } from "./RequireSession";
@@ -35,9 +17,6 @@ export const router = createBrowserRouter([
     element: <AuthBoundary />,
     // Catches anything thrown before the shell exists (session load, Clerk).
     errorElement: <RouteError />,
-    // Shown while the first route's lazy chunk resolves. Without it the data
-    // router warns ("No HydrateFallback element provided") and renders nothing
-    // when someone cold-loads a deep link into a code-split route.
     HydrateFallback: LoadingScreen,
     children: [
       {
@@ -45,13 +24,10 @@ export const router = createBrowserRouter([
         children: [
           {
             element: <AppShell />,
-            // Hoisted boundary: one errorElement covers every page below, so a
-            // thrown fetch renders the error card inside the shell chrome
-            // instead of white-screening.
+            // a thrown fetch renders the error card inside the shell chrome instead of white-screening.
             errorElement: <RouteError />,
             children: [
-              // The dashboard is the landing route and is deliberately NOT
-              // lazy — splitting the first screen only adds a round trip.
+              // The dashboard is the landing route and is deliberately NOT lazy
               { index: true, element: <Dashboard /> },
 
               /* ---- LeetCode-backed routes ------------------------------- */
@@ -60,8 +36,7 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: "progress",
-                    // Bare /progress is not a screen; it canonicalizes to a
-                    // track so every tracker URL has the same shape.
+                    // Bare /progress is not a screen; it canonicalizes to a track so every tracker URL has the same shape.
                     loader: () => redirect(paths.progress(DEFAULT_TRACK)),
                   },
                   {
@@ -103,9 +78,7 @@ export const router = createBrowserRouter([
                 ],
               },
 
-              /* ---- Content routes: no LeetCode account required ---------- */
-              // These stay reachable for a Google-only sign-in, which is the
-              // whole reason the LeetCode lock is per-route rather than global.
+              // These stay reachable for a Google-only sign-in
               {
                 path: "system-design",
                 lazy: async () => ({

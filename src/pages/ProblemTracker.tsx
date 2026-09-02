@@ -1,18 +1,3 @@
-/**
- * `/progress/:track` — the problem tracker.
- *
- * Migrated from `modals/ProgressModal.tsx`. Three things changed:
- *
- * 1. The track is a path segment, not `useState`. `/progress/blind75` is a real
- *    address, and switching track is a navigation (push), because it is a
- *    different screen's worth of content.
- * 2. Search, topic and status are search params via `useTrackFilters`, written
- *    with `replace` so typing in the search box does not fill up history.
- * 3. The solution viewer is still an overlay, but a focus-trapped one.
- *
- * An unknown `:track` renders not-found rather than silently falling back, so a
- * typo is visible instead of quietly showing the wrong list.
- */
 import { useState } from "react";
 import { ExternalLink, Search, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -28,7 +13,6 @@ import { ROADMAP_LABEL, inList } from "../lib/roadmaps";
 import { TRACKS, isTrack, paths } from "../lib/slugs";
 import type { ProblemRef } from "../types";
 
-/** Category title -> stable kebab slug for `?topic=`. */
 function topicSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -39,7 +23,6 @@ export function ProblemTracker() {
   const filters = useTrackFilters();
   const [openProblem, setOpenProblem] = useState<ProblemRef | null>(null);
 
-  // Validated, not asserted. `isTrack` narrows `string | undefined` to `Track`.
   if (!isTrack(track)) return <NotFound />;
 
   const q = filters.query.trim().toLowerCase();
@@ -186,10 +169,6 @@ export function ProblemTracker() {
           const done = c.items.filter((p) => p.done).length;
           return (
             <div key={c.title}>
-              {/*
-                Score-first per-topic summary (Phase 4): the number the reader
-                came for is first and largest, the topic name is the qualifier.
-              */}
               <ScoreRow value={done} total={c.items.length} label={c.title} />
               <ul className="mt-2 space-y-1">
                 {c.items.map((p) => (

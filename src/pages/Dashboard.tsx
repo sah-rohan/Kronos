@@ -1,12 +1,3 @@
-/**
- * The dashboard — the index route, and what `App.tsx` used to be minus the
- * chrome (now `AppShell`) and minus the 13 pieces of modal state (now the URL).
- *
- * What is left here is genuinely dashboard-local: the admin session-expiry
- * alert, the LeetCode unlock dialog opened by `LockOverlay`, and the calendar
- * overlay. `?board=` is read from the URL, not from component state, so the
- * My Progress and Leaderboard cards can no longer disagree about what they show.
- */
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { greeting } from "../lib/greeting";
@@ -39,7 +30,6 @@ export function Dashboard() {
   const [linkOpen, setLinkOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
-  // Admin-only: warn when the LeetCode session token is near/at expiry.
   const [sessionExpiry, setSessionExpiry] = useState<string>("");
   useEffect(() => {
     if (isAdmin) {
@@ -54,8 +44,6 @@ export function Dashboard() {
 
   const hello = greeting(new Date());
 
-  // When a card is locked, the LockOverlay wrapper becomes the grid item, so it
-  // must carry the card's column span (and fill height) for the rows to line up.
   const lock = (node: React.ReactNode, span = "lg:col-span-1") => (
     <LockOverlay
       locked={!lcUnlocked}
@@ -67,11 +55,8 @@ export function Dashboard() {
     </LockOverlay>
   );
 
-  // The leaderboard card only needs a roadmap when the board IS a roadmap; for
-  // the System Design boards it renders the SD ranking and ignores this.
   const roadmap: Track = isTrack(board) ? board : DEFAULT_TRACK;
 
-  // Set by RequireLeetCode when someone deep-links a locked route.
   const lockedFrom = (location.state as { lockedFrom?: string } | null)?.lockedFrom;
 
   return (

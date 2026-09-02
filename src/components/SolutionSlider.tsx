@@ -3,17 +3,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { langStyles } from "../data/friends";
 import type { Solution } from "../types";
 
-/**
- * highlight.js is loaded on demand, not imported at module scope.
- *
- * It is ~250 kB minified and this is the only consumer. A static import put it
- * in the shell bundle, because the dashboard reaches this component eagerly
- * through the calendar overlay — so every visitor downloaded a syntax
- * highlighter whether or not they ever opened a solution. Loading it at first
- * render keeps it in its own chunk and off the critical path.
- *
- * The module is cached after the first load, so reopening a solution is instant.
- */
 type Hljs = typeof import("highlight.js/lib/common").default;
 let hljsPromise: Promise<Hljs> | null = null;
 
@@ -22,7 +11,6 @@ function loadHljs(): Promise<Hljs> {
   return hljsPromise;
 }
 
-/** Plain-text fallback used before the highlighter arrives, and on failure. */
 function escapeHtml(code: string): string {
   return code.replace(
     /[&<>]/g,
@@ -40,10 +28,6 @@ const HLJS_LANG: Record<string, string> = {
 export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
   const [index, setIndex] = useState(0);
   const s = solutions[index];
-
-  // Rendered code, keyed by the solution it belongs to. Pairing them means the
-  // markup for a previous solution is never shown against the current one while
-  // the highlighter is still resolving.
   const [rendered, setRendered] = useState<{ code: string; html: string } | null>(null);
 
   useEffect(() => {

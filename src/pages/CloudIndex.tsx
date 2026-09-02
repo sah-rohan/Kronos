@@ -1,10 +1,3 @@
-/**
- * `/cloud` — the topic index.
- *
- * Migrated from `systemdesign/CloudModal.tsx`, which had no index at all: the
- * modal opened straight onto a topic with a sidebar. Splitting index from detail
- * is what makes a single topic linkable.
- */
 import { Link } from "react-router-dom";
 import { EntryPoint } from "../components/EntryPoint";
 import { PageHeader } from "../components/PageHeader";

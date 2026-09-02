@@ -1,15 +1,3 @@
-/**
- * Session gate as a layout route, replacing the old `AuthGate` component.
- *
- * Everything that needs a signed-in user nests under this route, so protection
- * is a property of the route table rather than a conditional buried in the
- * component tree. In the no-auth branch it is a passthrough that supplies the
- * same context with default values, so routes below cannot tell the difference.
- *
- * Both branches produce the identical shape:
- *
- *   DataProvider -> ShellContext.Provider -> <Outlet />
- */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet } from "react-router-dom";
 import {
@@ -30,21 +18,15 @@ import { SignInScreen } from "../auth/SignInScreen";
 import { PendingScreen } from "../auth/PendingScreen";
 import { DEFAULT_SHELL, ShellContext, type ShellValue } from "./shell";
 
-/** Module-scope so the no-auth branch passes a stable function identity. */
 const NO_TOKEN: TokenFn = async () => null;
 
 export function RequireSession() {
-  // Fixed at build time by whether VITE_CLERK_PUBLISHABLE_KEY was present.
   if (!useClerk || !CLERK_KEY) {
     return <PassthroughSession />;
   }
   return <ClerkSession />;
 }
 
-/**
- * No-auth branch. Mirrors what `main.tsx` used to render directly: a
- * DataProvider with a null token and `App`'s old prop defaults.
- */
 function PassthroughSession() {
   return (
     <DataProvider getToken={NO_TOKEN}>
@@ -55,7 +37,6 @@ function PassthroughSession() {
   );
 }
 
-/** Clerk branch: the loading / signed-out / signed-in fork, unchanged in behavior. */
 function ClerkSession() {
   return (
     <>
@@ -74,10 +55,6 @@ function ClerkSession() {
   );
 }
 
-/**
- * The former `AuthGate` body: fetch `/me`, then provide data + shell context.
- * Only ever rendered inside `<SignedIn>`, so Clerk's hooks are safe here.
- */
 function ClerkSessionData() {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -113,16 +90,12 @@ function ClerkSessionData() {
 
   const resolved = typeof me === "object" ? me : null;
 
-  // Memoized so a poll tick in DataProvider does not also churn this context.
   const shell = useMemo<ShellValue | null>(() => {
     if (!resolved) return null;
     return {
       isAdmin: resolved.role === "admin",
       userName: clerkName || resolved.username || "You",
       initialTheme: (resolved.theme as ShellValue["initialTheme"]) || "auto",
-      // Everyone is a member automatically. The LeetCode-powered routes unlock
-      // as soon as a LeetCode username is linked; until then a Google sign-in
-      // still has full access to the System Design content.
       lcUnlocked: !!resolved.username,
       lcPending: false,
       token,

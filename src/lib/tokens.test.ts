@@ -1,12 +1,3 @@
-/**
- * Proves the single-source-of-truth properties that audit finding #3 was about.
- *
- * The original defect was not that a colour was wrong — it was that legend and
- * chart were coloured by *independent* code, so they drifted until none of the
- * three legend colours appeared on the chart. These tests assert the structural
- * property that makes that impossible, rather than asserting specific hex
- * values (which would just be a second place to drift).
- */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -21,7 +12,6 @@ import type { DayState } from "./calendar";
 
 const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
 
-/** Pulls the fill token out of a class string, e.g. "bg-streak-today". */
 function fillToken(classes: string): string | undefined {
   return classes.split(/\s+/).find((c) => c.startsWith("bg-"));
 }
@@ -48,8 +38,6 @@ describe("difficulty is defined exactly once", () => {
 
   it("mark and legend helpers resolve to the SAME token, not merely the same colour", () => {
     for (const d of DIFFICULTY) {
-      // difficultyBg is what a bar uses; difficultyFill is what a badge/swatch
-      // uses. Both must name the identical token or the two can drift.
       expect(difficultyFill(d).startsWith(difficultyBg(d))).toBe(true);
       expect(fillToken(difficultyFill(d))).toBe(`bg-${d.token}`);
     }
@@ -102,7 +90,6 @@ describe("calendar day states are defined exactly once", () => {
   });
 
   it("distinguishes today by more than colour", () => {
-    // Shape as well as fill: a ring, so it survives greyscale and CVD.
     expect(dayStateClass("today")).toContain("ring-2");
     expect(dayStateClass("streak")).not.toContain("ring-2");
   });

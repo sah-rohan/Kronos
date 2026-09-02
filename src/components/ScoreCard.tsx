@@ -1,23 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-/**
- * Score-first summary: the number the reader came for, first and large.
- *
- * The audit's Ace comparison. Anything read at a glance leads with the primary
- * figure at display size, follows with a quiet qualifier, and offers at most one
- * affordance. Charts are for exploring; this is for answering.
- *
- * Ordering is enforced structurally rather than by convention: `value` renders
- * before `label` in the DOM, so the number is also what a screen reader reaches
- * first. There is no slot for a second action — a card with two calls to action
- * is not a score card.
- *
- * The momentum line is where "no shame" gets applied. It is a non-negative
- * count from `lib/momentum.ts` and it never renders in a failure colour: an
- * inactive week is muted, never red, because red for "behind" is the thing the
- * audit explicitly rules out.
- */
 export function ScoreCard({
   value,
   label,
@@ -28,26 +11,19 @@ export function ScoreCard({
   onSelect,
   emphasis = "normal",
 }: {
-  /** The primary figure. Rendered first, at display size. */
   value: ReactNode;
-  /** What the figure counts, e.g. "solved". */
   label: string;
-  /** Quiet secondary context, e.g. "NeetCode 150". */
   qualifier?: string;
-  /** Momentum line — always non-negative phrasing. */
   momentum?: { label: string; active: boolean };
-  /** The single affordance. `to` navigates; `onSelect` is for overlays. */
   to?: string;
   onSelect?: () => void;
   action?: string;
-  /** `hero` is for the one figure a screen is about. */
   emphasis?: "normal" | "hero";
 }) {
   const size = emphasis === "hero" ? "text-[52px]" : "text-[34px]";
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-5">
-      {/* Value first, in the DOM as well as visually. */}
       <div className="flex items-baseline gap-2">
         <span className={`font-display ${size} leading-none tracking-tight`}>{value}</span>
         <span className="text-sm text-muted-foreground">{label}</span>
@@ -91,10 +67,6 @@ export function ScoreCard({
   );
 }
 
-/**
- * The same score-first ordering at row scale, for per-topic summaries inside a
- * list. Count leads; the topic name and the bar are the qualifier.
- */
 export function ScoreRow({
   value,
   total,

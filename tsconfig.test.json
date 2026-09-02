@@ -4,9 +4,6 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    /* Tests need Node globals (process.env.TZ) and vitest's own types. These are
-       deliberately NOT added to tsconfig.app.json: app code must not be able to
-       reach for `process` and have it typecheck. */
     "types": ["node", "vitest/globals"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",

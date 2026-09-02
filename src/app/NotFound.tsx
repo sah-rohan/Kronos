@@ -1,7 +1,3 @@
-/**
- * The `*` catch-all. Rendered inside the shell, so the header stays put and the
- * user can navigate on rather than hitting a dead end.
- */
 import { Link } from "react-router-dom";
 import { Compass } from "lucide-react";
 import { paths } from "../lib/slugs";

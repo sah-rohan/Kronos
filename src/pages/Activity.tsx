@@ -1,12 +1,3 @@
-/**
- * `/activity` — your own activity history, paginated via `?page=`.
- *
- * Migrated from `modals/RecentActivityModal.tsx`. The old modal had a
- * You/Friends tab pair with a friend picker; under the route table a specific
- * person's activity is `/u/:handle/activity`, so this page is only "you" and
- * the friend list becomes links out. That removes the `tab` + `friendName`
- * state pair entirely rather than moving it to the URL.
- */
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";

@@ -15,23 +15,11 @@ export function setUserEmail(email: string) {
 }
 
 async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Promise<T> {
-  /**
-   * Dev fixtures. Double-gated: `import.meta.env.DEV` is replaced with the
-   * literal `false` in a production build, so this whole branch — including the
-   * dynamic import — is dead code that Rollup drops. Setting VITE_FIXTURES in a
-   * production build does nothing.
-   *
-   * Short-circuits before the URL is built, so fixture mode needs no
-   * VITE_API_URL at all.
-   */
   if (import.meta.env.DEV && useFixtures) {
     const { fixtureFor } = await import("../dev/fixtures");
     return fixtureFor(path, init) as T;
   }
 
-  // With fixtures off and no VITE_API_URL, `new URL("/me")` throws an opaque
-  // "Invalid URL". Say what is actually wrong instead — this is the state you
-  // land in after switching fixtures off without setting an API URL.
   if (!base) {
     throw new Error(
       "No API configured. Set VITE_API_URL in .env.local, or set VITE_FIXTURES=1 to use dev fixtures.",

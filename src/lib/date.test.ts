@@ -1,8 +1,3 @@
-/**
- * `fmtShortDate` used to return "" for any full ISO timestamp, which is what
- * every activity list passes it — so all of them rendered blank dates. It also
- * formatted in UTC while the calendar keys days locally.
- */
 import { afterEach, describe, expect, it } from "vitest";
 import { fmtShortDate, daysUntil } from "./date";
 

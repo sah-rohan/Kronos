@@ -1,12 +1,3 @@
-/**
- * Standard page heading for a route.
- *
- * Replaces the title bar that `Modal` used to draw. The key difference is the
- * back affordance: a modal had an `onBack` callback that popped local state,
- * whereas a page has a real ancestor URL, so `backTo` is a `<Link>` and works
- * on a cold load of a deep link — where a callback would have had nothing to
- * pop.
- */
 import { ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
@@ -20,7 +11,6 @@ export function PageHeader({
 }: {
   title: string;
   subtitle?: ReactNode;
-  /** Ancestor URL. Omit on a top-level page. */
   backTo?: string;
   backLabel?: string;
   actions?: ReactNode;

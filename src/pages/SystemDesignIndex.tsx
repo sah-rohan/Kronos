@@ -1,13 +1,3 @@
-/**
- * `/system-design` — the module index, plus the Main Components reference.
- *
- * Decision (recorded in docs/REVIEW.md): the components reference has
- * no route of its own because the Phase 1 route table does not define one.
- * It lives on the index and is addressed with `?topic=<slug>`, matching how
- * `/progress/:track` uses `?topic=`. Selecting a component replaces history
- * rather than pushing, so paging through the reference does not bury the back
- * button — it is a filter within a page, not a navigation.
- */
 import { useSearchParams } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -35,8 +25,6 @@ export function SystemDesignIndex() {
       .catch(() => {});
   }, [getToken]);
 
-  // `?topic=` selects the reference component; anything unknown coerces to the
-  // first one rather than throwing.
   const requested = componentSlugs.toId(searchParams.get("topic") ?? undefined);
   const active =
     COMPONENT_DOCS.find((c) => c.id === requested) ?? COMPONENT_DOCS[0];

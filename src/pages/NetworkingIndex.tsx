@@ -1,9 +1,3 @@
-/**
- * `/networking` — the curriculum index.
- *
- * Migrated from `systemdesign/NetworkingModal.tsx`. The curriculum is ordered,
- * so the index numbers the topics rather than presenting them as a flat grid.
- */
 import { EntryPoint } from "../components/EntryPoint";
 import { PageHeader } from "../components/PageHeader";
 import { paths, toSlug } from "../lib/slugs";

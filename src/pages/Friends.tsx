@@ -1,12 +1,3 @@
-/**
- * `/friends` — manage friends.
- *
- * Migrated from `modals/FriendsModal.tsx`. `tab` and `query` are now `?tab=`
- * and `?q=`, so `/friends?tab=requests` is a linkable address (useful when
- * someone is told "you have a pending request"). Opening a friend is a
- * navigation to `/u/:handle` rather than a callback that swapped one modal for
- * another.
- */
 import { useCallback, useEffect, useState } from "react";
 import { Check, ChevronRight, Search, UserPlus, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -32,8 +23,6 @@ export function Friends() {
   const tab: Tab = TABS.includes(rawTab as Tab) ? (rawTab as Tab) : DEFAULT_TAB;
   const query = searchParams.get("q") ?? "";
 
-  // One writer for both params so switching tab can also clear the search
-  // without a second history entry.
   const setParams = useCallback(
     (next: { tab?: Tab; q?: string }) => {
       setSearchParams(

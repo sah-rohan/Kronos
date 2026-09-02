@@ -1,18 +1,3 @@
-/**
- * The persistent app shell.
- *
- * This is a layout route, so the header / KRONOS mark / avatar menu mount once
- * and survive every navigation below them — no remount, no flash, no re-running
- * the theme effect on each screen change.
- *
- * It owns:
- *   - the drifting-clouds background and the theme (auto/light/dark) effect
- *   - `<TopBar />` and the two transient dialogs it opens
- *   - `<ScrollRestoration />`
- *   - the pending-navigation indicator
- *
- * It does not own page content. Everything else renders through `<Outlet />`.
- */
 import { useEffect, useState } from "react";
 import { Outlet, ScrollRestoration, useNavigation } from "react-router-dom";
 import { Clouds } from "../components/Clouds";
@@ -35,8 +20,7 @@ export function AppShell() {
   const [adminOpen, setAdminOpen] = useState(false);
 
   // Apply the effective theme (auto = day/night by the local clock) plus the
-  // status-bar color. Unchanged from the old App.tsx, just hoisted so it runs
-  // once for the whole session rather than per screen.
+  // status-bar color.
   useEffect(() => {
     const apply = () => {
       const dark = effectiveDark(theme);
@@ -71,12 +55,6 @@ export function AppShell() {
   return (
     <div className="relative min-h-screen px-6 py-8 md:px-10 md:py-10">
       <Clouds />
-
-      {/*
-        Pending-navigation indicator. A top-edge bar rather than a full-page
-        spinner, so the screen you are leaving stays readable while the next
-        route's chunk loads.
-      */}
       <div
         aria-hidden={navigation.state !== "loading"}
         className={`pointer-events-none fixed inset-x-0 top-0 z-[60] h-0.5 origin-left bg-coral transition-opacity duration-200 ${
@@ -108,11 +86,6 @@ export function AppShell() {
       )}
       {adminOpen && <AdminDialog onClose={() => setAdminOpen(false)} />}
 
-      {/*
-        Restores scroll position per history entry. Without it, going back from a
-        deep link lands you at the top of the dashboard instead of where you
-        left off.
-      */}
       <ScrollRestoration />
     </div>
   );

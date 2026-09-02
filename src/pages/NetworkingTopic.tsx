@@ -1,9 +1,3 @@
-/**
- * `/networking/:topicSlug` — one topic, with prev/next through the curriculum.
- *
- * Because the curriculum is ordered, the page offers real prev/next links. That
- * was impossible in the modal, where position was `activeId` state.
- */
 import { Link, NavLink, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";

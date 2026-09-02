@@ -1,12 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/**
- * Page controls for `?page=`.
- *
- * Renders nothing for a single page, so callers can mount it unconditionally.
- * Page changes go through `usePageParam`, which drops `page=1` from the URL so
- * the first page stays a clean address.
- */
 export function Pagination({
   page,
   pageCount,

@@ -1,11 +1,3 @@
-/**
- * Transient overlay — a small form, so it stays local component state rather
- * than becoming a route. It uses `Dialog` (native `<dialog>`), so it has a
- * focus trap, Escape-to-close, focus restore and a body scroll lock.
- *
- * Migrated from `modals/ChangeUsernameModal.tsx`; the body is unchanged apart
- * from the shell it renders into.
- */
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Dialog } from "../components/Dialog";

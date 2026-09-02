@@ -1,20 +1,3 @@
-/**
- * Transient overlay — the solve calendar, opened from the streak card.
- *
- * DECISION AND KNOWN GAP (also recorded in docs/REVIEW.md): by the
- * brief's own test this is full-screen content that deserves its own route, but
- * the Phase 1 route table has no `/calendar` entry. Rather than invent a route
- * that was not specified or delete a working feature, it stays an overlay — with
- * real dialog semantics — and the gap is raised for a decision.
- *
- * Consequence to be aware of: month, selected day, and whose calendar you are
- * looking at are the only view state in the app still held in `useState` rather
- * than the URL. They move the moment this becomes a route.
- *
- * Migrated from `modals/CalendarModal.tsx`; the month state that used to live in
- * `App.tsx` is now local, which also fixes the old split ownership where `cal`
- * lived in App while `selected` and `who` lived in the modal.
- */
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog } from "../components/Dialog";
@@ -44,7 +27,6 @@ type CalendarSource = {
   byDateProblems: Record<string, CalendarProblem[]>;
 };
 
-/** Typed empty source, so the "still loading" branch keeps its index signature. */
 const EMPTY_SOURCE: CalendarSource = { byDate: {}, byDateProblems: {} };
 
 export function CalendarDialog({
@@ -55,21 +37,7 @@ export function CalendarDialog({
   onClose: () => void;
 }) {
   const { calendar, friends, getToken } = useData();
-  // The same today the streak card uses — one source, never two.
   const today = useToday();
-  /**
-   * Open on the month containing today, not on the season start.
-   *
-   * This used to seed from CAL_START, so opening the calendar landed on the
-   * first month of the season and you had to page forward to reach the present —
-   * and the one cell you most want to see, today, was never on screen.
-   *
-   * Clamped to the season range: today can legitimately fall outside it (before
-   * the season begins, or after it ends), and the nearest in-range month is a
-   * better landing spot than a grid the navigation buttons cannot reach.
-   *
-   * Lazy initialiser, so paging around does not get reset on every render.
-   */
   const [cal, setCal] = useState<Month>(() =>
     clampMonth(monthOf(today.date), CAL_START, CAL_END),
   );
@@ -78,14 +46,6 @@ export function CalendarDialog({
   const [open, setOpen] = useState<{ problem: ProblemRef; friend: Friend | null } | null>(
     null,
   );
-  /**
-   * Friend data is fetched on demand; "you" uses the already-loaded calendar.
-   *
-   * Stored with the person it belongs to so that switching person needs no
-   * synchronous `setFriendData(null)` / `setLoading(true)` in the effect body —
-   * both of which react-hooks/set-state-in-effect flags. "Whose data is this"
-   * and "are we still waiting" are now derived below.
-   */
   const [friendData, setFriendData] = useState<{
     who: string;
     byDate: Record<string, number>;
@@ -117,8 +77,6 @@ export function CalendarDialog({
     };
   }, [who, getToken]);
 
-  // Only use fetched data when it belongs to the person currently selected;
-  // anything else means the fetch for this person is still in flight.
   const ready = who === "you" || friendData?.who === who;
   const loading = !ready;
   const source: CalendarSource =
@@ -141,7 +99,6 @@ export function CalendarDialog({
 
   const cells = monthGridCells(cal.year, cal.month, today.key);
   const leadPad = cells[0]?.weekdayIndex ?? 0;
-  // Streak highlighting only makes sense for your own calendar.
   const streak =
     who === "you" ? streakKeys(source.byDate, today.key) : new Set<string>();
   const calLabel = new Date(cal.year, cal.month, 1).toLocaleString("en-US", {
@@ -301,10 +258,6 @@ export function CalendarDialog({
         )}
       </Dialog>
 
-      {/*
-        Rendered as a sibling, not a child: two nested <dialog> elements would
-        both be in the top layer and fight over focus.
-      */}
       {open &&
         (open.friend ? (
           <FriendSolutionDialog
