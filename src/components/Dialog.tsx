@@ -52,7 +52,7 @@ export function Dialog({
     <dialog
       ref={ref}
       aria-labelledby={labelledBy}
-      className="m-0 max-h-none max-w-none border-0 bg-transparent p-0 backdrop:bg-sky-foreground/25 backdrop:backdrop-blur-sm"
+      className="m-0 max-h-none max-w-none border-0 bg-transparent text-foreground p-0 backdrop:bg-sky-foreground/25 backdrop:backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
