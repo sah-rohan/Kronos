@@ -5,8 +5,6 @@ const NODE_H = 56;
 const VB_W = 600;
 const VB_H = 680;
 
-// Where the line from `fromX,fromY` toward the center of a box hits that box's
-// border - so arrowheads land on the edge (visible), not under the opaque box.
 function borderPoint(fromX: number, fromY: number, bx: number, by: number) {
   const cx = bx + NODE_W / 2;
   const cy = by + NODE_H / 2;
@@ -26,8 +24,6 @@ export function SystemDiagram({
   problem: SDProblem;
   revealed: Set<SDComponentType>;
   current?: SDComponentType;
-  // Walkthrough mode: light up edges 0..step in flow order, dim the rest, and
-  // reveal boxes as the flow reaches them. Undefined = normal (slide) reveal.
   step?: number;
 }) {
   const c = (t: SDComponentType) => ({
@@ -36,12 +32,10 @@ export function SystemDiagram({
   });
   const stepped = step !== undefined;
 
-  // Every node's rectangle, used to keep curves and labels off the boxes.
   const boxes = problem.palette.map((comp) => {
     const { x, y } = problem.layout[comp.type];
     return { x, y };
   });
-  // The node a label box (centered at lx,ly, half-width hw) overlaps, if any.
   const boxHit = (lx: number, ly: number, hw: number) =>
     boxes.find(
       (b) =>
@@ -51,13 +45,10 @@ export function SystemDiagram({
         ly - 11 < b.y + NODE_H + 4,
     );
 
-  // Return (response) edges only appear in the walkthrough, where one step shows
-  // at a time - so they never clutter the static diagram or collide with labels.
   const allEdges = [
     ...problem.connections.map((c) => ({ c, dashed: false })),
     ...(stepped ? (problem.returns ?? []).map((c) => ({ c, dashed: true })) : []),
   ];
-  // In walkthrough mode, a box is revealed once the flow has reached it.
   const steppedRevealed = new Set<SDComponentType>();
   if (stepped) {
     for (let i = 0; i <= step! && i < allEdges.length; i++) {
@@ -76,31 +67,23 @@ export function SystemDiagram({
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const len = Math.hypot(dx, dy) || 1;
-    // Right-hand normal of the travel direction.
     const nx = dy / len;
     const ny = -dx / len;
-    // Bow proportional to length so a long edge that skips a row swings wide
-    // enough to route AROUND the box in between, while short edges stay tight.
-    // Two-way pairs use opposite directions, so they bow to opposite sides.
     const bow = Math.max(30, Math.min(len * 0.26, 92));
     const cxp = (start.x + end.x) / 2 + nx * bow;
     const cyp = (start.y + end.y) / 2 + ny * bow;
     const label = problem.edgeLabels?.[`${from}>${to}`];
     const half = (label?.length ?? 0) * 3.6 + 6;
-    // Start the label at the curve's apex (already off to the bow side), then
-    // push it further along the normal until it clears every node box.
     let mx = 0.25 * start.x + 0.5 * cxp + 0.25 * end.x;
     let my = 0.25 * start.y + 0.5 * cyp + 0.25 * end.y;
     if (label) {
-      // If the label lands on a node, push it directly away from that node's
-      // center until it's clear - so it never sits on top of a box.
       for (let step = 0; step < 20; step++) {
         const hit = boxHit(mx, my, half);
         if (!hit) break;
         const bcx = hit.x + NODE_W / 2;
         const bcy = hit.y + NODE_H / 2;
-        let vx = mx - bcx;
-        let vy = my - bcy;
+        const vx = mx - bcx;
+        const vy = my - bcy;
         const vl = Math.hypot(vx, vy) || 1;
         mx += (vx / vl) * 10;
         my += (vy / vl) * 10;
@@ -171,9 +154,6 @@ export function SystemDiagram({
         );
       })}
 
-      {/* Layer 3: edge labels - drawn last so they sit on top of everything. In
-          walkthrough mode only the current step's label shows, so labels never
-          overlap; in the static diagram every revealed edge is labeled. */}
       {edges.map((e) =>
         (stepped ? e.i === step : e.on) && e.label ? (
           <g key={`l${e.i}`}>

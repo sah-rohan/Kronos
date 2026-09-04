@@ -90,7 +90,7 @@ values at runtime, so rotating a credential needs no redeploy.
 
 | Layer | |
 |---|---|
-| Frontend | React 19 + TypeScript, Vite, Tailwind v4 |
+| Frontend | React 19 + TypeScript, React Router 7, Vite, Tailwind v4, Vitest |
 | Auth | Clerk (OAuth, with admin approval) |
 | Backend | Go on AWS Lambda (`provided.al2023`, arm64) |
 | Data | RDS Postgres via pgx |
@@ -112,20 +112,26 @@ values at runtime, so rotating a credential needs no redeploy.
 
 ## Run locally
 
-The frontend runs standalone — with no API and no Clerk key it renders the
-dashboard on local fixtures, which is enough for most UI work.
+The frontend runs standalone on canned fixtures — no backend, no Clerk account —
+which is enough for most UI work. Create `.env.local` (git-ignored) with:
+
+```
+VITE_FIXTURES=1
+```
 
 ```bash
 npm install
 npm run dev
 ```
 
-To point it at a deployed backend, create `.env.local` (git-ignored):
+Without either `VITE_FIXTURES=1` or an API URL the app has nothing to read, and
+every screen lands on the "Couldn't load your data" card.
 
 | Variable | Effect |
 |---|---|
-| `VITE_API_URL` | Base URL of the HTTP API. Unset → local fixtures. |
+| `VITE_API_URL` | Base URL of the HTTP API. |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk key. Unset → auth is skipped entirely. |
+| `VITE_FIXTURES` | `1` → serve `src/dev/fixtures.ts` instead of calling the API. Dev server only; ignored in a production build. |
 
 For the Go side — sync engine, seed generation, live verification against a real
 LeetCode user — see [`backend/README.md`](backend/README.md).
@@ -137,6 +143,8 @@ LeetCode user — see [`backend/README.md`](backend/README.md).
 | `npm run dev` | Vite dev server with HMR |
 | `npm run build` | `tsc -b` then production build to `dist/` |
 | `npm run lint` | ESLint |
+| `npm run test` | Vitest, one pass |
+| `npm run test:watch` | Vitest in watch mode |
 | `npm run preview` | Serve the built `dist/` |
 
 ## API surface

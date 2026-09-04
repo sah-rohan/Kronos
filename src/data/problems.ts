@@ -1,4 +1,5 @@
 import type { Problem } from "../types";
+import { DIFFICULTY, difficultyFill } from "../lib/difficulty";
 
 const DMAP = { E: "Easy", M: "Medium", H: "Hard" } as const;
 
@@ -211,8 +212,6 @@ for (const c of categories) {
 export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
 
-export const diffStyles: Record<string, string> = {
-  Easy: "bg-sky text-sky-foreground",
-  Medium: "bg-[#f5c26b] text-[#5a3a0a]",
-  Hard: "bg-coral text-white",
-};
+export const diffStyles: Record<string, string> = Object.fromEntries(
+  DIFFICULTY.map((d) => [d.label, difficultyFill(d)]),
+);

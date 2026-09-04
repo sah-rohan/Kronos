@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { Card } from "../components/Card";
-import { useData } from "../data/source";
+import { ABOVE_STRETCH, EntryPoint } from "../components/EntryPoint";
+import { useData } from "../data/context";
 import { api } from "../lib/api";
 import { ROADMAPS, ROADMAP_LABEL, inList } from "../lib/roadmaps";
 import { SD_PROBLEMS } from "../systemdesign/problems";
 import { GENAI_PROBLEMS } from "../systemdesign/genai";
 import { completedSet } from "../systemdesign/progress";
-import type { ProblemList } from "../types";
+import { isTrack, paths } from "../lib/slugs";
+import type { Board } from "../lib/searchParams";
+import {
+  DIFFICULTY_BY_KEY,
+  difficultyBg,
+  type DifficultyKey,
+} from "../lib/difficulty";
 
-type View = ProblemList | "sd" | "genai";
+type View = Board;
 
 const SD_OPTIONS: { key: View; label: string }[] = [
   { key: "sd", label: "System Design" },
@@ -17,11 +23,9 @@ const SD_OPTIONS: { key: View; label: string }[] = [
 ];
 
 export function MyProgressCard({
-  onOpen,
   board,
   onBoard,
 }: {
-  onOpen: () => void;
   board: View;
   onBoard: (b: View) => void;
 }) {
@@ -32,10 +36,12 @@ export function MyProgressCard({
   // System Design completions: optimistic local set reconciled with the DB.
   const [sdSolved, setSdSolved] = useState<Set<string>>(() => completedSet());
   useEffect(() => {
-    api.sdSolved(getToken).then((s) => setSdSolved(new Set([...completedSet(), ...(s ?? [])]))).catch(() => {});
+    api
+      .sdSolved(getToken)
+      .then((s) => setSdSolved(new Set([...completedSet(), ...(s ?? [])])))
+      .catch(() => {});
   }, [getToken]);
 
-  // Build the difficulty buckets + totals for whichever view is active.
   let total: number;
   let solved: number;
   let label: string;
@@ -50,7 +56,7 @@ export function MyProgressCard({
       const di = problems.filter((p) => p.difficulty === d);
       return {
         label: d,
-        color: d === "Easy" ? "bg-sky" : d === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
+        color: difficultyBg(DIFFICULTY_BY_KEY[d.toLowerCase() as DifficultyKey]),
         done: di.filter((p) => sdSolved.has(p.slug)).length,
         total: di.length,
       };
@@ -64,7 +70,7 @@ export function MyProgressCard({
       const di = items.filter((p) => p.diff === d);
       return {
         label: d,
-        color: d === "Easy" ? "bg-sky" : d === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
+        color: difficultyBg(DIFFICULTY_BY_KEY[d.toLowerCase() as DifficultyKey]),
         done: di.filter((p) => p.done).length,
         total: di.length,
       };
@@ -72,15 +78,32 @@ export function MyProgressCard({
   }
   const pct = total ? Math.round((solved / total) * 100) : 0;
 
+  // Where the entry point goes for whichever board is selected.
+  const href = isTrack(view)
+    ? paths.progress(view)
+    : view === "genai"
+      ? paths.genai()
+      : view === "sd"
+        ? paths.systemDesign()
+        : paths.progress("neetcode150");
+
+  const action = isSD ? "Open modules" : "Open tracker";
+
   return (
-    <Card className="lg:col-span-1 h-full" onClick={onOpen}>
+    <EntryPoint
+      to={href}
+      action={action}
+      ariaLabel={`${action} — ${label}, ${solved} of ${total} complete`}
+      className="h-full lg:col-span-1"
+    >
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-medium">My Progress</div>
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
+        <div className={`${ABOVE_STRETCH}`}>
           <select
             value={view}
             onChange={(e) => onBoard(e.target.value as View)}
-            className="appearance-none rounded-full border border-border bg-transparent py-1 pl-3 pr-7 text-xs font-medium text-muted-foreground outline-none transition hover:bg-muted"
+            aria-label="Which list to show progress for"
+            className="appearance-none rounded-full border border-border bg-transparent py-1 pl-3 pr-7 text-xs font-medium text-muted-foreground outline-none transition hover:bg-muted focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {ROADMAPS.map((r) => (
               <option key={r.key} value={r.key}>{r.label}</option>
@@ -121,6 +144,6 @@ export function MyProgressCard({
           </div>
         ))}
       </div>
-    </Card>
+    </EntryPoint>
   );
 }
