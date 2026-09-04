@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.69.2
 	github.com/clerk/clerk-sdk-go/v2 v2.6.0
 	github.com/jackc/pgx/v5 v5.7.1
+	github.com/sah-rohan/forge/go v0.3.0
 )
 
 require (
