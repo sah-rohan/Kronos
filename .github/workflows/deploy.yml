@@ -27,6 +27,11 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
+      - name: Authenticate to the private forge module
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.FORGE_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          go env -w GOPRIVATE='github.com/sah-rohan/*'
+
       - name: Build lambda zips
         run: ./build.sh
         working-directory: backend
