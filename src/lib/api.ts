@@ -1,4 +1,4 @@
-import { API_URL } from "./env";
+import { API_URL, useFixtures } from "./env";
 
 export type TokenFn = () => Promise<string | null>;
 
@@ -15,6 +15,17 @@ export function setUserEmail(email: string) {
 }
 
 async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Promise<T> {
+  if (import.meta.env.DEV && useFixtures) {
+    const { fixtureFor } = await import("../dev/fixtures");
+    return fixtureFor(path, init) as T;
+  }
+
+  if (!base) {
+    throw new Error(
+      "No API configured. Set VITE_API_URL in .env.local, or set VITE_FIXTURES=1 to use dev fixtures.",
+    );
+  }
+
   const token = await getToken();
   const url = new URL(`${base}${path}`);
   if (displayName) url.searchParams.set("name", displayName);

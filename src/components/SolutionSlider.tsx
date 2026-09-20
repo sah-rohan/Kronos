@@ -1,8 +1,22 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import hljs from "highlight.js/lib/common";
 import { langStyles } from "../data/friends";
 import type { Solution } from "../types";
+
+type Hljs = typeof import("highlight.js/lib/common").default;
+let hljsPromise: Promise<Hljs> | null = null;
+
+function loadHljs(): Promise<Hljs> {
+  hljsPromise ??= import("highlight.js/lib/common").then((m) => m.default);
+  return hljsPromise;
+}
+
+function escapeHtml(code: string): string {
+  return code.replace(
+    /[&<>]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!,
+  );
+}
 
 const HLJS_LANG: Record<string, string> = {
   python3: "python", python: "python", java: "java", cpp: "cpp", "c++": "cpp",
@@ -14,17 +28,40 @@ const HLJS_LANG: Record<string, string> = {
 export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
   const [index, setIndex] = useState(0);
   const s = solutions[index];
-  const highlighted = useMemo(() => {
-    if (!s) return "";
-    const lang = HLJS_LANG[(s.lang || "").toLowerCase()];
-    try {
-      return lang && hljs.getLanguage(lang)
-        ? hljs.highlight(s.code, { language: lang }).value
-        : hljs.highlightAuto(s.code).value;
-    } catch {
-      return s.code.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
-    }
+  const [rendered, setRendered] = useState<{ code: string; html: string } | null>(null);
+
+  useEffect(() => {
+    if (!s) return;
+    let cancelled = false;
+    loadHljs()
+      .then((hljs) => {
+        if (cancelled) return;
+        const lang = HLJS_LANG[(s.lang || "").toLowerCase()];
+        try {
+          const html =
+            lang && hljs.getLanguage(lang)
+              ? hljs.highlight(s.code, { language: lang }).value
+              : hljs.highlightAuto(s.code).value;
+          setRendered({ code: s.code, html });
+        } catch {
+          setRendered({ code: s.code, html: escapeHtml(s.code) });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRendered({ code: s.code, html: escapeHtml(s.code) });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [s]);
+
+  // Show unhighlighted code immediately rather than an empty block.
+  const highlighted =
+    rendered && s && rendered.code === s.code
+      ? rendered.html
+      : s
+        ? escapeHtml(s.code)
+        : "";
   if (!s) {
     return <p className="mt-5 text-sm text-muted-foreground">No solutions yet.</p>;
   }
