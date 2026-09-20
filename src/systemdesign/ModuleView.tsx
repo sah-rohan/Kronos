@@ -69,7 +69,10 @@ export function ModuleView({
         }
         return params;
       },
-      { replace: true },
+      // Slides and stages are view state on one page, not separate pages: without
+      // preventScrollReset the router treats each step as a fresh navigation and
+      // throws the reader back to the top of the lesson every time they hit Next.
+      { replace: true, preventScrollReset: true },
     );
   };
 
@@ -138,7 +141,13 @@ export function ModuleView({
         }
       />
 
-      <div className="rounded-[24px] border border-border bg-card p-6 sm:p-8">
+      {/* The build stage gets tighter padding than the learning stages: every pixel
+          the card doesn't spend on padding is workspace the user can design in. */}
+      <div
+        className={`rounded-[24px] border border-border bg-card ${
+          stage === "build" ? "p-3 sm:p-4" : "p-6 sm:p-8"
+        }`}
+      >
         {/* LEARN */}
         {stage === "learn" && (
           <div className="flex flex-col">
@@ -291,10 +300,12 @@ export function ModuleView({
         {/* BUILD */}
         {stage === "build" && (
           <div className="flex flex-col">
-            <p className="mb-3 text-sm text-muted-foreground">
+            <p className="mb-3 px-1 text-sm text-muted-foreground">
               Drag every component onto the canvas and connect them into a working design, then check it.
+              Click an arrow to delete it, right-drag to look around and scroll to zoom - and your work
+              autosaves as you go.
             </p>
-            <div className="min-h-[60dvh]">
+            <div className="flex flex-col">
               <SystemDesignCanvas problem={problem} onSolved={onSolved} />
             </div>
           </div>

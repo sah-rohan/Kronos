@@ -13,7 +13,12 @@ export function SystemDesignModule() {
 
   return (
     // Key by slug so moving between modules remounts the view with fresh canvas state
-    <ErrorBoundary label="System Design module">
+    <ErrorBoundary
+      label="System Design module"
+      // The canvas autosaves the in-progress design to this browser, so the
+      // retry below really does come back with the user's components and wiring.
+      hint="Your in-progress design is autosaved in this browser - try again and it comes back. If it keeps happening, reload the page."
+    >
       <ModuleView
         key={problem.slug}
         problem={problem}

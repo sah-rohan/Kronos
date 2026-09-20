@@ -13,7 +13,11 @@ export function GenAIModule() {
   if (!problem) return <NotFound />;
 
   return (
-    <ErrorBoundary label="GenAI System Design module">
+    <ErrorBoundary
+      label="GenAI System Design module"
+      // The canvas autosaves the in-progress design to this browser, so the
+      hint="Your in-progress design is autosaved in this browser - try again and it comes back. If it keeps happening, reload the page."
+    >
       <ModuleView
         key={problem.slug}
         problem={problem}
