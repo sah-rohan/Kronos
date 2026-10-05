@@ -1,122 +1,16 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { api } from "../lib/api";
-import type { TokenFn, ApiProblem } from "../lib/api";
-import { initialsOf, colorFor } from "../lib/avatar";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { api, type TokenFn } from "../lib/api";
+import { DIFFS } from "../lib/difficulty";
 import { LoadingScreen } from "../components/LoadingScreen";
-import type {
-  CalendarProblem,
-  Category,
-  DifficultyTotal,
-  Friend,
-  Member,
-  Problem,
-  RecentItem,
-} from "../types";
+import { DataContext, type Data } from "./context";
+import { computeStreak, toCalendar, toCategories, toPerson } from "./transform";
 
-export type Calendar = {
-  byDate: Record<string, number>;
-  byDateProblems: Record<string, CalendarProblem[]>;
-  streak: number;
-};
+const REFRESH_MS = 30000;
 
-function fmtDate(d: Date): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
-function computeStreak(
-  byDate: Record<string, number>,
-  seasonStart?: number,
-): number {
-  const d = new Date();
-  if ((byDate[fmtDate(d)] ?? 0) === 0) {
-    d.setUTCDate(d.getUTCDate() - 1);
-  }
-  const floor = seasonStart ? fmtDate(new Date(seasonStart * 1000)) : "";
-  let streak = 0;
-  while ((byDate[fmtDate(d)] ?? 0) > 0 && fmtDate(d) >= floor) {
-    streak++;
-    d.setUTCDate(d.getUTCDate() - 1);
-  }
-  return streak;
-}
-
-type Data = {
-  loading: boolean;
-  categories: Category[];
-  solved: number;
-  total: number;
-  difficultyBars: {
-    label: string;
-    color: string;
-    done: number;
-    total: number;
-  }[];
-  members: Member[];
-  recent: RecentItem[];
-  friends: Friend[];
-  friendsDifficulty: { label: string; val: number }[];
-  groupTotals: DifficultyTotal[];
-  calendar: Calendar;
-  addFriend: (username: string) => Promise<void>;
-  removeFriend: (id: string) => Promise<void>;
-  refresh: () => Promise<void>;
-  getToken: TokenFn;
-};
-
-const DataContext = createContext<Data | null>(null);
-
-export function useData(): Data {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData must be used within DataProvider");
-  return ctx;
-}
-
-function difficultyBars(categories: Category[]) {
-  return (["Easy", "Medium", "Hard"] as const).map((label) => {
-    const items = categories
-      .flatMap((c) => c.items)
-      .filter((p) => p.diff === label);
-    return {
-      label,
-      color:
-        label === "Easy"
-          ? "bg-sky"
-          : label === "Medium"
-            ? "bg-[#f5c26b]"
-            : "bg-coral",
-      done: items.filter((p) => p.done).length,
-      total: items.length,
-    };
-  });
-}
-
-function groupByCategory(problems: ApiProblem[]): Category[] {
-  const order: string[] = [];
-  const map = new Map<string, Problem[]>();
-  for (const p of problems) {
-    if (!map.has(p.category)) {
-      map.set(p.category, []);
-      order.push(p.category);
-    }
-    map.get(p.category)!.push({
-      name: p.title,
-      slug: p.slug,
-      diff: p.difficulty as Problem["diff"],
-      done: p.done,
-      optimal: p.optimal,
-      blind75: p.blind75,
-      neetcode150: p.neetcode150,
-      neetcode250: p.neetcode250,
-    });
-  }
-  return order.map((title) => ({ title, items: map.get(title)! }));
-}
+// These can fail for a Google-only user who hasn't linked their LeetCode
+// account yet. Fall back to empty so the dashboard still renders (the LeetCode
+// cards show locked); System Design stays usable.
+const orEmpty = <T,>(p: Promise<T[]>) => p.then((r) => r ?? []).catch(() => [] as T[]);
 
 export function DataProvider({
   getToken,
@@ -127,93 +21,47 @@ export function DataProvider({
   seasonStart?: number;
   children: ReactNode;
 }) {
-  const [remote, setRemote] = useState<Data | null>(null);
+  const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = async () => {
-    // These can fail for a Google-only user who hasn't linked/approved their
-    // LeetCode account yet. Fall back to empty so the dashboard still renders
-    // (the LeetCode cards show locked/blurred); System Design stays usable.
-    const [progress, leaders, recents, friendRows] = await Promise.all([
-      api.progress(getToken).catch(() => []),
-      api.leaderboard(getToken).catch(() => []),
-      api.recent(getToken).catch(() => []),
-      api.friends(getToken).catch(() => []),
+  const refresh = useCallback(async function refresh(): Promise<void> {
+    const [progress, leaders, recents, friends, days, calProblems, groupTotals, circle] = await Promise.all([
+      orEmpty(api.progress(getToken)),
+      orEmpty(api.leaderboard(getToken)),
+      orEmpty(api.recent(getToken)),
+      orEmpty(api.friends(getToken)),
+      orEmpty(api.calendar(getToken)),
+      orEmpty(api.calendarProblems(getToken)),
+      orEmpty(api.groupDifficulty(getToken)),
+      orEmpty(api.circleDifficulty(getToken)),
     ]);
-    const days = await api.calendar(getToken).catch(() => []);
-    const calProblems = await api.calendarProblems(getToken).catch(() => []);
-    const groupTotals = await api.groupDifficulty(getToken).catch(() => []);
-    const circle = await api.circleDifficulty(getToken).catch(() => []);
-    const byDate: Record<string, number> = {};
-    for (const d of days ?? []) byDate[d.date] = d.count;
-    const byDateProblems: Record<string, CalendarProblem[]> = {};
-    for (const p of calProblems ?? []) {
-      (byDateProblems[p.date] ??= []).push({
-        slug: p.slug,
-        name: p.title,
-        diff: p.difficulty,
-      });
-    }
-    const categories = groupByCategory(progress ?? []);
+
+    const categories = toCategories(progress);
     // Back-compat: if the API hasn't shipped the list flags yet, treat every
     // problem as NeetCode 150 so Progress/leaderboard aren't empty pre-deploy.
-    const hasFlags = categories.some((c) =>
-      c.items.some((p) => p.neetcode150 || p.blind75 || p.neetcode250),
-    );
-    if (!hasFlags) {
-      for (const c of categories) for (const p of c.items) p.neetcode150 = true;
-    }
-    const apiFriends: Friend[] = (friendRows ?? []).map((f) => ({
-      id: f.id,
-      name: f.name,
-      initials: initialsOf(f.name),
-      username: f.username,
-      color: colorFor(f.name),
-    }));
-    const n150cats = categories
-      .map((c) => ({ ...c, items: c.items.filter((p) => p.neetcode150) }))
-      .filter((c) => c.items.length > 0);
-    const n150all = n150cats.flatMap((c) => c.items);
-    const bars = difficultyBars(n150cats);
-    const circleData = (circle ?? []).length
-      ? (circle ?? []).map((d) => ({ label: d.label, val: d.count }))
-      : bars.map((b) => ({ label: b.label, val: b.done }));
-    setRemote({
-      loading: false,
+    const all = categories.flatMap((c) => c.items);
+    if (!all.some((p) => p.neetcode150 || p.blind75 || p.neetcode250)) for (const p of all) p.neetcode150 = true;
+
+    const calendar = toCalendar(days, calProblems);
+    // Without circle totals from the API, fall back to your own NeetCode 150 solves.
+    const friendsDifficulty = circle.length
+      ? circle.map((d) => ({ label: d.label, val: d.count }))
+      : DIFFS.map((label) => ({ label, val: all.filter((p) => p.neetcode150 && p.diff === label && p.done).length }));
+
+    setData({
       categories,
-      solved: n150all.filter((p) => p.done).length,
-      total: n150all.length,
-      difficultyBars: bars,
-      members: (leaders ?? []).map((m) => ({
-        name: m.name,
-        initials: initialsOf(m.name),
-        color: colorFor(m.name),
+      members: leaders.map((m) => ({
+        ...toPerson(m.name),
         solved: m.neetcode150,
-        solvedByList: {
-          blind75: m.blind75,
-          neetcode150: m.neetcode150,
-          neetcode250: m.neetcode250,
-          all: m.all,
-        },
+        solvedByList: { blind75: m.blind75, neetcode150: m.neetcode150, neetcode250: m.neetcode250, all: m.all },
         byDiff: { easy: m.easy, medium: m.medium, hard: m.hard },
         username: m.username,
       })),
-      recent: (recents ?? []).map((r) => ({
-        n: r.n,
-        slug: r.slug,
-        name: r.name,
-        diff: r.diff,
-        who: (r.who ?? []).map((name) => ({
-          name,
-          initials: initialsOf(name),
-          color: colorFor(name),
-        })),
-        at: r.at,
-      })),
-      friends: apiFriends,
-      friendsDifficulty: circleData,
-      groupTotals: groupTotals ?? [],
-      calendar: { byDate, byDateProblems, streak: computeStreak(byDate, seasonStart) },
+      recent: recents.map((r) => ({ ...r, who: (r.who ?? []).map(toPerson) })),
+      friends: friends.map((f) => ({ ...toPerson(f.name), id: f.id, username: f.username })),
+      friendsDifficulty,
+      groupTotals,
+      calendar: { ...calendar, streak: computeStreak(calendar.byDate, seasonStart) },
       async addFriend(username) {
         await api.addFriend(getToken, username);
         await refresh();
@@ -225,16 +73,14 @@ export function DataProvider({
       refresh,
       getToken,
     });
-  };
+  }, [getToken, seasonStart]);
 
   useEffect(() => {
     refresh().catch((e) => setError(String(e)));
     api.visit(getToken).catch(() => {}); // log one app open for admin analytics
     const quiet = () => refresh().catch(() => {});
-    const id = setInterval(quiet, 30000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") quiet();
-    };
+    const onVisible = () => document.visibilityState === "visible" && quiet();
+    const id = setInterval(quiet, REFRESH_MS);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", quiet);
     return () => {
@@ -242,17 +88,14 @@ export function DataProvider({
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", quiet);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh, getToken]);
 
   if (error) {
     return (
       <div className="grid min-h-screen place-items-center px-6">
         <div className="max-w-lg rounded-2xl border border-border bg-card p-6 text-center">
           <div className="font-display text-xl">Couldn't load your data</div>
-          <p className="mt-2 break-words text-sm text-muted-foreground">
-            {error}
-          </p>
+          <p className="mt-2 break-words text-sm text-muted-foreground">{error}</p>
           <button
             onClick={() => {
               setError(null);
@@ -267,9 +110,7 @@ export function DataProvider({
     );
   }
 
-  if (!remote) {
-    return <LoadingScreen />;
-  }
+  if (!data) return <LoadingScreen />;
 
-  return <DataContext.Provider value={remote}>{children}</DataContext.Provider>;
+  return <DataContext.Provider value={data}>{children}</DataContext.Provider>;
 }

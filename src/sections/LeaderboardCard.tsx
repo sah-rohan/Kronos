@@ -1,146 +1,99 @@
-import { useEffect, useState } from "react";
-import { Crown, Flame } from "lucide-react";
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
-import { api, type SdLeader } from "../lib/api";
-import { ROADMAP_LABEL, listTotal } from "../lib/roadmaps";
-import { rankFor, maxWeighted } from "../lib/rank";
-import { initialsOf, colorFor } from "../lib/avatar";
-import { SD_PROBLEMS } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
-import type { ProblemList } from "../types";
+import { Avatar } from "../components/Controls";
+import { useData } from "../data/context";
+import { useSdLeaderboard } from "../data/hooks";
+import { initialsOf } from "../lib/avatar";
+import { ROADMAP_LABEL, isModuleBoard, listTotal } from "../lib/roadmaps";
+import { rankFor, maxWeighted, rankMembers } from "../lib/rank";
+import { TRACK_LABEL, modulesFor } from "../systemdesign/catalog";
+import type { Board, ProblemList } from "../types";
+
+const TOP = 4;
+
+type Row = { key: string; rank: number; name: string; initials: string; sub: string; count: number; dot?: string };
 
 export function LeaderboardCard({
   onOpen,
   board,
   roadmap,
+  userName,
 }: {
   onOpen: () => void;
-  board: ProblemList | "sd" | "genai";
+  board: Board;
   roadmap: ProblemList;
+  userName: string;
 }) {
-  const { members, categories, getToken } = useData();
-  const isSD = board === "sd" || board === "genai";
+  const { members, categories } = useData();
+  const track = isModuleBoard(board) ? board : null;
+  const sdLeaders = useSdLeaderboard(track);
 
-  const [sdLeaders, setSdLeaders] = useState<SdLeader[]>([]);
-  useEffect(() => {
-    if (isSD) {
-      api
-        .sdLeaderboard(getToken, board === "genai" ? "genai" : "design")
-        .then((l) => setSdLeaders(l ?? []))
-        .catch(() => setSdLeaders([]));
-    }
-  }, [isSD, board, getToken]);
-
-  // ----- System Design / AI System Design board -----
-  if (isSD) {
-    const total = board === "genai" ? GENAI_PROBLEMS.length : SD_PROBLEMS.length;
-    const label = board === "genai" ? "AI System Design" : "System Design";
-    const ranked = sdLeaders.map((l, i) => ({ l, rank: i + 1 }));
-    return (
-      <Card className="lg:col-span-2 h-full" onClick={onOpen}>
-        <div className="flex items-center justify-between">
-          <div className="text-[17px] font-medium">Summer 2026 Leaderboard</div>
-          <div className="text-xs text-muted-foreground">{label}</div>
-        </div>
-        <ul className="mt-5 space-y-3">
-          {ranked.slice(0, 4).map(({ l, rank }) => (
-            <li key={l.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
-              <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{rank}</div>
-              <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(l.name)}`}>
-                {initialsOf(l.name)}
-                {rank === 1 && l.count > 0 && <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />}
-              </div>
-              <div className="w-36 min-w-0">
-                <div className="truncate text-sm font-medium">{l.name}</div>
-                {l.username && <div className="truncate text-[11px] text-muted-foreground">@{l.username}</div>}
-              </div>
-              <div className="flex-1">
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
-                    style={{ width: `${total ? (l.count / total) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="w-16 text-right text-sm font-semibold tabular-nums">
-                {l.count}
-                <span className="text-muted-foreground"> /{total}</span>
-              </div>
-            </li>
-          ))}
-          {ranked.length === 0 && (
-            <li className="py-6 text-center text-sm text-muted-foreground">No members yet.</li>
-          )}
-        </ul>
-      </Card>
-    );
+  let scope: string, total: number, rows: Row[];
+  if (track) {
+    scope = TRACK_LABEL[track];
+    total = modulesFor(track).length;
+    rows = sdLeaders.slice(0, TOP).map((l, i) => ({
+      key: l.name,
+      rank: i + 1,
+      name: l.name,
+      initials: initialsOf(l.name),
+      sub: l.username ? `@${l.username}` : "",
+      count: l.count,
+    }));
+  } else {
+    const maxW = maxWeighted(categories);
+    scope = ROADMAP_LABEL[roadmap];
+    total = listTotal(categories, roadmap);
+    rows = rankMembers(members, roadmap)
+      .slice(0, TOP)
+      .map(({ m, rank, solved }) => ({
+        key: m.name,
+        rank,
+        name: m.name,
+        initials: m.initials,
+        count: solved,
+        dot: rankFor(m.byDiff, maxW).dot,
+        sub: `@${m.username}`,
+      }));
   }
 
-  // ----- LeetCode roadmap board -----
-  const total = listTotal(categories, roadmap);
-  const maxW = maxWeighted(categories);
-  // Competition ranking: tied solvers share a rank (1, 2, 2, 4).
-  let lastVal: number | null = null;
-  let lastRank = 0;
-  const ranked = [...members]
-    .sort((a, b) => (b.solvedByList[roadmap] ?? 0) - (a.solvedByList[roadmap] ?? 0))
-    .map((m, i) => {
-      const v = m.solvedByList[roadmap] ?? 0;
-      const rank = i > 0 && v === lastVal ? lastRank : i + 1;
-      lastVal = v;
-      lastRank = rank;
-      return { m, rank };
-    });
   return (
-    <Card className="lg:col-span-2 h-full" onClick={onOpen}>
-      <div className="flex items-center justify-between">
-        <div className="text-[17px] font-medium">Summer 2026 Leaderboard</div>
-        <div className="text-xs text-muted-foreground">{ROADMAP_LABEL[roadmap]}</div>
+    <Card className="h-full lg:col-span-2" onClick={onOpen}>
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="m-0 font-display text-[26px] leading-tight">Summer 2026 leaderboard</h2>
+        <span className="text-[13px] text-muted-foreground">{scope} · View all</span>
       </div>
-      <ul className="mt-5 space-y-3">
-        {ranked.slice(0, 4).map(({ m, rank }) => {
-          const solved = m.solvedByList[roadmap] ?? 0;
+      <ul className="m-0 list-none p-0">
+        {rows.map((r) => {
+          const me = r.name === userName;
           return (
-            <li key={m.name} className="flex items-center gap-4 rounded-2xl border border-border px-4 py-3.5">
-              <div className="w-5 text-sm font-medium text-muted-foreground tabular-nums">{rank}</div>
-              <div className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${m.color}`}>
-                {m.initials}
+            <li
+              key={r.key}
+              className={`flex items-center gap-4 border-t py-3.5 ${
+                me ? "-mx-3 rounded-lg border-transparent bg-muted px-3" : "border-border"
+              }`}
+            >
+              <span className="w-6 font-display text-xl text-muted-foreground tabular-nums">{r.rank}</span>
+              <Avatar size="sm" me={me} initials={r.initials} className="relative">
+                {r.dot && <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${r.dot}`} />}
+              </Avatar>
+              <span className="min-w-0 flex-1 sm:w-52 sm:flex-none">
+                <span className="block truncate text-[15px] font-medium">{r.name}</span>
+                <span className="block truncate text-[13px] text-muted-foreground">{me ? "you" : r.sub}</span>
+              </span>
+              <span className="hidden h-[3px] flex-1 overflow-hidden rounded-sm bg-border sm:block">
                 <span
-                  className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW).dot}`}
+                  className={`block h-full ${r.rank === 1 ? "bg-accent" : me ? "bg-ink" : "bg-muted-foreground"}`}
+                  style={{ width: `${total ? (r.count / total) * 100 : 0}%` }}
                 />
-                {rank === 1 && (
-                  <Crown className="absolute -top-3 -right-2 h-5 w-5 rotate-12 fill-[#f5c26b] text-[#f5c26b]" />
-                )}
-              </div>
-              <div className="w-36 min-w-0">
-                <div className="truncate text-sm font-medium">{m.name}</div>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  {m.streak != null ? (
-                    <>
-                      <Flame className="h-3 w-3 shrink-0 text-coral" />
-                      {m.streak}-day streak
-                    </>
-                  ) : (
-                    <span className="truncate">@{m.username}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={rank === 1 ? "h-full bg-coral" : "h-full bg-sky"}
-                    style={{ width: `${total ? (solved / total) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="w-16 text-right text-sm font-semibold tabular-nums">
-                {solved}
-                <span className="text-muted-foreground"> /{total}</span>
-              </div>
+              </span>
+              <span className="w-16 text-right font-mono text-sm tabular-nums">
+                {r.count}
+                <span className="text-muted-foreground">/{total}</span>
+              </span>
             </li>
           );
         })}
+        {rows.length === 0 && <li className="border-t border-border py-6 text-sm text-muted-foreground">No members yet.</li>}
       </ul>
     </Card>
   );

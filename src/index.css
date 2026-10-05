@@ -2,32 +2,42 @@
 @source "./";
 @source "../index.html";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
-  Theme tokens used by the dashboard. Colors picked to echo Craft.do:
-  a soft sky blue up top fading into white below.
+  "Paper" theme: warm off-white ground, ink text, one deep-green accent.
+  coral/sky keep their names so module screens pick up the new palette;
+  they now mean accent / accent-soft.
 */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-background: #f7fbff;
-  --color-foreground: #1a2b3c;
-  --color-card: rgba(255, 255, 255, 0.72);
-  --color-border: rgba(7, 55, 129, 0.1);
-  --color-muted: #eaf3fb;
-  --color-muted-foreground: #6b7e91;
+  --color-background: #f6f4ee;
+  --color-foreground: #1a1915;
+  --color-card: #fbfaf6;
+  --color-border: #e4e0d6;
+  --color-border-strong: #d6d1c4;
+  --color-muted: #efebe3;
+  --color-muted-foreground: #6e6a60;
+  --color-sidebar: #f1eee6;
+  --color-ink: #1a1915;
+  --color-ink-foreground: #f6f4ee;
 
-  --color-coral: #e66960;
+  --color-accent: #2e5a4c;
+  --color-accent-foreground: #ffffff;
+  --color-coral: #2e5a4c;
   --color-coral-foreground: #ffffff;
+  --color-sky: #c9d8d0;
+  --color-sky-foreground: #16302a;
 
-  --color-sky: #d1eef9;
-  --color-sky-foreground: #0b4a6b;
+  --color-easy: #7fa393;
+  --color-medium: #2e5a4c;
+  --color-hard: #16302a;
+  --color-danger: #a8432f;
 }
 
-/*
-  Tailwind v4's preflight dropped v3's `button { cursor: pointer }` rule.
-  Restore it here, in the base layer so any explicit cursor-* utility wins.
-*/
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -52,64 +62,38 @@ body,
 body {
   font-family: var(--font-sans);
   color: var(--color-foreground);
-  /*
-    Craft-style sky: deep blue at the very top, lots of blue across the upper
-    band, easing into our near-white at the bottom. Fixed so it spans the page.
-  */
-  background:
-    linear-gradient(
-      to bottom,
-      #6db4e0 0%,
-      #8fc8ea 12%,
-      #aed8f1 26%,
-      #cbe7f7 42%,
-      #e3f1fb 58%,
-      #f1f8fd 72%,
-      #f7fbff 88%,
-      #ffffff 100%
-    )
-    fixed;
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Night mode: deep midnight-blue sky, glassy dark cards. */
 .dark {
-  --color-background: #0a1826;
-  --color-foreground: #e8eef5;
-  --color-card: rgba(255, 255, 255, 0.06);
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-muted: rgba(255, 255, 255, 0.08);
-  --color-muted-foreground: #93a4b5;
+  --color-background: #141310;
+  --color-foreground: #ece8df;
+  --color-card: #1b1a16;
+  --color-border: #2c2a24;
+  --color-border-strong: #3a3830;
+  --color-muted: #24221d;
+  --color-muted-foreground: #a9a396;
+  --color-sidebar: #18170f;
+  --color-ink: #ece8df;
+  --color-ink-foreground: #141310;
 
-  --color-sky: #2a6f93;
-  --color-sky-foreground: #d3ecfa;
-}
+  --color-accent: #8fb5a4;
+  --color-accent-foreground: #10201b;
+  --color-coral: #8fb5a4;
+  --color-coral-foreground: #10201b;
+  --color-sky: #2f4a40;
+  --color-sky-foreground: #d5e5dc;
 
-.dark .clouds {
-  opacity: 0.18;
-}
-
-.dark body {
-  background:
-    linear-gradient(
-      to bottom,
-      #0e3a5c 0%,
-      #0c3050 14%,
-      #0b2640 32%,
-      #0a1e34 52%,
-      #0a1826 74%,
-      #08131f 100%
-    )
-    fixed;
+  --color-easy: #4f7466;
+  --color-medium: #8fb5a4;
+  --color-hard: #d5e5dc;
+  --color-danger: #e08a74;
 }
 
 /* Solid, readable modal surface in both themes. */
 .modal-surface {
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(20px);
-}
-.dark .modal-surface {
-  background: #16273b;
-  backdrop-filter: blur(20px);
+  background: var(--color-card);
 }
 
 /* Thin, rounded scrollbar; the rounded parent clips it at the corners. */
@@ -135,35 +119,28 @@ body {
 
 /* "+N" overflow chip on avatar stacks — readable in both themes. */
 .count-chip {
-  background: #d4dde8;
-  color: #1a2b3c;
-}
-.dark .count-chip {
-  background: #3a4f66;
-  color: #eef3f8;
+  background: var(--color-muted);
+  color: var(--color-foreground);
 }
 
 /* Separating ring around overlapping avatars — matches the surface per theme. */
 .stack-ring {
-  box-shadow: 0 0 0 2px #ffffff;
-}
-.dark .stack-ring {
-  box-shadow: 0 0 0 2px #16273b;
+  box-shadow: 0 0 0 2px var(--color-card);
 }
 
-/* Editorial serif headings, exactly like Craft's display type. */
-.font-display {
-  font-family: var(--font-serif);
-  font-weight: 500;
-}
-
-/* Drifting clouds layered over the blue band. */
-@keyframes cloud-drift {
-  from {
-    transform: translateX(-6%);
+@layer components {
+  .font-display {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.01em;
   }
-  to {
-    transform: translateX(6%);
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted-foreground);
   }
 }
 

@@ -1,126 +1,95 @@
-import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
-import { api } from "../lib/api";
-import { ROADMAPS, ROADMAP_LABEL, inList } from "../lib/roadmaps";
-import { SD_PROBLEMS } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
-import { completedSet } from "../systemdesign/progress";
-import type { ProblemList } from "../types";
+import { useData } from "../data/context";
+import { utcDayKey } from "../lib/date";
+import { DIFFS, DIFF_BAR } from "../lib/difficulty";
+import { BOARDS, inList, isModuleBoard } from "../lib/roadmaps";
+import { modulesFor } from "../systemdesign/catalog";
+import { useSdSolved } from "../systemdesign/progress";
+import type { Board } from "../types";
 
-type View = ProblemList | "sd" | "genai";
+const WEEKS = 12;
+const SHADES = ["bg-muted", "bg-sky", "bg-easy", "bg-medium"];
 
-const SD_OPTIONS: { key: View; label: string }[] = [
-  { key: "sd", label: "System Design" },
-  { key: "genai", label: "AI System Design" },
-];
+// The last WEEKS weeks of solves, one column per week ending this Saturday.
+function ActivityGrid({ byDate }: { byDate: Record<string, number> }) {
+  const now = new Date();
+  const end = new Date(now);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
+  const days = Array.from({ length: WEEKS * 7 }, (_, i) => {
+    const d = new Date(end);
+    d.setUTCDate(end.getUTCDate() - (WEEKS * 7 - 1 - i));
+    const key = utcDayKey(d);
+    return { key, n: byDate[key] ?? 0, future: d > now };
+  });
+  return (
+    <div className="grid grid-flow-col grid-rows-7 gap-1" style={{ gridAutoColumns: "13px" }}>
+      {days.map((d) => (
+        <span
+          key={d.key}
+          title={d.future ? undefined : `${d.key}: ${d.n} solved`}
+          className={`h-[13px] w-[13px] rounded-[3px] ${d.future ? "" : SHADES[Math.min(d.n, 3)]}`}
+        />
+      ))}
+    </div>
+  );
+}
 
-export function MyProgressCard({
-  onOpen,
-  board,
-  onBoard,
-}: {
-  onOpen: () => void;
-  board: View;
-  onBoard: (b: View) => void;
-}) {
-  const { categories, getToken } = useData();
-  const view = board;
-  const isSD = view === "sd" || view === "genai";
+export function MyProgressCard({ onOpen, board, onBoard }: { onOpen: () => void; board: Board; onBoard: (b: Board) => void }) {
+  const { categories, calendar, getToken } = useData();
+  const sdSolved = useSdSolved(getToken);
+  const isSD = isModuleBoard(board);
 
-  // System Design completions: optimistic local set reconciled with the DB.
-  const [sdSolved, setSdSolved] = useState<Set<string>>(() => completedSet());
-  useEffect(() => {
-    api.sdSolved(getToken).then((s) => setSdSolved(new Set([...completedSet(), ...(s ?? [])]))).catch(() => {});
-  }, [getToken]);
-
-  // Build the difficulty buckets + totals for whichever view is active.
-  let total: number;
-  let solved: number;
-  let label: string;
-  let bars: { label: string; color: string; done: number; total: number }[];
-
-  if (isSD) {
-    const problems = view === "genai" ? GENAI_PROBLEMS : SD_PROBLEMS;
-    total = problems.length;
-    solved = problems.filter((p) => sdSolved.has(p.slug)).length;
-    label = view === "genai" ? "AI System Design" : "System Design";
-    bars = (["Easy", "Medium", "Hard"] as const).map((d) => {
-      const di = problems.filter((p) => p.difficulty === d);
-      return {
-        label: d,
-        color: d === "Easy" ? "bg-sky" : d === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
-        done: di.filter((p) => sdSolved.has(p.slug)).length,
-        total: di.length,
-      };
-    });
-  } else {
-    const items = categories.flatMap((c) => c.items).filter((p) => inList(p, view));
-    total = items.length;
-    solved = items.filter((p) => p.done).length;
-    label = ROADMAP_LABEL[view];
-    bars = (["Easy", "Medium", "Hard"] as const).map((d) => {
-      const di = items.filter((p) => p.diff === d);
-      return {
-        label: d,
-        color: d === "Easy" ? "bg-sky" : d === "Medium" ? "bg-[#f5c26b]" : "bg-coral",
-        done: di.filter((p) => p.done).length,
-        total: di.length,
-      };
-    });
-  }
-  const pct = total ? Math.round((solved / total) * 100) : 0;
+  // Done / total per difficulty on the chosen board.
+  const items = isSD
+    ? modulesFor(board).map((p) => ({ diff: p.difficulty, done: sdSolved.has(p.slug) }))
+    : categories.flatMap((c) => c.items).filter((p) => inList(p, board));
+  const bars = DIFFS.map((label) => {
+    const di = items.filter((p) => p.diff === label);
+    return { label, done: di.filter((p) => p.done).length, total: di.length };
+  });
 
   return (
-    <Card className="lg:col-span-1 h-full" onClick={onOpen}>
-      <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">My Progress</div>
+    <Card className="flex h-full flex-col gap-5" onClick={onOpen}>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="m-0 whitespace-nowrap font-display text-[26px] leading-tight">By difficulty</h2>
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <select
-            value={view}
-            onChange={(e) => onBoard(e.target.value as View)}
-            className="appearance-none rounded-full border border-border bg-transparent py-1 pl-3 pr-7 text-xs font-medium text-muted-foreground outline-none transition hover:bg-muted"
+            value={board}
+            onChange={(e) => onBoard(e.target.value as Board)}
+            aria-label="Roadmap"
+            className="appearance-none rounded-full border border-border bg-transparent py-1.5 pl-3 pr-7 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted"
           >
-            {ROADMAPS.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
-            ))}
-            {SD_OPTIONS.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
+            {BOARDS.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
-        <div className="font-display text-[40px] leading-none tracking-tight">{solved}</div>
-        <div className="text-sm text-muted-foreground">/ {total} {isSD ? "modules" : "solved"}</div>
-      </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-coral" style={{ width: `${pct}%` }} />
-      </div>
-
-      <div className="mt-6 space-y-4">
-        {bars.map((s) => (
-          <div key={s.label}>
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className={`h-2 w-2 rounded-full ${s.color}`} />
-                {s.label}
-              </span>
-              <span className="font-medium tabular-nums">
-                {s.done}
-                <span className="text-muted-foreground"> / {s.total}</span>
-              </span>
-            </div>
-            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div className={`h-full ${s.color}`} style={{ width: `${s.total ? (s.done / s.total) * 100 : 0}%` }} />
-            </div>
+      {bars.map((s) => (
+        <div key={s.label} className="flex flex-col gap-2">
+          <div className="flex justify-between text-sm">
+            <span>{s.label}</span>
+            <span className="font-mono tabular-nums">
+              {s.done} <span className="text-muted-foreground">/ {s.total}</span>
+            </span>
           </div>
-        ))}
-      </div>
+          <div className="h-[3px] overflow-hidden rounded-sm bg-border">
+            <div className={`h-full ${DIFF_BAR[s.label]}`} style={{ width: `${s.total ? (s.done / s.total) * 100 : 0}%` }} />
+          </div>
+        </div>
+      ))}
+
+      {!isSD && (
+        <div className="mt-auto flex flex-col gap-3 border-t border-border pt-[18px]">
+          <span className="eyebrow">Last {WEEKS} weeks</span>
+          <ActivityGrid byDate={calendar.byDate} />
+        </div>
+      )}
     </Card>
   );
 }

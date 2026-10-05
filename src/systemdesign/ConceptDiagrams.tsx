@@ -4,7 +4,7 @@
 function Node({ x, y, w = 64, h = 34, label, done }: { x: number; y: number; w?: number; h?: number; label: string; done?: boolean }) {
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} rx={9} className={done ? "fill-background stroke-[#3fae6a]" : "fill-background stroke-border"} strokeWidth={done ? 2.5 : 1.75} />
+      <rect x={x} y={y} width={w} height={h} rx={9} className={done ? "fill-background stroke-accent" : "fill-background stroke-border"} strokeWidth={done ? 2.5 : 1.75} />
       <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" className="fill-foreground text-[12px] font-medium">{label}</text>
     </g>
   );

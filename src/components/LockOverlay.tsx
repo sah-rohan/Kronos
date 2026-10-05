@@ -23,7 +23,7 @@ export function LockOverlay({
       <div aria-hidden className="pointer-events-none h-full select-none blur-[6px] saturate-50">
         {children}
       </div>
-      <div className="absolute inset-0 grid place-items-center rounded-[24px] bg-background/40 p-6 text-center">
+      <div className="absolute inset-0 grid place-items-center rounded-xl bg-background/50 p-6 text-center">
         <div className="flex flex-col items-center">
           <span className="grid h-12 w-12 place-items-center rounded-full border border-border bg-background/80 text-coral">
             {pending ? <Clock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
@@ -43,7 +43,7 @@ export function LockOverlay({
               </p>
               <button
                 onClick={onUnlock}
-                className="mt-4 rounded-full bg-coral px-4 py-2 text-xs font-medium text-coral-foreground transition hover:opacity-95"
+                className="mt-4 rounded-full bg-ink px-4 py-2.5 text-xs font-medium text-ink-foreground transition hover:opacity-90"
               >
                 Add LeetCode username
               </button>

@@ -1,16 +1,10 @@
 const palette = [
-  "bg-[#e07a5f] text-white",
-  "bg-[#3d8bff] text-white",
-  "bg-[#f2b705] text-[#4a3500]",
-  "bg-[#2a9d8f] text-white",
-  "bg-[#8a5cf6] text-white",
-  "bg-[#e76f9e] text-white",
-  "bg-[#0fb5ba] text-white",
-  "bg-[#f4845f] text-white",
-  "bg-[#5b8def] text-white",
-  "bg-[#7cb342] text-white",
-  "bg-[#ef5da8] text-white",
-  "bg-[#5a4fcf] text-white",
+  "bg-[#d9d3c4] text-[#1a1915]",
+  "bg-[#c9d8d0] text-[#16302a]",
+  "bg-[#e3d2bf] text-[#4a2f17]",
+  "bg-[#d3d6dc] text-[#232a33]",
+  "bg-[#ddd0d6] text-[#3b2530]",
+  "bg-[#d6dcc4] text-[#2c3318]",
 ];
 
 export function initialsOf(name?: string | null): string {

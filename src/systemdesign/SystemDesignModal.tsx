@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Monitor } from "lucide-react";
 import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
 import { SystemDiagram } from "./SystemDiagram";
 import { ConceptDiagram } from "./ConceptDiagrams";
-import { markCompleted } from "./progress";
-import { useData } from "../data/source";
+import { TRACK_LABEL, trackOf } from "./catalog";
+import { markCompleted, readLastPosition, saveLastPosition } from "./progress";
+import { ReaderNav, ReaderNavItem, ReaderPage } from "../components/Reader";
+import { StepButton } from "../components/Controls";
+import { useData } from "../data/context";
 import { api } from "../lib/api";
+import { useCanvasSupported } from "../lib/useCanvasSupported";
 
 type Stage = "learn" | "build" | "done";
 
@@ -18,15 +22,19 @@ export function SystemDesignModal({
   onClose: () => void;
 }) {
   const { getToken } = useData();
+  const canvasOk = useCanvasSupported();
+  const track = TRACK_LABEL[trackOf(problem.slug)];
   const [stage, setStage] = useState<Stage>("learn");
-  const [slide, setSlide] = useState(0);
+  const [slide, setSlide] = useState(() => {
+    const last = readLastPosition();
+    return last?.slug === problem.slug ? last.slide : 0;
+  });
+  const [furthest, setFurthest] = useState(slide);
   // Remembered quiz answers, keyed by slide index.
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   const [walkStep, setWalkStep] = useState(0);
   const totalSteps = problem.connections.length + (problem.returns?.length ?? 0);
-  // Restart the walkthrough whenever we land on (or leave) the walk slide.
-  useEffect(() => setWalkStep(0), [slide]);
 
   // Intro slides, then a flow walkthrough, then one slide per component so every
   // part is explained before the user has to place it.
@@ -35,7 +43,7 @@ export function SystemDesignModal({
       ...problem.slides,
       {
         title: "Full flow walkthrough",
-        body: "Step through the whole request and response, one hop at a time. Solid coral arrows are requests; dashed blue arrows are the data coming back.",
+        body: "Step through the whole request and response, one hop at a time. Solid arrows are requests; dashed arrows are the data coming back.",
         walk: true,
       },
       ...problem.palette.map((c) => ({ title: c.name, body: c.explain })),
@@ -43,8 +51,19 @@ export function SystemDesignModal({
     [problem],
   );
 
+  useEffect(() => {
+    saveLastPosition({ slug: problem.slug, slide, total: slides.length, title: slides[slide].title });
+  }, [problem.slug, slide, slides]);
+
+  const goTo = (i: number) => {
+    setSlide(i);
+    setFurthest((f) => Math.max(f, i));
+    setWalkStep(0); // restart the walkthrough whenever we land on (or leave) the walk slide
+  };
+
   const onSolved = () => {
     markCompleted(problem.slug);
+    saveLastPosition({ slug: problem.slug, slide: 0, total: slides.length, title: slides[0].title });
     api.sdSolve(getToken, problem.slug).catch(() => {});
     setStage("done");
   };
@@ -81,253 +100,274 @@ export function SystemDesignModal({
     ? problem.connections.filter(([f, t]) => t === currentType && revealed.has(f))
     : [];
 
+  const stepLabel = slide < problem.slides.length ? "Primer" : isWalk ? "Walkthrough" : "Component";
+  const progress = stage === "learn" ? (slide + 1) / (slides.length + 1) : 1;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
-      <div className="absolute inset-0 bg-sky-foreground/25 backdrop-blur-sm" onClick={onClose} />
-      <div className="modal-surface relative flex h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[24px] border border-border p-6 shadow-[0_30px_80px_-20px_rgba(7,55,129,0.55)] sm:p-8">
-        {stage === "build" ? (
-          <button
-            onClick={() => setStage("learn")}
-            aria-label="Back to learning"
-            className="absolute left-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-muted"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        ) : (
-          slide > 0 && (
-            <button
-              onClick={() => setSlide((s) => Math.max(0, s - 1))}
-              aria-label="Previous slide"
-              className="absolute left-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-muted"
+    <ReaderPage
+      crumbs={["Study", track, problem.title]}
+      onClose={onClose}
+      scrollKey={`${stage}-${slide}`}
+      status={
+        <>
+          <span className="font-mono text-[13px] text-muted-foreground">
+            {stage === "learn" ? `${slide + 1} / ${slides.length}` : stage === "build" ? "Build" : "Complete"}
+          </span>
+          <span className="hidden h-[3px] w-40 overflow-hidden rounded-sm bg-border sm:block">
+            <span className="block h-full bg-accent" style={{ width: `${progress * 100}%` }} />
+          </span>
+        </>
+      }
+      aside={
+        <ReaderNav label="Steps">
+          {slides.map((s, i) => (
+            <ReaderNavItem
+              key={i}
+              index={i}
+              active={stage === "learn" && i === slide}
+              done={i < furthest}
+              disabled={i > furthest}
+              onClick={() => {
+                setStage("learn");
+                goTo(i);
+              }}
             >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )
-        )}
-        <button
-          onClick={onClose}
-          className="absolute right-5 top-5 z-10 grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-muted"
-        >
-          <X className="h-4 w-4" />
-        </button>
+              {s.title}
+            </ReaderNavItem>
+          ))}
+          <ReaderNavItem
+            active={stage !== "learn"}
+            disabled={furthest < slides.length - 1}
+            onClick={() => setStage("build")}
+          >
+            Build on the canvas
+          </ReaderNavItem>
+        </ReaderNav>
+      }
+    >
+      {stage === "learn" && (
+        <div className="mx-auto flex min-h-full max-w-[1100px] flex-col px-5 py-10 sm:px-10 sm:py-14">
+          <div className="flex flex-1 flex-col gap-10 xl:flex-row xl:items-start xl:gap-14">
+            <article className="flex flex-col gap-5 xl:w-[46%]">
+              <span className="eyebrow">
+                Step {slide + 1} · {stepLabel}
+              </span>
+              <h1 className="m-0 font-display text-[clamp(34px,4vw,52px)] font-light leading-[1.05] tracking-[-0.02em]">
+                {slides[slide].title}
+              </h1>
+              <p className="m-0 text-[17px] leading-[1.6] text-muted-foreground">{slides[slide].body}</p>
 
-        <div className={`${stage === "build" || slide > 0 ? "px-12" : "pr-12"}`}>
-          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-coral">System Design</div>
-          <div className="font-display text-2xl tracking-tight">{problem.title}</div>
-        </div>
-
-        {/* LEARN */}
-        {stage === "learn" && (
-          <div className="mt-6 flex min-h-0 flex-1 flex-col">
-            {/* items-start (not center): centering overflowing flex content clips
-                its top past the scroll area, which hid the diagram/text. */}
-            <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto sm:flex-row sm:items-start">
-              <div className="sm:w-1/2">
-                <div className="font-display text-xl">{slides[slide].title}</div>
-                <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                  {slides[slide].body}
-                </p>
-                {isWalk && (() => {
-                  const allEdges = [...problem.connections, ...(problem.returns ?? [])];
-                  const [ef, et] = allEdges[walkStep] ?? [];
-                  const isReturn = walkStep >= problem.connections.length;
-                  const why = ef ? problem.connectionWhy[`${ef}>${et}`] ?? `${nameOf(ef)} returns its response to ${nameOf(et)}.` : "";
-                  return (
-                    <div className="mt-4 rounded-2xl border border-border bg-background/40 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Step {walkStep + 1} / {totalSteps}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setWalkStep((s) => Math.max(0, s - 1))}
-                            disabled={walkStep === 0}
-                            className="grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-30"
-                          >
-                            <ArrowLeft className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setWalkStep((s) => Math.min(totalSteps - 1, s + 1))}
-                            disabled={walkStep >= totalSteps - 1}
-                            className="grid h-8 w-8 place-items-center rounded-full bg-coral text-coral-foreground transition hover:opacity-95 disabled:opacity-30"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
+              {isWalk && (() => {
+                const allEdges = [...problem.connections, ...(problem.returns ?? [])];
+                const [ef, et] = allEdges[walkStep] ?? [];
+                const isReturn = walkStep >= problem.connections.length;
+                const why = ef ? problem.connectionWhy[`${ef}>${et}`] ?? `${nameOf(ef)} returns its response to ${nameOf(et)}.` : "";
+                return (
+                  <div className="border-t border-foreground pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="eyebrow">
+                        Hop {walkStep + 1} of {totalSteps}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <StepButton label="Previous hop" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>
+                          <ArrowLeft className="h-4 w-4" />
+                        </StepButton>
+                        <StepButton
+                          primary
+                          label="Next hop"
+                          onClick={() => setWalkStep((s) => Math.min(totalSteps - 1, s + 1))}
+                          disabled={walkStep >= totalSteps - 1}
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </StepButton>
                       </div>
-                      {ef && (
-                        <div className="mt-3 text-sm">
-                          <span className={`font-medium ${isReturn ? "text-sky" : "text-coral"}`}>
-                            {nameOf(ef)} {isReturn ? "⇠" : "→"} {nameOf(et)}
-                          </span>
-                          <span className="ml-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {isReturn ? "response" : "request"}
-                          </span>
-                          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{why}</p>
+                    </div>
+                    {ef && (
+                      <div className="mt-3">
+                        <div className="font-display text-xl">
+                          {nameOf(ef)} {isReturn ? "⇠" : "→"} {nameOf(et)}
+                          <span className="eyebrow ml-2 align-middle">{isReturn ? "response" : "request"}</span>
                         </div>
-                      )}
-                    </div>
-                  );
-                })()}
-                {slides[slide].bullets && (
-                  <ul className="mt-3 space-y-2 text-[14px] leading-relaxed text-muted-foreground">
-                    {slides[slide].bullets!.map((b, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-coral" />
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {quiz && (
-                  <div className="mt-4 rounded-2xl border border-border bg-background/40 p-4">
-                    <div className="text-sm font-medium">{quiz.prompt}</div>
-                    <div className="mt-3 flex flex-col gap-2">
-                      {quiz.options.map((o) => {
-                        const picked = answers[slide];
-                        const isCorrect = o.id === quiz.correct;
-                        const isPicked = picked === o.id;
-                        let cls = "border-border text-muted-foreground hover:bg-muted";
-                        if (picked !== undefined) {
-                          if (isCorrect) cls = "border-[#3fae6a] bg-[#3fae6a]/10 text-foreground";
-                          else if (isPicked) cls = "border-coral bg-coral/10 text-foreground";
-                          else cls = "border-border text-muted-foreground opacity-60";
-                        }
-                        return (
-                          <button
-                            key={o.id}
-                            disabled={picked !== undefined}
-                            onClick={() => setAnswers((a) => ({ ...a, [slide]: o.id }))}
-                            className={`rounded-xl border px-3 py-2 text-left text-sm font-medium transition ${cls}`}
-                          >
-                            {o.label}
-                            {picked !== undefined && isCorrect && " ✓"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {answers[slide] !== undefined && (
-                      <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-                        {answers[slide] === quiz.correct ? "Correct. " : "Not quite. "}
-                        {quiz.why}
-                      </p>
+                        <p className="m-0 mt-1 text-[15px] leading-relaxed text-muted-foreground">{why}</p>
+                      </div>
                     )}
                   </div>
-                )}
-                {currentType && (outgoing.length > 0 || incoming.length > 0) && (
-                  <div className="mt-4 space-y-2 rounded-2xl border border-border bg-background/40 p-3">
-                    <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      How it connects
-                    </div>
-                    {outgoing.map(([f, t]) => (
-                      <div key={`o${t}`} className="text-[13px] leading-snug">
-                        <span className="font-medium text-coral">→ {nameOf(t)}</span>{" "}
-                        <span className="text-muted-foreground">{problem.connectionWhy[`${f}>${t}`]}</span>
-                      </div>
-                    ))}
-                    {incoming.map(([f, t]) => (
-                      <div key={`i${f}`} className="text-[13px] leading-snug">
-                        <span className="font-medium text-coral">← {nameOf(f)}</span>{" "}
-                        <span className="text-muted-foreground">{problem.connectionWhy[`${f}>${t}`]}</span>
-                      </div>
-                    ))}
+                );
+              })()}
+
+              {slides[slide].bullets && (
+                <ul className="m-0 list-none border-b border-border p-0">
+                  {slides[slide].bullets!.map((b, i) => (
+                    <li key={i} className="border-t border-border py-3.5 text-[15px] leading-relaxed first:border-t-foreground">
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {quiz && (
+                <div className="flex flex-col gap-3 border-t border-foreground pt-4">
+                  <span className="eyebrow">Check yourself</span>
+                  <div className="font-display text-xl leading-snug">{quiz.prompt}</div>
+                  <div className="flex flex-col">
+                    {quiz.options.map((o, i) => {
+                      const picked = answers[slide];
+                      const isCorrect = o.id === quiz.correct;
+                      const isPicked = picked === o.id;
+                      let tone = "hover:bg-muted";
+                      if (picked !== undefined) {
+                        if (isCorrect) tone = "bg-accent/10 text-foreground";
+                        else if (isPicked) tone = "bg-danger/10 text-foreground";
+                        else tone = "opacity-50";
+                      }
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          disabled={picked !== undefined}
+                          onClick={() => setAnswers((a) => ({ ...a, [slide]: o.id }))}
+                          className={`-mx-3 flex min-h-11 items-center gap-3 rounded-lg border-t border-border px-3 py-3 text-left text-[15px] transition-colors first:border-t-transparent ${tone}`}
+                        >
+                          <span className="font-mono text-xs text-muted-foreground">{String.fromCharCode(65 + i)}</span>
+                          <span className="flex-1">{o.label}</span>
+                          {picked !== undefined && isCorrect && <Check className="h-4 w-4 text-accent" />}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-              {/* Sticky so the diagram stays in view while the text column scrolls;
-                  capped height so it always fits the viewport on any device. */}
-              <div className="shrink-0 rounded-2xl border border-border bg-background/40 p-4 sm:sticky sm:top-0 sm:w-1/2 [&_svg]:mx-auto [&_svg]:max-h-[42dvh] sm:[&_svg]:max-h-[62dvh]">
+                  {answers[slide] !== undefined && (
+                    <p className="m-0 text-[15px] leading-relaxed text-muted-foreground">
+                      <span className={answers[slide] === quiz.correct ? "font-medium text-accent" : "font-medium text-danger"}>
+                        {answers[slide] === quiz.correct ? "Correct. " : "Not quite. "}
+                      </span>
+                      {quiz.why}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {currentType && (outgoing.length > 0 || incoming.length > 0) && (
+                <div className="flex flex-col border-t border-foreground pt-4">
+                  <span className="eyebrow pb-1">How it connects</span>
+                  {outgoing.map(([f, t]) => (
+                    <div key={`o${t}`} className="border-b border-border py-3 text-[15px] leading-snug">
+                      <span className="font-medium">→ {nameOf(t)}</span>{" "}
+                      <span className="text-muted-foreground">{problem.connectionWhy[`${f}>${t}`]}</span>
+                    </div>
+                  ))}
+                  {incoming.map(([f, t]) => (
+                    <div key={`i${f}`} className="border-b border-border py-3 text-[15px] leading-snug">
+                      <span className="font-medium">← {nameOf(f)}</span>{" "}
+                      <span className="text-muted-foreground">{problem.connectionWhy[`${f}>${t}`]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+
+            <figure className="m-0 flex flex-col gap-3 xl:sticky xl:top-0 xl:flex-1">
+              <span className="eyebrow">{slides[slide].art ? "Concept" : "The system so far"}</span>
+              <div className="rounded-xl border border-border bg-card p-5 [&_svg]:mx-auto [&_svg]:max-h-[46dvh] xl:[&_svg]:max-h-[64dvh]">
                 {slides[slide].art ? (
                   <ConceptDiagram id={slides[slide].art!} />
                 ) : (
                   <SystemDiagram problem={problem} revealed={revealed} current={currentType} step={isWalk ? walkStep : undefined} />
                 )}
               </div>
-            </div>
-            <div className="mt-6 flex items-center justify-between">
-              <div className="flex gap-1.5">
-                {slides.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`h-1.5 rounded-full transition-all ${i === slide ? "w-5 bg-coral" : "w-1.5 bg-border"}`}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSlide((s) => Math.max(0, s - 1))}
-                  disabled={slide === 0}
-                  className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-30"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                {last ? (
-                  <button
-                    onClick={() => setStage("build")}
-                    disabled={nextLocked}
-                    className="rounded-full bg-coral px-5 py-2 text-sm font-medium text-coral-foreground transition hover:opacity-95 disabled:opacity-40"
-                  >
-                    Start building
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setSlide((s) => Math.min(slides.length - 1, s + 1))}
-                    disabled={nextLocked}
-                    title={nextLocked ? "Answer the question to continue" : undefined}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-coral px-5 py-2 text-sm font-medium text-coral-foreground transition hover:opacity-95 disabled:opacity-40"
-                  >
-                    Next <ArrowRight className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+            </figure>
           </div>
-        )}
 
-        {/* BUILD */}
-        {stage === "build" && (
-          <div className="mt-5 flex min-h-0 flex-1 flex-col">
-            <p className="mb-3 text-sm text-muted-foreground">
-              Drag every component onto the canvas and connect them into a working design, then check it.
-            </p>
-            <div className="min-h-0 flex-1">
+          <footer className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+            {slide > 0 ? (
+              <button type="button" onClick={() => goTo(slide - 1)} className="flex min-h-11 flex-col items-start gap-1 text-left">
+                <span className="eyebrow">Previous</span>
+                <span className="text-[15px] hover:text-accent">{slides[slide - 1].title}</span>
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={() => (last ? setStage("build") : goTo(slide + 1))}
+              disabled={nextLocked}
+              title={nextLocked ? "Answer the question to continue" : undefined}
+              className="group flex min-h-11 items-center gap-3.5 text-right disabled:opacity-40"
+            >
+              <span className="flex flex-col items-end gap-1">
+                <span className="eyebrow">{last ? "Ready" : "Next"}</span>
+                <span className="text-[15px] group-hover:text-accent">{last ? "Start building" : slides[slide + 1].title}</span>
+              </span>
+              <span className="grid h-11 w-11 place-items-center rounded-full bg-ink text-ink-foreground">
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </button>
+          </footer>
+        </div>
+      )}
+
+      {stage === "build" && (
+        <div className="flex h-full flex-col gap-4 px-5 py-6 sm:px-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h1 className="m-0 font-display text-[34px] font-light leading-tight">Build on the canvas</h1>
+            {canvasOk && (
+              <p className="m-0 text-sm text-muted-foreground">
+                Drag every component onto the canvas and connect them into a working design, then check it.
+              </p>
+            )}
+          </div>
+          {canvasOk ? (
+            <div className="min-h-[480px] flex-1">
               <SystemDesignCanvas problem={problem} onSolved={onSolved} />
             </div>
-          </div>
-        )}
-
-        {/* DONE */}
-        {stage === "done" && (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-[#3fae6a]/15 text-[#3fae6a]">
-              <Check className="h-7 w-7" />
-            </div>
-            <div className="font-display mt-4 text-2xl tracking-tight">Design complete</div>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              You built a correct URL shortener: traffic enters through the API gateway, the write path
-              uses the ID generator (Machine ID + sequence, Base62) and a wide-column database, and the
-              read path serves 302 redirects from a read-through cache while analytics counts clicks
-              off the critical path.
-            </p>
-            <div className="mt-6 flex gap-2">
+          ) : (
+            <div className="flex max-w-xl flex-col items-start gap-4 rounded-xl border border-border bg-card p-6">
+              <Monitor className="h-6 w-6 text-muted-foreground" />
+              <p className="m-0 text-[17px] leading-relaxed">The design canvas needs a desktop.</p>
+              <p className="m-0 text-sm text-muted-foreground">
+                Open this module on your computer to build and check your design. Your place in the lessons is saved.
+              </p>
               <button
-                onClick={() => {
-                  setStage("build");
-                }}
-                className="rounded-full border border-border px-5 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
-              >
-                Build again
-              </button>
-              <button
+                type="button"
                 onClick={onClose}
-                className="rounded-full bg-coral px-5 py-2 text-sm font-medium text-coral-foreground transition hover:opacity-95"
+                className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-ink-foreground transition-opacity hover:opacity-90"
               >
-                Done
+                Back to Study
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {stage === "done" && (
+        <div className="mx-auto flex min-h-full max-w-xl flex-col items-start justify-center gap-5 px-5 py-14 sm:px-10">
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-accent/15 text-accent">
+            <Check className="h-6 w-6" />
+          </span>
+          <span className="eyebrow">{track} · Complete</span>
+          <h1 className="m-0 font-display text-[clamp(36px,5vw,56px)] font-light leading-[1.04] tracking-[-0.02em]">
+            {problem.title}
+          </h1>
+          <p className="m-0 text-[17px] leading-relaxed text-muted-foreground">
+            Every component is placed and wired correctly. It now counts toward your design modules and the {track} leaderboard.
+          </p>
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              type="button"
+              onClick={() => setStage("build")}
+              className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-5 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Build again
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-ink-foreground transition-opacity hover:opacity-90"
+            >
+              Back to Study
+            </button>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </ReaderPage>
   );
 }

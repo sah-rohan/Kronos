@@ -1,21 +1,10 @@
 import type { SDComponentType, SDProblem } from "./problems";
+import { borderPoint } from "./geometry";
 
 const NODE_W = 150;
 const NODE_H = 56;
 const VB_W = 600;
 const VB_H = 680;
-
-// Where the line from `fromX,fromY` toward the center of a box hits that box's
-// border - so arrowheads land on the edge (visible), not under the opaque box.
-function borderPoint(fromX: number, fromY: number, bx: number, by: number) {
-  const cx = bx + NODE_W / 2;
-  const cy = by + NODE_H / 2;
-  const dx = cx - fromX;
-  const dy = cy - fromY;
-  if (dx === 0 && dy === 0) return { x: cx, y: cy };
-  const s = Math.min(NODE_W / 2 / Math.abs(dx || 1e-6), NODE_H / 2 / Math.abs(dy || 1e-6));
-  return { x: cx - dx * s, y: cy - dy * s };
-}
 
 export function SystemDiagram({
   problem,
@@ -71,8 +60,8 @@ export function SystemDiagram({
     const touchesCurrent = stepped ? i === step : current === from || current === to;
     const a = c(from);
     const b = c(to);
-    const start = borderPoint(b.cx, b.cy, problem.layout[from].x, problem.layout[from].y);
-    const end = borderPoint(a.cx, a.cy, problem.layout[to].x, problem.layout[to].y);
+    const start = borderPoint(b.cx, b.cy, problem.layout[from].x, problem.layout[from].y, NODE_W, NODE_H);
+    const end = borderPoint(a.cx, a.cy, problem.layout[to].x, problem.layout[to].y, NODE_W, NODE_H);
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const len = Math.hypot(dx, dy) || 1;
@@ -99,8 +88,8 @@ export function SystemDiagram({
         if (!hit) break;
         const bcx = hit.x + NODE_W / 2;
         const bcy = hit.y + NODE_H / 2;
-        let vx = mx - bcx;
-        let vy = my - bcy;
+        const vx = mx - bcx;
+        const vy = my - bcy;
         const vl = Math.hypot(vx, vy) || 1;
         mx += (vx / vl) * 10;
         my += (vy / vl) * 10;
