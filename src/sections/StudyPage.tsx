@@ -54,7 +54,6 @@ export function StudyPage({
   const [track, setTrack] = useState<Track>("sd");
   const last = readLastPosition();
   const all = [...SD_PROBLEMS, ...GENAI_PROBLEMS];
-  const done = all.filter((p) => solved.has(p.slug)).length;
   const meta = TRACKS.find((t) => t.key === track)!;
   const modules = track === "genai" ? GENAI_PROBLEMS : SD_PROBLEMS;
   const resume = last && !solved.has(last.slug) ? all.find((p) => p.slug === last.slug) : undefined;
@@ -70,9 +69,6 @@ export function StudyPage({
   return (
     <div className="mx-auto flex max-w-[1080px] flex-col gap-10">
       <header className="flex flex-col gap-3.5">
-        <span className="eyebrow">
-          {done} of {all.length} design modules complete · {CLOUD_DOCS.length + NETWORKING_DOCS.length} reference topics
-        </span>
         <h1 className="m-0 font-display text-[clamp(40px,5vw,60px)] font-light leading-[1.02] tracking-[-0.02em]">Study</h1>
       </header>
 

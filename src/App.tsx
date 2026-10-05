@@ -164,7 +164,7 @@ function App({
         <main className="px-5 pb-[72px] pt-10 sm:px-[clamp(20px,5vw,72px)] sm:pt-12">
           {page === "home" ? (
             <div className="mx-auto flex max-w-[1080px] flex-col gap-12">
-              <HomeHeader userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
+              <HomeHeader userName={userName} locked={!lcUnlocked} />
               <StatStrip userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
 
               {showExpiryAlert && (

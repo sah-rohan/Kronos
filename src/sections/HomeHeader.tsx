@@ -3,26 +3,9 @@ import { RefreshCw } from "lucide-react";
 import { useData } from "../data/source";
 import { api } from "../lib/api";
 import { greeting } from "../lib/greeting";
-import { ROADMAP_LABEL, inList } from "../lib/roadmaps";
-import { rankMembers } from "../lib/rank";
-import type { ProblemList } from "../types";
 
-function summary(total: number, remaining: number, label: string, standing: string) {
-  if (total === 0) return "Sync to pull in your latest LeetCode progress.";
-  if (remaining === 0) return `You've finished ${label}.`;
-  return `You're ${remaining} problem${remaining === 1 ? "" : "s"} from finishing ${label}.${standing}`;
-}
-
-export function HomeHeader({
-  userName,
-  roadmap,
-  locked,
-}: {
-  userName: string;
-  roadmap: ProblemList;
-  locked: boolean;
-}) {
-  const { categories, members, refresh, getToken } = useData();
+export function HomeHeader({ userName, locked }: { userName: string; locked: boolean }) {
+  const { refresh, getToken } = useData();
   const [syncing, setSyncing] = useState(false);
   const now = new Date();
 
@@ -37,17 +20,6 @@ export function HomeHeader({
     }
   };
 
-  const label = ROADMAP_LABEL[roadmap];
-  const items = categories.flatMap((c) => c.items).filter((p) => inList(p, roadmap));
-  const ranked = rankMembers(members, roadmap);
-  const me = ranked.find((r) => r.m.name === userName);
-  const top = ranked[0];
-  const gap = me && top ? top.solved - me.solved : 0;
-  const standing = !me || ranked.length < 2 ? "" : gap > 0 ? ` ${top.m.name.split(" ")[0]} is ${gap} ahead.` : " You're leading the group.";
-  const line = locked
-    ? "Link your LeetCode username to start tracking your progress against the group."
-    : summary(items.length, items.length - items.filter((p) => p.done).length, label, standing);
-
   return (
     <header className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex max-w-xl flex-col gap-3.5">
@@ -57,7 +29,11 @@ export function HomeHeader({
         <h1 className="m-0 font-display text-[clamp(40px,5vw,60px)] font-light leading-[1.02] tracking-[-0.02em]">
           {greeting(now)}, {userName.split(" ")[0]}.
         </h1>
-        <p className="m-0 text-base leading-relaxed text-muted-foreground">{line}</p>
+        {locked && (
+          <p className="m-0 text-base leading-relaxed text-muted-foreground">
+            Link your LeetCode username to start tracking your progress against the group.
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-2.5">
         <button
