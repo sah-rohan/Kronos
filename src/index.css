@@ -2,6 +2,8 @@
 @source "./";
 @source "../index.html";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
   "Paper" theme: warm off-white ground, ink text, one deep-green accent.
   coral/sky keep their names so module screens pick up the new palette;

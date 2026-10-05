@@ -36,3 +36,22 @@ export function useSdSolved(getToken: TokenFn): Set<string> {
   }, [getToken]);
   return solved;
 }
+
+export type LastPosition = { slug: string; slide: number; total: number; title: string };
+const LAST_KEY = "kronos.sd.last";
+
+export function readLastPosition(): LastPosition | null {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastPosition(p: LastPosition): void {
+  try {
+    localStorage.setItem(LAST_KEY, JSON.stringify(p));
+  } catch {
+    /* storage unavailable */
+  }
+}

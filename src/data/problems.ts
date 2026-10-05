@@ -210,9 +210,3 @@ for (const c of categories) {
 
 export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
-
-export const diffStyles: Record<string, string> = {
-  Easy: "bg-easy/20 text-hard",
-  Medium: "bg-medium/15 text-medium",
-  Hard: "bg-hard text-background",
-};

@@ -23,7 +23,7 @@ export function OnboardingScreen({ token, onDone }: { token: TokenFn; onDone: ()
 
   return (
     <div className="grid min-h-screen place-items-center px-6">
-      <div className="w-full max-w-md rounded-[24px] border border-border bg-card p-10 shadow-[0_30px_80px_-20px_rgba(7,55,129,0.45)] backdrop-blur-md">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-10 ">
         <div className="font-display text-2xl tracking-tight">Link your LeetCode</div>
         <p className="mt-2 text-sm text-muted-foreground">
           Enter your LeetCode username so an admin can verify it against your account and approve you.

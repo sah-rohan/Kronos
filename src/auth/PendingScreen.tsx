@@ -4,7 +4,7 @@ import { SignOutButton } from "@clerk/clerk-react";
 export function PendingScreen() {
   return (
     <div className="grid min-h-screen place-items-center px-6">
-      <div className="max-w-md rounded-[24px] border border-border bg-card p-10 text-center shadow-[0_30px_80px_-20px_rgba(7,55,129,0.45)] backdrop-blur-md">
+      <div className="max-w-md rounded-2xl border border-border bg-card p-10 text-center ">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-muted text-coral">
           <Clock className="h-5 w-5" />
         </div>

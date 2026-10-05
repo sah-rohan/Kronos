@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { initialsOf } from "./lib/avatar";
-import { CAL_START } from "./data/calendar";
+import { CAL_END, CAL_START } from "./data/calendar";
 import { useData } from "./data/source";
 import { api, type TokenFn } from "./lib/api";
 import { daysUntil } from "./lib/date";
@@ -9,20 +9,16 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LinkLeetCodeModal } from "./modals/LinkLeetCodeModal";
 import { effectiveDark } from "./lib/theme";
 import type { Friend, Month, ProblemRef, ProblemList } from "./types";
-import { SystemDesignCard } from "./systemdesign/SystemDesignCard";
 import { SystemDesignModal } from "./systemdesign/SystemDesignModal";
 import { ComponentsModal } from "./systemdesign/ComponentsModal";
-import { CloudCard } from "./systemdesign/CloudCard";
 import { CloudModal } from "./systemdesign/CloudModal";
-import { NetworkingCard } from "./systemdesign/NetworkingCard";
 import { NetworkingModal } from "./systemdesign/NetworkingModal";
-import { GenAICard } from "./systemdesign/GenAICard";
 import { GENAI_PROBLEMS } from "./systemdesign/genai";
 import { SD_PROBLEMS } from "./systemdesign/problems";
 import { Sidebar, MobileBar, AccountMenu, type NavItem } from "./sections/Sidebar";
 import { HomeHeader } from "./sections/HomeHeader";
 import { StatStrip } from "./sections/StatStrip";
-import { StudyHeader } from "./sections/StudyHeader";
+import { StudyPage } from "./sections/StudyPage";
 import { MyProgressCard } from "./sections/MyProgressCard";
 import { LeaderboardCard } from "./sections/LeaderboardCard";
 import { MyFriendsCard } from "./sections/MyFriendsCard";
@@ -127,7 +123,7 @@ function App({
   }, [theme]);
 
   const openCalendar = () => {
-    setCal(CAL_START);
+    setCal(CAL_END);
     setModal("calendar");
   };
 
@@ -196,15 +192,12 @@ function App({
 
             </div>
           ) : (
-            <div className="mx-auto flex max-w-[1080px] flex-col gap-12">
-              <StudyHeader />
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
-                <GenAICard onOpen={setSdSlug} />
-                <CloudCard onOpen={setCloudTopic} />
-                <NetworkingCard onOpen={setNetworkingTopic} />
-              </div>
-            </div>
+            <StudyPage
+              onOpenModule={setSdSlug}
+              onOpenComponents={() => setSdComponents(true)}
+              onOpenCloud={setCloudTopic}
+              onOpenNetworking={setNetworkingTopic}
+            />
           )}
         </main>
       </div>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronRight, Search, UserPlus, X } from "lucide-react";
+import { Check, ChevronRight, UserPlus, X } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { Button, PersonRow, SearchField, Tabs } from "../components/Controls";
 import { useData } from "../data/source";
 import { api, type ApiFriend } from "../lib/api";
-import { initialsOf, colorFor } from "../lib/avatar";
+import { initialsOf } from "../lib/avatar";
 import type { Friend } from "../types";
 
 export function FriendsModal({
@@ -80,177 +81,100 @@ export function FriendsModal({
       (f.username ?? "").toLowerCase().includes(q),
   );
 
-  const tabBtn = (
-    key: "friends" | "requests",
-    label: string,
-    count?: number,
-  ) => (
-    <button
-      onClick={() => {
-        setTab(key);
-        setQuery("");
-      }}
-      className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
-        tab === key
-          ? "bg-coral text-coral-foreground"
-          : "text-muted-foreground hover:bg-muted"
-      }`}
-    >
-      {label}
-      {count ? <span className="ml-1.5 tabular-nums">{count}</span> : null}
-    </button>
-  );
 
   return (
-    <Modal title="My Friends" onClose={onClose}>
-      <div className="flex gap-1 rounded-full border border-border bg-background/60 p-1">
-        {tabBtn("friends", "Friends", friends.length)}
-        {tabBtn("requests", "Requests", requests.length)}
-      </div>
+    <Modal title="Friends" eyebrow={`${friends.length} added`} onClose={onClose}>
+      <Tabs
+        tabs={[
+          { key: "friends" as const, label: <>Friends <span className="font-mono text-xs text-muted-foreground">{friends.length}</span></> },
+          { key: "requests" as const, label: <>Requests <span className="font-mono text-xs text-muted-foreground">{requests.length}</span></> },
+        ]}
+        value={tab}
+        onChange={(k) => {
+          setTab(k);
+          setQuery("");
+        }}
+      />
 
       {tab === "friends" ? (
         <>
-          <div className="mt-4 flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2.5">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search your friends…"
-              className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
-            />
-          </div>
-          <ul className="mt-4 space-y-3">
+          <SearchField className="mt-4" value={query} onChange={setQuery} placeholder="Search your friends…" />
+          <ul className="m-0 mt-5 list-none border-b border-border p-0">
             {shownFriends.map((f) => (
-              <li key={f.id}>
-                <button
-                  onClick={() => onOpenFriend(f)}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-border px-4 py-3 text-left transition hover:bg-muted"
-                >
-                  <div
-                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-medium ${f.color}`}
-                  >
-                    {f.initials}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{f.name}</div>
-                    {f.username && (
-                      <div className="truncate text-xs text-muted-foreground">
-                        @{f.username}
-                      </div>
-                    )}
-                  </div>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </button>
-              </li>
+              <PersonRow
+                key={f.id}
+                initials={f.initials}
+                name={f.name}
+                sub={f.username ? `@${f.username}` : undefined}
+                onClick={() => onOpenFriend(f)}
+                trailing={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              />
             ))}
             {friends.length === 0 && (
-              <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                No friends yet.
-              </li>
+              <li className="border-t border-border py-6 text-sm text-muted-foreground">No friends yet. Add people from the Requests tab.</li>
             )}
           </ul>
         </>
       ) : (
         <>
-          <div className="mt-4 flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2.5">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && q && request(query.trim())}
-              placeholder="Search people to add…"
-              className="w-full bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
-            />
+          <div className="mt-5" onKeyDown={(e) => e.key === "Enter" && q && request(query.trim())}>
+            <SearchField value={query} onChange={setQuery} placeholder="Search people to add…" />
           </div>
 
           {requests.length > 0 && (
             <>
-              <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Incoming requests
-              </div>
-              <ul className="mt-2 space-y-2">
+              <div className="eyebrow mt-7 pb-1">Incoming requests</div>
+              <ul className="m-0 list-none border-b border-border p-0">
                 {requests.map((p) => (
-                  <li
+                  <PersonRow
                     key={p.id}
-                    className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5"
-                  >
-                    <div
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.name)}`}
-                    >
-                      {initialsOf(p.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">
-                        {p.name}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        @{p.username}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => accept(p.id)}
-                      disabled={busy === p.id}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-coral text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
-                      title="Accept"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => decline(p.id)}
-                      disabled={busy === p.id}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-60"
-                      title="Decline"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </li>
+                    initials={initialsOf(p.name)}
+                    name={p.name}
+                    sub={`@${p.username}`}
+                    trailing={
+                      <span className="flex gap-2">
+                        <Button onClick={() => accept(p.id)} disabled={busy === p.id}>
+                          <Check className="h-4 w-4" /> Accept
+                        </Button>
+                        <Button variant="secondary" onClick={() => decline(p.id)} disabled={busy === p.id}>
+                          <X className="h-4 w-4" /> Decline
+                        </Button>
+                      </span>
+                    }
+                  />
                 ))}
               </ul>
             </>
           )}
 
-          <div className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            People on Kronos
-          </div>
-          <ul className="mt-2 space-y-2">
+          <div className="eyebrow mt-7 pb-1">People on Kronos</div>
+          <ul className="m-0 list-none border-b border-border p-0">
             {suggestions.map((p) => {
               const requested = sent.includes(p.username);
               return (
-                <li
+                <PersonRow
                   key={p.id}
-                  className="flex items-center gap-3 rounded-2xl border border-border px-4 py-2.5"
-                >
-                  <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-medium ${colorFor(p.name)}`}
-                  >
-                    {initialsOf(p.name)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{p.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      @{p.username} · {p.solved} solved
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => request(p.username)}
-                    disabled={busy === p.username || requested}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-coral px-3.5 py-1.5 text-xs font-medium text-coral-foreground transition hover:opacity-95 disabled:opacity-60"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />{" "}
-                    {requested
-                      ? "Requested"
-                      : busy === p.username
-                        ? "…"
-                        : "Request"}
-                  </button>
-                </li>
+                  initials={initialsOf(p.name)}
+                  name={p.name}
+                  sub={
+                    <>
+                      @{p.username} · <span className="font-mono">{p.solved}</span> solved
+                    </>
+                  }
+                  trailing={
+                    <Button
+                      variant={requested ? "secondary" : "primary"}
+                      onClick={() => request(p.username)}
+                      disabled={busy === p.username || requested}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      {requested ? "Requested" : busy === p.username ? "…" : "Request"}
+                    </Button>
+                  }
+                />
               );
             })}
-            {suggestions.length === 0 && (
-              <li className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                No one to add.
-              </li>
-            )}
+            {suggestions.length === 0 && <li className="border-t border-border py-6 text-sm text-muted-foreground">No one to add.</li>}
           </ul>
         </>
       )}

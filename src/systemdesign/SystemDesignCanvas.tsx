@@ -372,7 +372,7 @@ export function SystemDesignCanvas({
           </div>
         )}
         {result?.ok && (
-          <div className="rounded-2xl border border-[#3fae6a]/40 bg-[#3fae6a]/10 p-3 text-sm font-medium text-[#3fae6a]">
+          <div className="rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm font-medium text-accent">
             Correct - components, connections, and every design decision check out.
           </div>
         )}

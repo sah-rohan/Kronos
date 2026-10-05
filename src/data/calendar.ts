@@ -7,4 +7,5 @@ export function monthCounts(year: number, month: number) {
 }
 
 export const CAL_START = { year: 2026, month: 5 };
-export const CAL_END = { year: 2026, month: 8 };
+const now = new Date();
+export const CAL_END = { year: now.getFullYear(), month: now.getMonth() };

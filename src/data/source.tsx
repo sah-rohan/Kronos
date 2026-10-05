@@ -86,10 +86,10 @@ function difficultyBars(categories: Category[]) {
       label,
       color:
         label === "Easy"
-          ? "bg-sky"
+          ? "bg-easy"
           : label === "Medium"
-            ? "bg-[#f5c26b]"
-            : "bg-coral",
+            ? "bg-medium"
+            : "bg-hard",
       done: items.filter((p) => p.done).length,
       total: items.length,
     };

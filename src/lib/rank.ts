@@ -130,10 +130,10 @@ export function rankFor(
   else tier = "Bronze";
 
   const styles: Record<Tier, { text: string; badge: string; dot: string }> = {
-    Bronze: { text: "text-[#e08a4b]", badge: "bg-[#e08a4b]/15 text-[#e08a4b]", dot: "bg-[#e08a4b]" },
-    Silver: { text: "text-[#aab6c6]", badge: "bg-[#aab6c6]/15 text-[#aab6c6]", dot: "bg-[#aab6c6]" },
-    Gold: { text: "text-[#f4b400]", badge: "bg-[#f4b400]/15 text-[#f4b400]", dot: "bg-[#f4b400]" },
-    Platinum: { text: "text-[#22d3ee]", badge: "bg-[#22d3ee]/15 text-[#22d3ee]", dot: "bg-[#22d3ee]" },
+    Bronze: { text: "text-[#9a5420] dark:text-[#e0a274]", badge: "bg-[#e08a4b]/15 text-[#e08a4b]", dot: "bg-[#e08a4b]" },
+    Silver: { text: "text-[#5f6b78] dark:text-[#b9c3cf]", badge: "bg-[#aab6c6]/15 text-[#aab6c6]", dot: "bg-[#aab6c6]" },
+    Gold: { text: "text-[#8a6500] dark:text-[#e8c25a]", badge: "bg-[#f4b400]/15 text-[#f4b400]", dot: "bg-[#f4b400]" },
+    Platinum: { text: "text-[#1d6f80] dark:text-[#7fd6e6]", badge: "bg-[#22d3ee]/15 text-[#22d3ee]", dot: "bg-[#22d3ee]" },
   };
   return { rating, tier, ...styles[tier] };
 }

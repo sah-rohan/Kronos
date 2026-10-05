@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { ArrowLink, DiffLabel } from "../components/Controls";
 import { PersonPicker, type PickerOption } from "../components/PersonPicker";
 import { CAL_START, CAL_END } from "../data/calendar";
 import { useData } from "../data/source";
-import { diffStyles } from "../data/problems";
 import { api } from "../lib/api";
 import { initialsOf, colorFor } from "../lib/avatar";
 import { fmtShortDate } from "../lib/date";
@@ -100,6 +100,7 @@ export function CalendarModal({
   // you push into a day's detail (like the "see solution" view).
   return (
     <Modal
+      eyebrow={selected ? calLabel : "Calendar"}
       title={selected ? fmtShortDate(selected) : calLabel}
       onClose={onClose}
       onBack={selected ? () => setSelected(null) : undefined}
@@ -107,28 +108,22 @@ export function CalendarModal({
       <div>
         {selected ? (
           <>
-            <p className="text-sm text-muted-foreground">
-              {selectedProblems.length} solved {whoLabel === "You" ? "by you" : `by ${whoLabel}`}
+            <p className="m-0 flex items-baseline gap-2">
+              <span className="font-display text-[34px] font-light leading-none">{selectedProblems.length}</span>
+              <span className="text-[15px] text-muted-foreground">solved {whoLabel === "You" ? "by you" : `by ${whoLabel}`}</span>
             </p>
             {selectedProblems.length === 0 ? (
               <p className="mt-5 text-sm text-muted-foreground">No problem details for this day.</p>
             ) : (
-              <ul className="mt-5 divide-y divide-border">
+              <ul className="m-0 mt-5 list-none border-b border-border p-0">
                 {selectedProblems.map((p) => {
                   const ref: ProblemRef = { name: p.name, slug: p.slug, diff: p.diff };
                   const friend = who === "you" ? null : friends.find((f) => f.id === who) ?? null;
                   return (
-                    <li key={p.slug} className="flex items-center gap-3 py-3">
-                      <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[p.diff]}`}>
-                        {p.diff}
-                      </span>
-                      <button
-                        onClick={() => (friend ? onOpenFriendProblem(friend, ref) : onOpenProblem(ref))}
-                        className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium text-foreground transition hover:bg-muted"
-                      >
-                        Solution
-                      </button>
+                    <li key={p.slug} className="flex items-center gap-4 border-t border-border py-3.5">
+                      <span className="min-w-0 flex-1 truncate text-[15px]">{p.name}</span>
+                      <DiffLabel diff={p.diff} />
+                      <ArrowLink onClick={() => (friend ? onOpenFriendProblem(friend, ref) : onOpenProblem(ref))}>Solution</ArrowLink>
                     </li>
                   );
                 })}
@@ -145,10 +140,10 @@ export function CalendarModal({
                   setWho(id);
                   setSelected(null);
                 }}
-                className="mb-4"
+                className="mb-5 max-w-[480px]"
               />
             )}
-            <div className="flex items-center justify-between">
+            <div className="flex max-w-[480px] items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {who === "you"
             ? "Tap a day to see what you solved."
@@ -158,24 +153,26 @@ export function CalendarModal({
         </p>
         <div className="flex items-center gap-2">
           <button
+            aria-label="Previous month"
             onClick={() => stepMonth(-1)}
             disabled={atStart}
-            className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-30"
+            className="grid h-10 w-10 place-items-center rounded-full border border-border-strong transition-colors hover:bg-muted disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
+            aria-label="Next month"
             onClick={() => stepMonth(1)}
             disabled={atEnd}
-            className="grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition hover:bg-muted disabled:opacity-30"
+            className="grid h-10 w-10 place-items-center rounded-full border border-border-strong transition-colors hover:bg-muted disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
-      <div className="mt-5 grid grid-cols-7 gap-2">
+      <div className="mt-5 grid max-w-[480px] grid-cols-7 gap-1.5 border-t border-foreground pt-4">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div key={i} className="text-center text-[11px] font-medium text-muted-foreground">
+          <div key={i} className="eyebrow pb-1 text-center text-[10px]">
             {d}
           </div>
         ))}
@@ -186,19 +183,19 @@ export function CalendarModal({
           const key = keyFor(cal.year, cal.month, i + 1);
           const tone =
             count >= 3
-              ? "bg-coral text-white"
+              ? "bg-medium text-background"
               : count === 2
-              ? "bg-coral/55 text-white"
+              ? "bg-easy text-hard"
               : count === 1
-              ? "bg-coral/25 text-coral"
-              : "bg-muted text-muted-foreground";
+              ? "bg-sky text-hard"
+              : "text-muted-foreground";
           return (
             <button
               key={i}
               onClick={() => count > 0 && setSelected(key)}
               disabled={count === 0}
               title={`${i + 1}: ${count} solved`}
-              className={`group/day relative flex aspect-square items-center justify-center rounded-xl text-sm font-medium transition ${tone} ${
+              className={`group/day relative flex aspect-square items-center justify-center rounded-md font-mono text-[13px] transition ${tone} ${
                 count > 0 ? "cursor-pointer hover:opacity-90" : "cursor-default"
               }`}
             >
@@ -211,12 +208,12 @@ export function CalendarModal({
         })}
       </div>
 
-            <div className="mt-5 flex items-center justify-end gap-2 text-[11px] text-muted-foreground">
+            <div className="mt-5 flex max-w-[480px] items-center justify-end gap-2 text-[11px] text-muted-foreground">
               Less
-              <span className="h-3 w-3 rounded bg-muted" />
-              <span className="h-3 w-3 rounded bg-coral/25" />
-              <span className="h-3 w-3 rounded bg-coral/55" />
-              <span className="h-3 w-3 rounded bg-coral" />
+              <span className="h-3 w-3 rounded-sm border border-border" />
+              <span className="h-3 w-3 rounded-sm bg-sky" />
+              <span className="h-3 w-3 rounded-sm bg-easy" />
+              <span className="h-3 w-3 rounded-sm bg-medium" />
               More
             </div>
           </>
