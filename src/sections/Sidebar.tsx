@@ -5,7 +5,7 @@ import { useClerk } from "../lib/env";
 
 type ThemeMode = "auto" | "light" | "dark";
 
-export type NavItem = { label: string; onClick: () => void; badge?: string; active?: boolean };
+export type NavItem = { label: string; onClick: () => void; active?: boolean };
 
 export function KronosMark({ className = "h-[22px] w-[22px]" }: { className?: string }) {
   return (
@@ -22,20 +22,18 @@ function NavButton({ item }: { item: NavItem }) {
       type="button"
       onClick={item.onClick}
       aria-current={item.active ? "page" : undefined}
-      className={`flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-sm transition-colors ${
+      className={`flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm transition-colors ${
         item.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {item.label}
-      {item.badge && <span className="font-mono text-xs text-muted-foreground">{item.badge}</span>}
     </button>
   );
 }
 
-function NavGroup({ label, items }: { label?: string; items: NavItem[] }) {
+function NavGroup({ items }: { items: NavItem[] }) {
   return (
     <div className="flex flex-col gap-0.5">
-      {label && <div className="eyebrow px-3 pb-2">{label}</div>}
       {items.map((i) => (
         <NavButton key={i.label} item={i} />
       ))}
@@ -68,7 +66,7 @@ export function AccountMenu({
 }) {
   const [open, setOpen] = useState(false);
   const item =
-    "flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted";
+    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted";
   const pick = (fn: () => void) => () => {
     fn();
     setOpen(false);
@@ -106,8 +104,8 @@ export function AccountMenu({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className={`absolute z-50 w-64 rounded-xl border border-border bg-card p-1.5 shadow-[0_18px_40px_-18px_rgba(26,25,21,0.35)] ${
-              placement === "up" ? "bottom-full left-0 mb-2" : "right-0 top-full mt-2"
+            className={`absolute z-50 rounded-xl border border-border bg-card p-1.5 shadow-[0_18px_40px_-18px_rgba(26,25,21,0.35)] ${
+              placement === "up" ? "bottom-full left-0 mb-2 w-64" : "right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)]"
             }`}
           >
             <div className="eyebrow px-3 py-2">Theme</div>
@@ -153,37 +151,43 @@ export function AccountMenu({
   );
 }
 
-export function Sidebar({
-  primary,
-  study,
-  account,
-}: {
-  primary: NavItem[];
-  study: NavItem[];
-  account: ReactNode;
-}) {
+export function Sidebar({ items, account }: { items: NavItem[]; account: ReactNode }) {
   return (
-    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-7 overflow-y-auto border-r border-border bg-sidebar px-4 py-7 lg:flex">
+    <aside className="sticky top-0 z-30 hidden h-dvh w-60 shrink-0 flex-col gap-7 border-r border-border bg-sidebar px-4 py-7 lg:flex">
       <div className="flex items-center gap-2.5 px-3">
         <KronosMark />
         <span className="font-display text-2xl">Kronos</span>
       </div>
-      <nav aria-label="Primary" className="flex flex-col gap-7">
-        <NavGroup items={primary} />
-        <NavGroup label="Study" items={study} />
+      <nav aria-label="Primary">
+        <NavGroup items={items} />
       </nav>
       <div className="mt-auto border-t border-border pt-3">{account}</div>
     </aside>
   );
 }
 
-export function MobileBar({ account }: { account: ReactNode }) {
+export function MobileBar({ items, account }: { items: NavItem[]; account: ReactNode }) {
   return (
-    <header className="flex items-center justify-between border-b border-border bg-sidebar px-4 py-3 lg:hidden">
+    <header className="flex items-center justify-between gap-3 border-b border-border bg-sidebar px-4 py-2 lg:hidden">
       <div className="flex items-center gap-2">
         <KronosMark className="h-5 w-5" />
         <span className="font-display text-xl">Kronos</span>
       </div>
+      <nav aria-label="Primary" className="flex gap-1">
+        {items.map((i) => (
+          <button
+            key={i.label}
+            type="button"
+            onClick={i.onClick}
+            aria-current={i.active ? "page" : undefined}
+            className={`min-h-11 rounded-lg px-3 text-sm transition-colors ${
+              i.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {i.label}
+          </button>
+        ))}
+      </nav>
       {account}
     </header>
   );

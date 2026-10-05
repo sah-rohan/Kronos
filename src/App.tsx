@@ -22,9 +22,7 @@ import { SD_PROBLEMS } from "./systemdesign/problems";
 import { Sidebar, MobileBar, AccountMenu, type NavItem } from "./sections/Sidebar";
 import { HomeHeader } from "./sections/HomeHeader";
 import { StatStrip } from "./sections/StatStrip";
-import { CLOUD_DOCS } from "./systemdesign/cloud";
-import { NETWORKING_DOCS } from "./systemdesign/networking";
-import { inList } from "./lib/roadmaps";
+import { StudyHeader } from "./sections/StudyHeader";
 import { MyProgressCard } from "./sections/MyProgressCard";
 import { LeaderboardCard } from "./sections/LeaderboardCard";
 import { MyFriendsCard } from "./sections/MyFriendsCard";
@@ -60,7 +58,7 @@ function App({
   token?: TokenFn;
   onReloadMe?: () => void;
 }) {
-  const { removeFriend, getToken, categories } = useData();
+  const { removeFriend, getToken } = useData();
   const [linkOpen, setLinkOpen] = useState(false);
   // When a card is locked, the LockOverlay wrapper becomes the grid item, so it
   // must carry the card's column span (and fill height) for the rows to line up.
@@ -138,25 +136,14 @@ function App({
     api.setTheme(getToken, next).catch(() => {});
   };
 
-  const roadmapItems = categories.flatMap((c) => c.items).filter((p) => inList(p, roadmap));
-  const gated = (fn: () => void) => () => (lcUnlocked ? fn() : setLinkOpen(true));
-  const primaryNav: NavItem[] = [
-    { label: "Today", onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }), active: true },
-    {
-      label: "Progress",
-      onClick: gated(() => setModal("me")),
-      badge: lcUnlocked ? `${roadmapItems.filter((p) => p.done).length}/${roadmapItems.length}` : undefined,
-    },
-    { label: "Leaderboard", onClick: gated(() => setModal("leaderboard")) },
-    { label: "Friends", onClick: gated(() => setModal("friends")) },
-    { label: "Calendar", onClick: gated(openCalendar) },
-  ];
-  const studyNav: NavItem[] = [
-    { label: "System Design", onClick: () => setSdSlug(SD_PROBLEMS[0].slug) },
-    { label: "Main components", onClick: () => setSdComponents(true) },
-    { label: "AI System Design", onClick: () => setSdSlug(GENAI_PROBLEMS[0].slug) },
-    { label: "Cloud", onClick: () => setCloudTopic(CLOUD_DOCS[0].id) },
-    { label: "Networking", onClick: () => setNetworkingTopic(NETWORKING_DOCS[0].id) },
+  const [page, setPage] = useState<"home" | "study">("home");
+  const goTo = (next: "home" | "study") => {
+    setPage(next);
+    window.scrollTo({ top: 0 });
+  };
+  const nav: NavItem[] = [
+    { label: "Home", onClick: () => goTo("home"), active: page === "home" },
+    { label: "Study", onClick: () => goTo("study"), active: page === "study" },
   ];
   const account = (compact: boolean) => (
     <AccountMenu
@@ -174,48 +161,51 @@ function App({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar primary={primaryNav} study={studyNav} account={account(false)} />
+      <Sidebar items={nav} account={account(false)} />
 
       <div className="min-w-0 flex-1">
-        <MobileBar account={account(true)} />
+        <MobileBar items={nav} account={account(true)} />
         <main className="px-5 pb-[72px] pt-10 sm:px-[clamp(20px,5vw,72px)] sm:pt-12">
-          <div className="mx-auto flex max-w-[1080px] flex-col gap-12">
-            <HomeHeader userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
-            <StatStrip userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
+          {page === "home" ? (
+            <div className="mx-auto flex max-w-[1080px] flex-col gap-12">
+              <HomeHeader userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
+              <StatStrip userName={userName} roadmap={roadmap} locked={!lcUnlocked} />
 
-            {showExpiryAlert && (
-              <button
-                onClick={() => setAdminOpen(true)}
-                className="-mt-6 flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-danger/40 bg-danger/5 px-4 py-3 text-left text-sm transition-colors hover:bg-danger/10"
-              >
-                <span className="font-medium text-danger">
-                  {expiryDays! < 0 ? "LeetCode session expired" : `LeetCode session expires in ${expiryDays} day${expiryDays === 1 ? "" : "s"}`}
-                </span>
-                <span className="text-muted-foreground">
-                  {expiryDays! < 0 ? "Sync is paused until you replace the token." : "Replace it soon to keep syncing."}
-                </span>
-                <span className="ml-auto shrink-0 font-medium text-danger">Update →</span>
-              </button>
-            )}
+              {showExpiryAlert && (
+                <button
+                  onClick={() => setAdminOpen(true)}
+                  className="-mt-6 flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-danger/40 bg-danger/5 px-4 py-3 text-left text-sm transition-colors hover:bg-danger/10"
+                >
+                  <span className="font-medium text-danger">
+                    {expiryDays! < 0 ? "LeetCode session expired" : `LeetCode session expires in ${expiryDays} day${expiryDays === 1 ? "" : "s"}`}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {expiryDays! < 0 ? "Sync is paused until you replace the token." : "Replace it soon to keep syncing."}
+                  </span>
+                  <span className="ml-auto shrink-0 font-medium text-danger">Update →</span>
+                </button>
+              )}
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {lock(<LeaderboardCard onOpen={() => setModal("leaderboard")} board={board} roadmap={roadmap} userName={userName} />, "lg:col-span-2")}
-              {lock(<MyProgressCard onOpen={() => setModal("me")} board={board} onBoard={onBoard} />)}
-              {lock(<RecentActivityCard onOpen={() => setModal("recent")} onOpenModule={setSdSlug} userName={userName} />)}
-              {lock(<CurrentStreakCard onOpen={openCalendar} />)}
-              {lock(<MyFriendsCard onOpen={() => setModal("friends")} />)}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {lock(<LeaderboardCard onOpen={() => setModal("leaderboard")} board={board} roadmap={roadmap} userName={userName} />, "lg:col-span-2")}
+                {lock(<MyProgressCard onOpen={() => setModal("me")} board={board} onBoard={onBoard} />)}
+                {lock(<RecentActivityCard onOpen={() => setModal("recent")} onOpenModule={setSdSlug} userName={userName} />)}
+                {lock(<CurrentStreakCard onOpen={openCalendar} />)}
+                {lock(<MyFriendsCard onOpen={() => setModal("friends")} />)}
+              </div>
+
             </div>
-
-            <section aria-labelledby="study-heading" className="flex flex-col gap-6">
-              <h2 id="study-heading" className="m-0 font-display text-[34px] font-light leading-tight">Study</h2>
+          ) : (
+            <div className="mx-auto flex max-w-[1080px] flex-col gap-12">
+              <StudyHeader />
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <SystemDesignCard onOpen={setSdSlug} onOpenComponents={() => setSdComponents(true)} />
                 <GenAICard onOpen={setSdSlug} />
                 <CloudCard onOpen={setCloudTopic} />
                 <NetworkingCard onOpen={setNetworkingTopic} />
               </div>
-            </section>
-          </div>
+            </div>
+          )}
         </main>
       </div>
 
