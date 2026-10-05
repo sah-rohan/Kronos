@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Check, ChevronRight, UserPlus, X } from "lucide-react";
 import { Modal } from "../components/Modal";
 import { Button, PersonRow, SearchField, Tabs } from "../components/Controls";
-import { useData } from "../data/source";
+import { useData } from "../data/context";
+import { matches, normalize } from "../lib/search";
 import { api, type ApiFriend } from "../lib/api";
 import { initialsOf } from "../lib/avatar";
 import type { Friend } from "../types";
@@ -23,64 +24,44 @@ export function FriendsModal({
   const [sent, setSent] = useState<string[]>([]);
 
   const load = () => {
-    api
-      .directory(getToken)
-      .then(setPeople)
-      .catch(() => setPeople([]));
-    api
-      .friendRequests(getToken)
-      .then(setRequests)
-      .catch(() => setRequests([]));
+    api.directory(getToken).then(setPeople).catch(() => setPeople([]));
+    api.friendRequests(getToken).then(setRequests).catch(() => setRequests([]));
   };
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const request = async (username: string) => {
-    if (!username || busy) return;
-    setBusy(username);
+  // Runs an action against one person, blocking their buttons while it's in flight.
+  const busyWith = async (id: string, action: () => Promise<unknown>) => {
+    setBusy(id);
     try {
+      await action();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const request = (username: string) => {
+    if (!username || busy) return;
+    busyWith(username, async () => {
       await addFriend(username);
       setSent((s) => [...s, username]);
       setQuery("");
-    } finally {
-      setBusy(null);
-    }
+    });
   };
-
-  const accept = async (id: string) => {
-    setBusy(id);
-    try {
+  const accept = (id: string) =>
+    busyWith(id, async () => {
       await api.acceptRequest(getToken, id);
       await refresh();
       load();
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const decline = async (id: string) => {
-    setBusy(id);
-    try {
+    });
+  const decline = (id: string) =>
+    busyWith(id, async () => {
       await api.declineRequest(getToken, id);
       load();
-    } finally {
-      setBusy(null);
-    }
-  };
+    });
 
-  const q = query.trim().toLowerCase();
-  const suggestions = people.filter(
-    (p) =>
-      !q ||
-      p.name.toLowerCase().includes(q) ||
-      p.username.toLowerCase().includes(q),
-  );
-  const shownFriends = friends.filter(
-    (f) =>
-      !q ||
-      f.name.toLowerCase().includes(q) ||
-      (f.username ?? "").toLowerCase().includes(q),
-  );
-
+  const q = normalize(query);
+  const suggestions = people.filter((p) => matches(q, p.name, p.username));
+  const shownFriends = friends.filter((f) => matches(q, f.name, f.username));
 
   return (
     <Modal title="Friends" eyebrow={`${friends.length} added`} onClose={onClose}>

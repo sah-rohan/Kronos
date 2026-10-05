@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { useData } from "../data/source";
+import { useData } from "../data/context";
 import { api } from "../lib/api";
-import { greeting } from "../lib/greeting";
+import { greeting } from "../lib/date";
 
 export function HomeHeader({ userName, locked }: { userName: string; locked: boolean }) {
   const { refresh, getToken } = useData();

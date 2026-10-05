@@ -1,36 +1,26 @@
 import { ChevronDown } from "lucide-react";
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
-import { ROADMAPS, inList } from "../lib/roadmaps";
-import { SD_PROBLEMS } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
+import { useData } from "../data/context";
+import { utcDayKey } from "../lib/date";
+import { DIFFS, DIFF_BAR } from "../lib/difficulty";
+import { BOARDS, inList, isModuleBoard } from "../lib/roadmaps";
+import { modulesFor } from "../systemdesign/catalog";
 import { useSdSolved } from "../systemdesign/progress";
-import type { ProblemList } from "../types";
-
-type View = ProblemList | "sd" | "genai";
-
-const SD_OPTIONS: { key: View; label: string }[] = [
-  { key: "sd", label: "System Design" },
-  { key: "genai", label: "AI System Design" },
-];
-
-const DIFFS = [
-  { label: "Easy", bar: "bg-easy" },
-  { label: "Medium", bar: "bg-medium" },
-  { label: "Hard", bar: "bg-hard" },
-] as const;
+import type { Board } from "../types";
 
 const WEEKS = 12;
 const SHADES = ["bg-muted", "bg-sky", "bg-easy", "bg-medium"];
 
+// The last WEEKS weeks of solves, one column per week ending this Saturday.
 function ActivityGrid({ byDate }: { byDate: Record<string, number> }) {
-  const end = new Date();
+  const now = new Date();
+  const end = new Date(now);
   end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
   const days = Array.from({ length: WEEKS * 7 }, (_, i) => {
     const d = new Date(end);
     d.setUTCDate(end.getUTCDate() - (WEEKS * 7 - 1 - i));
-    const key = d.toISOString().slice(0, 10);
-    return { key, n: byDate[key] ?? 0, future: d > new Date() };
+    const key = utcDayKey(d);
+    return { key, n: byDate[key] ?? 0, future: d > now };
   });
   return (
     <div className="grid grid-flow-col grid-rows-7 gap-1" style={{ gridAutoColumns: "13px" }}>
@@ -45,26 +35,18 @@ function ActivityGrid({ byDate }: { byDate: Record<string, number> }) {
   );
 }
 
-export function MyProgressCard({
-  onOpen,
-  board,
-  onBoard,
-}: {
-  onOpen: () => void;
-  board: View;
-  onBoard: (b: View) => void;
-}) {
+export function MyProgressCard({ onOpen, board, onBoard }: { onOpen: () => void; board: Board; onBoard: (b: Board) => void }) {
   const { categories, calendar, getToken } = useData();
   const sdSolved = useSdSolved(getToken);
-  const isSD = board === "sd" || board === "genai";
+  const isSD = isModuleBoard(board);
 
-  const bars = DIFFS.map(({ label, bar }) => {
-    if (isSD) {
-      const di = (board === "genai" ? GENAI_PROBLEMS : SD_PROBLEMS).filter((p) => p.difficulty === label);
-      return { label, bar, done: di.filter((p) => sdSolved.has(p.slug)).length, total: di.length };
-    }
-    const di = categories.flatMap((c) => c.items).filter((p) => inList(p, board) && p.diff === label);
-    return { label, bar, done: di.filter((p) => p.done).length, total: di.length };
+  // Done / total per difficulty on the chosen board.
+  const items = isSD
+    ? modulesFor(board).map((p) => ({ diff: p.difficulty, done: sdSolved.has(p.slug) }))
+    : categories.flatMap((c) => c.items).filter((p) => inList(p, board));
+  const bars = DIFFS.map((label) => {
+    const di = items.filter((p) => p.diff === label);
+    return { label, done: di.filter((p) => p.done).length, total: di.length };
   });
 
   return (
@@ -74,15 +56,14 @@ export function MyProgressCard({
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <select
             value={board}
-            onChange={(e) => onBoard(e.target.value as View)}
+            onChange={(e) => onBoard(e.target.value as Board)}
             aria-label="Roadmap"
             className="appearance-none rounded-full border border-border bg-transparent py-1.5 pl-3 pr-7 text-[13px] text-muted-foreground outline-none transition-colors hover:bg-muted"
           >
-            {ROADMAPS.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
-            ))}
-            {SD_OPTIONS.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
+            {BOARDS.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.label}
+              </option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -98,7 +79,7 @@ export function MyProgressCard({
             </span>
           </div>
           <div className="h-[3px] overflow-hidden rounded-sm bg-border">
-            <div className={`h-full ${s.bar}`} style={{ width: `${s.total ? (s.done / s.total) * 100 : 0}%` }} />
+            <div className={`h-full ${DIFF_BAR[s.label]}`} style={{ width: `${s.total ? (s.done / s.total) * 100 : 0}%` }} />
           </div>
         </div>
       ))}

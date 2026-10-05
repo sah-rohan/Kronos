@@ -1,8 +1,9 @@
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
+import { Avatar } from "../components/Controls";
+import { useData } from "../data/context";
 import { fmtShortDate } from "../lib/date";
-
-const SHADE: Record<string, string> = { Easy: "bg-easy", Medium: "bg-medium", Hard: "bg-hard" };
+import { DIFF_BAR } from "../lib/difficulty";
+import type { RecentItem } from "../types";
 
 export function MyFriendsCard({ onOpen }: { onOpen: () => void }) {
   const { friends, members, recent, friendsDifficulty } = useData();
@@ -10,9 +11,10 @@ export function MyFriendsCard({ onOpen }: { onOpen: () => void }) {
 
   const rows = friends.slice(0, 4).map((f) => {
     const member = members.find((m) => m.username === f.username || m.name === f.name);
+    // Their most recent solve in the group feed.
     const last = recent
       .filter((r) => r.who.some((p) => p.name === f.name))
-      .reduce<(typeof recent)[number] | undefined>((a, r) => (!a || (r.at ?? "") > (a.at ?? "") ? r : a), undefined);
+      .reduce<RecentItem | undefined>((a, r) => (!a || (r.at ?? "") > (a.at ?? "") ? r : a), undefined);
     return {
       f,
       solved: member?.solved,
@@ -34,9 +36,7 @@ export function MyFriendsCard({ onOpen }: { onOpen: () => void }) {
         <ul className="m-0 list-none p-0">
           {rows.map(({ f, solved, line }) => (
             <li key={f.id} className="flex items-center gap-3.5 border-t border-border py-3">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-border-strong text-xs font-medium">
-                {f.initials}
-              </span>
+              <Avatar size="sm" initials={f.initials} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px] font-medium">{f.name}</span>
                 <span className="block truncate text-[13px] text-muted-foreground">{line}</span>
@@ -50,7 +50,7 @@ export function MyFriendsCard({ onOpen }: { onOpen: () => void }) {
         <div className="mt-auto flex flex-col gap-2.5">
           <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-sm">
             {friendsDifficulty.map((d) => (
-              <span key={d.label} className={SHADE[d.label] ?? "bg-easy"} style={{ flex: d.val }} />
+              <span key={d.label} className={DIFF_BAR[d.label] ?? "bg-easy"} style={{ flex: d.val }} />
             ))}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

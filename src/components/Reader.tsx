@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { IconButton } from "./Modal";
 import { useEscape } from "../lib/useEscape";
+import { num } from "../lib/format";
 
 export function ReaderPage({
   crumbs,
@@ -96,7 +97,7 @@ export function ReaderNavItem({
       }`}
     >
       {index !== undefined && (
-        <span className={`font-mono text-xs ${done ? "text-accent" : "text-muted-foreground"}`}>{String(index + 1).padStart(2, "0")}</span>
+        <span className={`font-mono text-xs ${done ? "text-accent" : "text-muted-foreground"}`}>{num(index)}</span>
       )}
       <span className="whitespace-nowrap lg:whitespace-normal">{children}</span>
     </button>
@@ -178,5 +179,58 @@ export function Prose({ paragraphs }: { paragraphs: string[] }) {
         </p>
       ))}
     </div>
+  );
+}
+
+// A full-page reader over a list of topics: a rail to jump between them, one
+// article per topic, and a "next" link at the bottom of each.
+export function TopicReader<T extends { id: string; name: string; tagline: string }>({
+  docs,
+  initialId,
+  crumb,
+  navLabel,
+  eyebrow,
+  numbered = false,
+  nextLabel = "Next topic",
+  onClose,
+  children,
+}: {
+  docs: T[];
+  initialId?: string;
+  crumb: string;
+  navLabel: string;
+  eyebrow: (index: number) => string;
+  numbered?: boolean;
+  nextLabel?: string;
+  onClose: () => void;
+  children: (doc: T) => ReactNode;
+}) {
+  const [index, setIndex] = useState(() => Math.max(0, docs.findIndex((d) => d.id === initialId)));
+  const active = docs[index];
+  const next = docs[index + 1];
+  return (
+    <ReaderPage
+      crumbs={["Study", crumb, active.name]}
+      onClose={onClose}
+      scrollKey={active.id}
+      aside={
+        <ReaderNav label={navLabel}>
+          {docs.map((d, i) => (
+            <ReaderNavItem key={d.id} index={numbered ? i : undefined} active={i === index} onClick={() => setIndex(i)}>
+              {d.name}
+            </ReaderNavItem>
+          ))}
+        </ReaderNav>
+      }
+    >
+      <Article eyebrow={eyebrow(index)} title={active.name} tagline={active.tagline}>
+        {children(active)}
+        {next && (
+          <footer className="flex justify-end border-t border-border pt-5">
+            <NextLink label={nextLabel} title={next.name} onClick={() => setIndex(index + 1)} />
+          </footer>
+        )}
+      </Article>
+    </ReaderPage>
   );
 }

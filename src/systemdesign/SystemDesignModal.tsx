@@ -4,10 +4,11 @@ import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
 import { SystemDiagram } from "./SystemDiagram";
 import { ConceptDiagram } from "./ConceptDiagrams";
-import { GENAI_PROBLEMS } from "./genai";
+import { TRACK_LABEL, trackOf } from "./catalog";
 import { markCompleted, readLastPosition, saveLastPosition } from "./progress";
 import { ReaderNav, ReaderNavItem, ReaderPage } from "../components/Reader";
-import { useData } from "../data/source";
+import { StepButton } from "../components/Controls";
+import { useData } from "../data/context";
 import { api } from "../lib/api";
 import { useCanvasSupported } from "../lib/useCanvasSupported";
 
@@ -22,7 +23,7 @@ export function SystemDesignModal({
 }) {
   const { getToken } = useData();
   const canvasOk = useCanvasSupported();
-  const track = GENAI_PROBLEMS.some((p) => p.slug === problem.slug) ? "AI System Design" : "System Design";
+  const track = TRACK_LABEL[trackOf(problem.slug)];
   const [stage, setStage] = useState<Stage>("learn");
   const [slide, setSlide] = useState(() => {
     const last = readLastPosition();
@@ -34,8 +35,6 @@ export function SystemDesignModal({
 
   const [walkStep, setWalkStep] = useState(0);
   const totalSteps = problem.connections.length + (problem.returns?.length ?? 0);
-  // Restart the walkthrough whenever we land on (or leave) the walk slide.
-  useEffect(() => setWalkStep(0), [slide]);
 
   // Intro slides, then a flow walkthrough, then one slide per component so every
   // part is explained before the user has to place it.
@@ -59,6 +58,7 @@ export function SystemDesignModal({
   const goTo = (i: number) => {
     setSlide(i);
     setFurthest((f) => Math.max(f, i));
+    setWalkStep(0); // restart the walkthrough whenever we land on (or leave) the walk slide
   };
 
   const onSolved = () => {
@@ -169,24 +169,17 @@ export function SystemDesignModal({
                         Hop {walkStep + 1} of {totalSteps}
                       </span>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          aria-label="Previous hop"
-                          onClick={() => setWalkStep((s) => Math.max(0, s - 1))}
-                          disabled={walkStep === 0}
-                          className="grid h-10 w-10 place-items-center rounded-full border border-border-strong transition-colors hover:bg-muted disabled:opacity-30"
-                        >
+                        <StepButton label="Previous hop" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>
                           <ArrowLeft className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Next hop"
+                        </StepButton>
+                        <StepButton
+                          primary
+                          label="Next hop"
                           onClick={() => setWalkStep((s) => Math.min(totalSteps - 1, s + 1))}
                           disabled={walkStep >= totalSteps - 1}
-                          className="grid h-10 w-10 place-items-center rounded-full bg-ink text-ink-foreground transition-opacity hover:opacity-90 disabled:opacity-30"
                         >
                           <ArrowRight className="h-4 w-4" />
-                        </button>
+                        </StepButton>
                       </div>
                     </div>
                     {ef && (

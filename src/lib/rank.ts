@@ -1,6 +1,10 @@
+import { countByDiff, type DiffCounts } from "./difficulty";
 import type { Category, ProblemList } from "../types";
 
-export const DIFF_WEIGHTS = { easy: 1, medium: 4, hard: 7 } as const;
+type DiffKey = keyof DiffCounts;
+
+const DIFF_WEIGHTS: Record<DiffKey, number> = { easy: 1, medium: 4, hard: 7 };
+const DIFF_KEYS: DiffKey[] = ["easy", "medium", "hard"];
 
 export type Tier = "Bronze" | "Silver" | "Gold" | "Platinum";
 
@@ -8,23 +12,10 @@ export type RankInfo = {
   rating: number; // 0–100, weighted by difficulty (100 = solved everything)
   tier: Tier;
   text: string; // text color for the tier label
-  badge: string; // pill classes (tinted bg + colored text)
   dot: string; // solid bg color for a small tier dot
 };
 
-export function maxWeighted(categories: Category[]): number {
-  let e = 0,
-    m = 0,
-    h = 0;
-  for (const c of categories)
-    for (const p of c.items) {
-      if (p.diff === "Easy") e++;
-      else if (p.diff === "Medium") m++;
-      else h++;
-    }
-  return e * DIFF_WEIGHTS.easy + m * DIFF_WEIGHTS.medium + h * DIFF_WEIGHTS.hard;
-}
-
+// Ascending, so the last tier whose min you've reached is yours.
 export const TIER_MINS: { tier: Tier; min: number }[] = [
   { tier: "Bronze", min: 0 },
   { tier: "Silver", min: 25 },
@@ -32,122 +23,86 @@ export const TIER_MINS: { tier: Tier; min: number }[] = [
   { tier: "Platinum", min: 75 },
 ];
 
+const TIER_STYLES: Record<Tier, { text: string; dot: string }> = {
+  Bronze: { text: "text-[#9a5420] dark:text-[#e0a274]", dot: "bg-[#e08a4b]" },
+  Silver: { text: "text-[#5f6b78] dark:text-[#b9c3cf]", dot: "bg-[#aab6c6]" },
+  Gold: { text: "text-[#8a6500] dark:text-[#e8c25a]", dot: "bg-[#f4b400]" },
+  Platinum: { text: "text-[#1d6f80] dark:text-[#7fd6e6]", dot: "bg-[#22d3ee]" },
+};
+
+const weight = (c: DiffCounts) => DIFF_KEYS.reduce((n, d) => n + c[d] * DIFF_WEIGHTS[d], 0);
+
+// The weighted score of solving every problem in the catalog.
+export const maxWeighted = (categories: Category[]) => weight(countByDiff(categories.flatMap((c) => c.items)));
+
+// Rating curve: 0.6·√r + 0.4·r, so early solves move the needle more.
+const ratingFor = (ratio: number) => Math.round((0.6 * Math.sqrt(ratio) + 0.4 * ratio) * 100);
+
+// Inverse of the rating curve: the weighted score a rating needs.
 function earnedForRating(rating: number, maxWeight: number): number {
-  const R = rating / 100;
-  const s = (-0.6 + Math.sqrt(0.36 + 1.6 * R)) / 0.8; 
+  const s = (-0.6 + Math.sqrt(0.36 + 1.6 * (rating / 100))) / 0.8;
   return s * s * maxWeight;
 }
 
-export type NextOption =
-  | { diff: "easy" | "medium" | "hard"; count: number }
-  | {
-      combo: [
-        { diff: "easy" | "medium" | "hard"; count: number },
-        { diff: "easy" | "medium" | "hard"; count: number },
-      ];
-    };
+export function rankFor(solved: DiffCounts, maxWeight: number): RankInfo {
+  const ratio = maxWeight > 0 ? Math.min(1, weight(solved) / maxWeight) : 0;
+  const rating = ratingFor(ratio);
+  const { tier } = TIER_MINS.findLast((t) => rating >= t.min)!;
+  return { rating, tier, ...TIER_STYLES[tier] };
+}
+
+type Step = { diff: DiffKey; count: number };
+export type NextOption = Step | { combo: [Step, Step] };
 
 // How far to the next tier, as "~N more of a difficulty". Only difficulties with
 // enough problems left in the catalog to actually get you there are returned, so
 // we never suggest solving more than exist.
 export function nextRank(
-  easy: number,
-  medium: number,
-  hard: number,
+  solved: DiffCounts,
   maxWeight: number,
-  totals: { easy: number; medium: number; hard: number },
+  totals: DiffCounts,
 ): { tier: Tier; min: number; opts: NextOption[] } | null {
-  const { rating } = rankFor(easy, medium, hard, maxWeight);
+  const { rating } = rankFor(solved, maxWeight);
   const next = TIER_MINS.find((t) => t.min > rating);
   if (!next) return null; // already Platinum
 
-  const earned = easy * DIFF_WEIGHTS.easy + medium * DIFF_WEIGHTS.medium + hard * DIFF_WEIGHTS.hard;
-  const need = Math.max(0, earnedForRating(next.min, maxWeight) - earned);
-  const remaining = {
-    easy: Math.max(0, totals.easy - easy),
-    medium: Math.max(0, totals.medium - medium),
-    hard: Math.max(0, totals.hard - hard),
-  };
+  const need = Math.max(0, earnedForRating(next.min, maxWeight) - weight(solved));
+  const left = (d: DiffKey) => Math.max(0, totals[d] - solved[d]);
 
-const singles = (["easy", "medium", "hard"] as const).flatMap<NextOption>((d) => {
+  const singles = DIFF_KEYS.flatMap<NextOption>((d) => {
     const count = Math.max(1, Math.ceil(need / DIFF_WEIGHTS[d]));
-    return count <= remaining[d] ? [{ diff: d, count }] : [];
+    return count <= left(d) ? [{ diff: d, count }] : [];
   });
 
-  // Combos: pairs of difficulties, only surfaced when neither one alone (given
-  // what's left in the catalog) can close the gap, but the two together can.
-  // We max out the heavier/scarcer difficulty first since it's more weight-efficient,
-  // then top up with the lighter one for whatever's left over.
-  type DiffInfo = { diff: "easy" | "medium" | "hard"; weight: number; remaining: number };
-  const info = (d: "easy" | "medium" | "hard"): DiffInfo => ({
-    diff: d,
-    weight: DIFF_WEIGHTS[d],
-    remaining: remaining[d],
-  });
-
-  function comboFor(lo: DiffInfo, hi: DiffInfo): NextOption | null {
-    if (need <= 0 || lo.remaining <= 0 || hi.remaining <= 0) return null;
-    const hiCount = Math.min(hi.remaining, Math.ceil(need / hi.weight));
-    const leftover = need - hiCount * hi.weight;
-    if (leftover <= 0) return null; // hi alone would've been enough -> that's a single, skip
-    const loCount = Math.ceil(leftover / lo.weight);
-    if (loCount <= 0 || loCount > lo.remaining) return null;
-    return {
-      combo: [
-        { diff: lo.diff, count: loCount },
-        { diff: hi.diff, count: hiCount },
-      ],
-    };
-  }
-
-  const pairs: [DiffInfo, DiffInfo][] = [
-    [info("easy"), info("medium")],
-    [info("medium"), info("hard")],
-    [info("easy"), info("hard")],
-  ];
-  const combos = pairs.flatMap<NextOption>((pair) => {
-    const c = comboFor(pair[0], pair[1]);
-    return c ? [c] : [];
-  });
-
-  return { tier: next.tier, min: next.min, opts: [...singles, ...combos] };
-}
-
-export function rankFor(
-  easy: number,
-  medium: number,
-  hard: number,
-  maxWeight: number,
-): RankInfo {
-  const earned = easy * DIFF_WEIGHTS.easy + medium * DIFF_WEIGHTS.medium + hard * DIFF_WEIGHTS.hard;
-  const ratio = maxWeight > 0 ? Math.min(1, earned / maxWeight) : 0;
-  const rating = Math.round((0.6 * Math.sqrt(ratio) + 0.4 * ratio) * 100);
-
-  let tier: Tier;
-  if (rating >= 75) tier = "Platinum";
-  else if (rating >= 50) tier = "Gold";
-  else if (rating >= 25) tier = "Silver";
-  else tier = "Bronze";
-
-  const styles: Record<Tier, { text: string; badge: string; dot: string }> = {
-    Bronze: { text: "text-[#9a5420] dark:text-[#e0a274]", badge: "bg-[#e08a4b]/15 text-[#e08a4b]", dot: "bg-[#e08a4b]" },
-    Silver: { text: "text-[#5f6b78] dark:text-[#b9c3cf]", badge: "bg-[#aab6c6]/15 text-[#aab6c6]", dot: "bg-[#aab6c6]" },
-    Gold: { text: "text-[#8a6500] dark:text-[#e8c25a]", badge: "bg-[#f4b400]/15 text-[#f4b400]", dot: "bg-[#f4b400]" },
-    Platinum: { text: "text-[#1d6f80] dark:text-[#7fd6e6]", badge: "bg-[#22d3ee]/15 text-[#22d3ee]", dot: "bg-[#22d3ee]" },
+  // Combos: pairs of difficulties, only surfaced when the heavier one alone
+  // (given what's left in the catalog) can't close the gap but the two together
+  // can. Max out the heavier difficulty first since it's more weight-efficient,
+  // then top up with the lighter one.
+  const combo = (lo: DiffKey, hi: DiffKey): NextOption[] => {
+    if (need <= 0 || left(lo) <= 0 || left(hi) <= 0) return [];
+    const hiCount = Math.min(left(hi), Math.ceil(need / DIFF_WEIGHTS[hi]));
+    const leftover = need - hiCount * DIFF_WEIGHTS[hi];
+    if (leftover <= 0) return []; // hi alone is enough - that's a single
+    const loCount = Math.ceil(leftover / DIFF_WEIGHTS[lo]);
+    if (loCount > left(lo)) return [];
+    return [{ combo: [{ diff: lo, count: loCount }, { diff: hi, count: hiCount }] }];
   };
-  return { rating, tier, ...styles[tier] };
+
+  return {
+    tier: next.tier,
+    min: next.min,
+    opts: [...singles, ...combo("easy", "medium"), ...combo("medium", "hard"), ...combo("easy", "hard")],
+  };
 }
 
+// Sort by solved count on a list; ties share a rank (1, 2, 2, 4).
 export function rankMembers<T extends { solvedByList: Record<ProblemList, number> }>(members: T[], list: ProblemList) {
-  let lastVal: number | null = null;
-  let lastRank = 0;
-  return [...members]
-    .sort((a, b) => (b.solvedByList[list] ?? 0) - (a.solvedByList[list] ?? 0))
-    .map((m, i) => {
-      const v = m.solvedByList[list] ?? 0;
-      const rank = i > 0 && v === lastVal ? lastRank : i + 1;
-      lastVal = v;
-      lastRank = rank;
-      return { m, rank, solved: v };
-    });
+  const sorted = [...members].sort((a, b) => (b.solvedByList[list] ?? 0) - (a.solvedByList[list] ?? 0));
+  const out: { m: T; rank: number; solved: number }[] = [];
+  sorted.forEach((m, i) => {
+    const solved = m.solvedByList[list] ?? 0;
+    const rank = i > 0 && solved === out[i - 1].solved ? out[i - 1].rank : i + 1;
+    out.push({ m, rank, solved });
+  });
+  return out;
 }

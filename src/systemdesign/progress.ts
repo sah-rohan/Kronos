@@ -1,57 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { api, type TokenFn } from "../lib/api";
+import { readJSON, write } from "../lib/storage";
 
-// System Design completion is stored locally for now (standalone feature).
+// Completed modules: kept locally so they show instantly, merged with the
+// server's list once it loads. One shared store, so every view stays in sync
+// and the server is asked once rather than by each component.
 const KEY = "kronos.sd.completed";
 
-function read(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
-  } catch {
-    return [];
-  }
+let solved = new Set<string>(readJSON<string[]>(KEY, []));
+let fetched: TokenFn | null = null;
+const listeners = new Set<() => void>();
+
+function update(slugs: Iterable<string>) {
+  solved = new Set([...solved, ...slugs]);
+  listeners.forEach((l) => l());
 }
 
-export function isCompleted(slug: string): boolean {
-  return read().includes(slug);
-}
-
-export function completedSet(): Set<string> {
-  return new Set(read());
-}
-
-export function completedCount(): number {
-  return read().length;
-}
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
 
 export function markCompleted(slug: string): void {
-  const cur = read();
-  if (!cur.includes(slug)) localStorage.setItem(KEY, JSON.stringify([...cur, slug]));
+  const local = readJSON<string[]>(KEY, []);
+  if (!local.includes(slug)) write(KEY, JSON.stringify([...local, slug]));
+  if (!solved.has(slug)) update([slug]);
 }
 
 export function useSdSolved(getToken: TokenFn): Set<string> {
-  const [solved, setSolved] = useState<Set<string>>(() => completedSet());
   useEffect(() => {
-    api.sdSolved(getToken).then((s) => setSolved(new Set([...completedSet(), ...(s ?? [])]))).catch(() => {});
+    if (fetched === getToken) return;
+    fetched = getToken;
+    api.sdSolved(getToken).then((s) => update(s ?? [])).catch(() => {});
   }, [getToken]);
-  return solved;
+  return useSyncExternalStore(subscribe, () => solved);
 }
 
 export type LastPosition = { slug: string; slide: number; total: number; title: string };
 const LAST_KEY = "kronos.sd.last";
 
-export function readLastPosition(): LastPosition | null {
-  try {
-    return JSON.parse(localStorage.getItem(LAST_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
-
-export function saveLastPosition(p: LastPosition): void {
-  try {
-    localStorage.setItem(LAST_KEY, JSON.stringify(p));
-  } catch {
-    /* storage unavailable */
-  }
-}
+export const readLastPosition = () => readJSON<LastPosition | null>(LAST_KEY, null);
+export const saveLastPosition = (p: LastPosition) => write(LAST_KEY, JSON.stringify(p));

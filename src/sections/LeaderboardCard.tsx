@@ -1,30 +1,61 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Flame } from "lucide-react";
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
-import { api, type SdLeader } from "../lib/api";
-import { ROADMAP_LABEL, listTotal } from "../lib/roadmaps";
-import { rankFor, maxWeighted, rankMembers } from "../lib/rank";
+import { Avatar } from "../components/Controls";
+import { useData } from "../data/context";
+import { useSdLeaderboard } from "../data/hooks";
 import { initialsOf } from "../lib/avatar";
-import { SD_PROBLEMS } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
-import type { ProblemList } from "../types";
+import { ROADMAP_LABEL, isModuleBoard, listTotal } from "../lib/roadmaps";
+import { rankFor, maxWeighted, rankMembers } from "../lib/rank";
+import { TRACK_LABEL, modulesFor } from "../systemdesign/catalog";
+import type { Board, ProblemList } from "../types";
 
-type Row = { key: string; rank: number; name: string; initials: string; sub: ReactNode; count: number; dot?: string };
+const TOP = 4;
 
-function Board({
-  scope,
-  rows,
-  total,
-  userName,
+type Row = { key: string; rank: number; name: string; initials: string; sub: string; count: number; dot?: string };
+
+export function LeaderboardCard({
   onOpen,
+  board,
+  roadmap,
+  userName,
 }: {
-  scope: string;
-  rows: Row[];
-  total: number;
-  userName: string;
   onOpen: () => void;
+  board: Board;
+  roadmap: ProblemList;
+  userName: string;
 }) {
+  const { members, categories } = useData();
+  const track = isModuleBoard(board) ? board : null;
+  const sdLeaders = useSdLeaderboard(track);
+
+  let scope: string, total: number, rows: Row[];
+  if (track) {
+    scope = TRACK_LABEL[track];
+    total = modulesFor(track).length;
+    rows = sdLeaders.slice(0, TOP).map((l, i) => ({
+      key: l.name,
+      rank: i + 1,
+      name: l.name,
+      initials: initialsOf(l.name),
+      sub: l.username ? `@${l.username}` : "",
+      count: l.count,
+    }));
+  } else {
+    const maxW = maxWeighted(categories);
+    scope = ROADMAP_LABEL[roadmap];
+    total = listTotal(categories, roadmap);
+    rows = rankMembers(members, roadmap)
+      .slice(0, TOP)
+      .map(({ m, rank, solved }) => ({
+        key: m.name,
+        rank,
+        name: m.name,
+        initials: m.initials,
+        count: solved,
+        dot: rankFor(m.byDiff, maxW).dot,
+        sub: `@${m.username}`,
+      }));
+  }
+
   return (
     <Card className="h-full lg:col-span-2" onClick={onOpen}>
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -42,14 +73,9 @@ function Board({
               }`}
             >
               <span className="w-6 font-display text-xl text-muted-foreground tabular-nums">{r.rank}</span>
-              <span
-                className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-medium ${
-                  me ? "bg-ink text-ink-foreground" : "bg-border-strong text-foreground"
-                }`}
-              >
-                {r.initials}
+              <Avatar size="sm" me={me} initials={r.initials} className="relative">
                 {r.dot && <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${r.dot}`} />}
-              </span>
+              </Avatar>
               <span className="min-w-0 flex-1 sm:w-52 sm:flex-none">
                 <span className="block truncate text-[15px] font-medium">{r.name}</span>
                 <span className="block truncate text-[13px] text-muted-foreground">{me ? "you" : r.sub}</span>
@@ -70,78 +96,5 @@ function Board({
         {rows.length === 0 && <li className="border-t border-border py-6 text-sm text-muted-foreground">No members yet.</li>}
       </ul>
     </Card>
-  );
-}
-
-export function LeaderboardCard({
-  onOpen,
-  board,
-  roadmap,
-  userName,
-}: {
-  onOpen: () => void;
-  board: ProblemList | "sd" | "genai";
-  roadmap: ProblemList;
-  userName: string;
-}) {
-  const { members, categories, getToken } = useData();
-  const isSD = board === "sd" || board === "genai";
-
-  const [sdLeaders, setSdLeaders] = useState<SdLeader[]>([]);
-  useEffect(() => {
-    if (isSD) {
-      api
-        .sdLeaderboard(getToken, board === "genai" ? "genai" : "design")
-        .then((l) => setSdLeaders(l ?? []))
-        .catch(() => setSdLeaders([]));
-    }
-  }, [isSD, board, getToken]);
-
-  if (isSD) {
-    return (
-      <Board
-        scope={board === "genai" ? "AI System Design" : "System Design"}
-        total={board === "genai" ? GENAI_PROBLEMS.length : SD_PROBLEMS.length}
-        userName={userName}
-        onOpen={onOpen}
-        rows={sdLeaders.slice(0, 4).map((l, i) => ({
-          key: l.name,
-          rank: i + 1,
-          name: l.name,
-          initials: initialsOf(l.name),
-          sub: l.username ? `@${l.username}` : "",
-          count: l.count,
-        }))}
-      />
-    );
-  }
-
-  const maxW = maxWeighted(categories);
-  return (
-    <Board
-      scope={ROADMAP_LABEL[roadmap]}
-      total={listTotal(categories, roadmap)}
-      userName={userName}
-      onOpen={onOpen}
-      rows={rankMembers(members, roadmap)
-        .slice(0, 4)
-        .map(({ m, rank, solved }) => ({
-          key: m.name,
-          rank,
-          name: m.name,
-          initials: m.initials,
-          count: solved,
-          dot: rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW).dot,
-          sub:
-            m.streak != null ? (
-              <span className="inline-flex items-center gap-1">
-                <Flame className="h-3 w-3 text-accent" />
-                {m.streak}-day streak
-              </span>
-            ) : (
-              `@${m.username}`
-            ),
-        }))}
-    />
   );
 }

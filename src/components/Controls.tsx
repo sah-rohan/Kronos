@@ -57,9 +57,51 @@ export function SearchField({
   );
 }
 
+const DIFF_TONE: Record<string, string> = { Medium: "text-medium", Hard: "font-semibold text-hard" };
+
 export function DiffLabel({ diff }: { diff: string }) {
-  const tone = diff === "Hard" ? "font-semibold text-hard" : diff === "Medium" ? "text-medium" : "";
-  return <span className={`eyebrow shrink-0 ${tone}`}>{diff}</span>;
+  return <span className={`eyebrow shrink-0 ${DIFF_TONE[diff] ?? ""}`}>{diff}</span>;
+}
+
+// The big number + caption line that heads a list ("12 of 150 solved …").
+export function Tally({ value, children, className = "" }: { value: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <p className={`m-0 flex items-baseline gap-2 ${className}`}>
+      <span className="font-display text-[34px] font-light leading-none">{value}</span>
+      <span className="text-[15px] text-muted-foreground">{children}</span>
+    </p>
+  );
+}
+
+// Round prev/next arrow button.
+export function StepButton({
+  label,
+  onClick,
+  disabled,
+  primary = false,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  primary?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full disabled:opacity-30 ${
+        primary
+          ? "bg-ink text-ink-foreground transition-opacity hover:opacity-90"
+          : "border border-border-strong transition-colors hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function ArrowLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
@@ -77,14 +119,28 @@ export function ArrowLink({ children, onClick }: { children: ReactNode; onClick:
   );
 }
 
-export function Avatar({ initials, className = "", me = false }: { initials: string; className?: string; me?: boolean }) {
+// Initials in a circle; `me` marks the signed-in user.
+export function Avatar({
+  initials,
+  me = false,
+  size = "md",
+  className = "",
+  children,
+}: {
+  initials: string;
+  me?: boolean;
+  size?: "sm" | "md";
+  className?: string;
+  children?: ReactNode;
+}) {
   return (
     <span
-      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-medium ${
+      className={`grid shrink-0 place-items-center rounded-full text-xs font-medium ${size === "sm" ? "h-8 w-8" : "h-9 w-9"} ${
         me ? "bg-ink text-ink-foreground" : "bg-border-strong text-foreground"
       } ${className}`}
     >
       {initials}
+      {children}
     </span>
   );
 }
@@ -126,6 +182,12 @@ export function PersonRow({
   );
 }
 
+const BUTTON_LOOK = {
+  primary: "bg-ink text-ink-foreground hover:opacity-90",
+  secondary: "border border-border-strong text-foreground hover:bg-muted",
+  danger: "border border-danger/50 text-danger hover:bg-danger/10",
+};
+
 export function Button({
   children,
   onClick,
@@ -141,19 +203,13 @@ export function Button({
   className?: string;
   title?: string;
 }) {
-  const look =
-    variant === "primary"
-      ? "bg-ink text-ink-foreground hover:opacity-90"
-      : variant === "danger"
-        ? "border border-danger/50 text-danger hover:bg-danger/10"
-        : "border border-border-strong text-foreground hover:bg-muted";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition disabled:opacity-50 ${look} ${className}`}
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition disabled:opacity-50 ${BUTTON_LOOK[variant]} ${className}`}
     >
       {children}
     </button>

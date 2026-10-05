@@ -32,60 +32,62 @@ async function call<T>(path: string, getToken: TokenFn, init?: RequestInit): Pro
   return res.json() as Promise<T>;
 }
 
+const get = <T>(path: string, t: TokenFn) => call<T>(path, t);
+const post = (path: string, t: TokenFn, body?: object) =>
+  call(path, t, { method: "POST", body: body && JSON.stringify(body) });
+const del = (path: string, t: TokenFn) => call(path, t, { method: "DELETE" });
+
+const recentQ = (recent: boolean) => (recent ? "?recent=1" : "");
+const kindQ = (kind?: SdKind) => (kind ? `?kind=${kind}` : "");
+
+export type SdKind = "design" | "genai";
+
+// A 409 means the LeetCode username is already linked to someone else.
+export const isConflict = (e: unknown) => String(e).includes("409");
+
 export const api = {
-  me: (t: TokenFn) => call<MeResponse>("/me", t),
-  setProfile: (t: TokenFn, username: string, github: string) =>
-    call("/me/profile", t, { method: "POST", body: JSON.stringify({ username, github }) }),
-  syncNow: (t: TokenFn) => call("/me/sync", t, { method: "POST" }),
-  visit: (t: TokenFn) => call("/me/visit", t, { method: "POST" }),
-  sdSolved: (t: TokenFn) => call<string[]>("/me/sd", t),
-  sdSolve: (t: TokenFn, slug: string) => call(`/me/sd/${slug}`, t, { method: "POST" }),
-  sdLeaderboard: (t: TokenFn, kind?: "design" | "genai") =>
-    call<SdLeader[]>(`/sd/leaderboard${kind ? `?kind=${kind}` : ""}`, t),
-  sdActivity: (t: TokenFn, kind?: "design" | "genai") =>
-    call<SdActivity[]>(`/sd/activity${kind ? `?kind=${kind}` : ""}`, t),
-  mySdActivity: (t: TokenFn) => call<SdActivity[]>("/me/sd/activity", t),
-  requestUsername: (t: TokenFn, username: string) =>
-    call("/me/username-request", t, { method: "POST", body: JSON.stringify({ username }) }),
-  setTheme: (t: TokenFn, theme: string) =>
-    call("/me/theme", t, { method: "POST", body: JSON.stringify({ theme }) }),
-  progress: (t: TokenFn) => call<ApiProblem[]>("/me/progress", t),
-  leaderboard: (t: TokenFn) => call<ApiLeader[]>("/leaderboard", t),
-  recent: (t: TokenFn) => call<ApiRecent[]>("/recent", t),
-  groupDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/group/difficulty", t),
-  circleDifficulty: (t: TokenFn) => call<ApiDifficultyTotal[]>("/me/circle", t),
-  calendar: (t: TokenFn) => call<ApiDay[]>("/me/calendar", t),
-  calendarProblems: (t: TokenFn) => call<ApiCalendarProblem[]>("/me/calendar/problems", t),
+  me: (t: TokenFn) => get<MeResponse>("/me", t),
+  setProfile: (t: TokenFn, username: string, github: string) => post("/me/profile", t, { username, github }),
+  syncNow: (t: TokenFn) => post("/me/sync", t),
+  visit: (t: TokenFn) => post("/me/visit", t),
+  sdSolved: (t: TokenFn) => get<string[]>("/me/sd", t),
+  sdSolve: (t: TokenFn, slug: string) => post(`/me/sd/${slug}`, t),
+  sdLeaderboard: (t: TokenFn, kind?: SdKind) => get<SdLeader[]>(`/sd/leaderboard${kindQ(kind)}`, t),
+  sdActivity: (t: TokenFn, kind?: SdKind) => get<SdActivity[]>(`/sd/activity${kindQ(kind)}`, t),
+  mySdActivity: (t: TokenFn) => get<SdActivity[]>("/me/sd/activity", t),
+  requestUsername: (t: TokenFn, username: string) => post("/me/username-request", t, { username }),
+  setTheme: (t: TokenFn, theme: string) => post("/me/theme", t, { theme }),
+  progress: (t: TokenFn) => get<ApiProblem[]>("/me/progress", t),
+  leaderboard: (t: TokenFn) => get<ApiLeader[]>("/leaderboard", t),
+  recent: (t: TokenFn) => get<ApiRecent[]>("/recent", t),
+  groupDifficulty: (t: TokenFn) => get<ApiDifficultyTotal[]>("/group/difficulty", t),
+  circleDifficulty: (t: TokenFn) => get<ApiDifficultyTotal[]>("/me/circle", t),
+  calendar: (t: TokenFn) => get<ApiDay[]>("/me/calendar", t),
+  calendarProblems: (t: TokenFn) => get<ApiCalendarProblem[]>("/me/calendar/problems", t),
   mySolutions: (t: TokenFn, slug: string, recent = false) =>
-    call<ApiSolution[]>(`/me/problem/${slug}${recent ? "?recent=1" : ""}`, t),
-  friends: (t: TokenFn) => call<ApiFriend[]>("/friends", t),
-  directory: (t: TokenFn) => call<ApiFriend[]>("/users", t),
-  friendRequests: (t: TokenFn) => call<ApiFriend[]>("/friends/requests", t),
-  acceptRequest: (t: TokenFn, id: string) =>
-    call("/friends/requests/accept", t, { method: "POST", body: JSON.stringify({ id }) }),
-  declineRequest: (t: TokenFn, id: string) =>
-    call("/friends/requests/decline", t, { method: "POST", body: JSON.stringify({ id }) }),
-  addFriend: (t: TokenFn, username: string) =>
-    call("/friends", t, { method: "POST", body: JSON.stringify({ username }) }),
-  removeFriend: (t: TokenFn, id: string) => call(`/friends/${id}`, t, { method: "DELETE" }),
-  friendProgress: (t: TokenFn, id: string) => call<ApiProblem[]>(`/friends/${id}/progress`, t),
-  friendCalendar: (t: TokenFn, id: string) => call<ApiDay[]>(`/friends/${id}/calendar`, t),
-  friendCalendarProblems: (t: TokenFn, id: string) =>
-    call<ApiCalendarProblem[]>(`/friends/${id}/calendar/problems`, t),
+    get<ApiSolution[]>(`/me/problem/${slug}${recentQ(recent)}`, t),
+  friends: (t: TokenFn) => get<ApiFriend[]>("/friends", t),
+  directory: (t: TokenFn) => get<ApiFriend[]>("/users", t),
+  friendRequests: (t: TokenFn) => get<ApiFriend[]>("/friends/requests", t),
+  acceptRequest: (t: TokenFn, id: string) => post("/friends/requests/accept", t, { id }),
+  declineRequest: (t: TokenFn, id: string) => post("/friends/requests/decline", t, { id }),
+  addFriend: (t: TokenFn, username: string) => post("/friends", t, { username }),
+  removeFriend: (t: TokenFn, id: string) => del(`/friends/${id}`, t),
+  friendProgress: (t: TokenFn, id: string) => get<ApiProblem[]>(`/friends/${id}/progress`, t),
+  friendCalendar: (t: TokenFn, id: string) => get<ApiDay[]>(`/friends/${id}/calendar`, t),
+  friendCalendarProblems: (t: TokenFn, id: string) => get<ApiCalendarProblem[]>(`/friends/${id}/calendar/problems`, t),
   friendSolutions: (t: TokenFn, id: string, slug: string, recent = false) =>
-    call<ApiSolution[]>(`/friends/${id}/problem/${slug}${recent ? "?recent=1" : ""}`, t),
-  adminPending: (t: TokenFn) => call<MeResponse[]>("/admin/pending", t),
-  adminUsers: (t: TokenFn) => call<MeResponse[]>("/admin/users", t),
-  adminAnalytics: (t: TokenFn) => call<Analytics>("/admin/analytics", t),
-  adminApprove: (t: TokenFn, id: string) =>
-    call("/admin/approve", t, { method: "POST", body: JSON.stringify({ id }) }),
-  adminSetUsername: (t: TokenFn, id: string, username: string) =>
-    call("/admin/username", t, { method: "POST", body: JSON.stringify({ id, username }) }),
-  adminRemove: (t: TokenFn, id: string) => call(`/admin/users/${id}`, t, { method: "DELETE" }),
-  adminReject: (t: TokenFn, id: string) => call(`/admin/users/${id}/purge`, t, { method: "DELETE" }),
-  adminLeetcodeSession: (t: TokenFn) => call<LeetcodeSession>("/admin/leetcode-session", t),
+    get<ApiSolution[]>(`/friends/${id}/problem/${slug}${recentQ(recent)}`, t),
+  adminPending: (t: TokenFn) => get<MeResponse[]>("/admin/pending", t),
+  adminUsers: (t: TokenFn) => get<MeResponse[]>("/admin/users", t),
+  adminAnalytics: (t: TokenFn) => get<Analytics>("/admin/analytics", t),
+  adminApprove: (t: TokenFn, id: string) => post("/admin/approve", t, { id }),
+  adminSetUsername: (t: TokenFn, id: string, username: string) => post("/admin/username", t, { id, username }),
+  adminRemove: (t: TokenFn, id: string) => del(`/admin/users/${id}`, t),
+  adminReject: (t: TokenFn, id: string) => del(`/admin/users/${id}/purge`, t),
+  adminLeetcodeSession: (t: TokenFn) => get<LeetcodeSession>("/admin/leetcode-session", t),
   adminSetLeetcodeSession: (t: TokenFn, token: string, expiresAt: string) =>
-    call("/admin/leetcode-session", t, { method: "POST", body: JSON.stringify({ token, expiresAt }) }),
+    post("/admin/leetcode-session", t, { token, expiresAt }),
 };
 
 export type LeetcodeSession = { expiresAt: string; hasToken: boolean };

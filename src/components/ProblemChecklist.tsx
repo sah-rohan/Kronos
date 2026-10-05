@@ -1,5 +1,5 @@
 import { Check, ExternalLink } from "lucide-react";
-import { leetcodeUrl } from "../data/problems";
+import { leetcodeUrl } from "../lib/leetcode";
 import { ArrowLink, DiffLabel, SectionHead } from "./Controls";
 import { OptimalTag } from "./OptimalTag";
 import type { ProblemRef } from "../types";

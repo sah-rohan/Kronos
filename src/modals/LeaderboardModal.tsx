@@ -1,24 +1,21 @@
-import { useEffect, useState } from "react";
-import { ChevronDown, Flame, Search } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
 import { Modal } from "../components/Modal";
+import { Avatar } from "../components/Controls";
 import { initialsOf } from "../lib/avatar";
-import { useData } from "../data/source";
-import { api, type SdLeader } from "../lib/api";
-import { ROADMAPS, listTotal } from "../lib/roadmaps";
-import {
-  useLeaderboardScope,
-  type LeaderboardScope,
-} from "../lib/leaderboardScope";
+import { useData } from "../data/context";
+import { useSdLeaderboard } from "../data/hooks";
+import { DIFF_BAR, countByDiff } from "../lib/difficulty";
+import { plural } from "../lib/format";
+import { BOARDS, isModuleBoard, listTotal } from "../lib/roadmaps";
+import { matches, normalize } from "../lib/search";
+import { useStoredChoice } from "../lib/storage";
 import { rankFor, maxWeighted, nextRank, rankMembers, TIER_MINS } from "../lib/rank";
-import type { Member, ProblemList } from "../types";
+import type { Board, Member, ProblemList } from "../types";
 
-const barColor: Record<string, string> = {
-  Easy: "bg-easy",
-  Medium: "bg-medium",
-  Hard: "bg-hard",
-};
+type Scope = "everyone" | "friends";
 
-const SCOPES: { key: LeaderboardScope; label: string }[] = [
+const SCOPES: { key: Scope; label: string }[] = [
   { key: "everyone", label: "Everyone" },
   { key: "friends", label: "Friends" },
 ];
@@ -34,77 +31,31 @@ export function LeaderboardModal({
   setRoadmap: (r: ProblemList) => void;
   userName: string;
 }) {
-  const { members, friends, categories, groupTotals, friendsDifficulty, getToken } =
-    useData();
+  const { members, friends, categories, groupTotals, friendsDifficulty } = useData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
-  const q = query.trim().toLowerCase();
-  const roadmapTotal = listTotal(categories, roadmap);
+  const q = normalize(query);
   const maxW = maxWeighted(categories);
-  // Per-difficulty catalog totals, so "more to next rank" never exceeds what's left.
-  const diffTotals = (() => {
-    const t = { easy: 0, medium: 0, hard: 0 };
-    for (const c of categories)
-      for (const p of c.items) {
-        if (p.diff === "Easy") t.easy++;
-        else if (p.diff === "Medium") t.medium++;
-        else t.hard++;
-      }
-    return t;
-  })();
-  const { scope, setScope } = useLeaderboardScope();
-
-  // "type" is the leaderboard board: a roadmap, the System Design ranking, or
-  // the AI System Design ranking. The choice is cached so it persists across
-  // opens / reloads.
-  type Board = ProblemList | "sd" | "genai";
-  const [type, setType] = useState<Board>(() => {
-    const saved = localStorage.getItem("lb-type") as Board | null;
-    return saved ?? roadmap;
-  });
-  useEffect(() => {
-    localStorage.setItem("lb-type", type);
-  }, [type]);
-
-  const [sdLeaders, setSdLeaders] = useState<SdLeader[]>([]);
-  const showSd = type === "sd" || type === "genai";
-  useEffect(() => {
-    if (showSd) {
-      api
-        .sdLeaderboard(getToken, type === "genai" ? "genai" : "design")
-        .then((l) => setSdLeaders(l ?? []))
-        .catch(() => {});
-    }
-  }, [showSd, type, getToken]);
+  const [scope, setScope] = useStoredChoice<Scope>("kronos.lb.scope", ["everyone", "friends"], "everyone", true);
+  // The board (a roadmap or a design-module ranking) persists across opens.
+  const [type, setType] = useStoredChoice<Board>("lb-type", BOARDS.map((b) => b.key), roadmap);
+  const showSd = isModuleBoard(type);
+  const sdLeaders = useSdLeaderboard(showSd ? type : null);
 
   const friendUsernames = new Set(friends.map((f) => f.username));
-
-  const inScope = (m: Member) => {
-    if (scope !== "friends") return true;
-    return (
-      m.name === userName || (!!m.username && friendUsernames.has(m.username))
-    );
-  };
+  const inScope = (m: Member) =>
+    scope !== "friends" || m.name === userName || (!!m.username && friendUsernames.has(m.username));
 
   if (selected) {
-    const r = rankFor(
-      selected.byDiff.easy,
-      selected.byDiff.medium,
-      selected.byDiff.hard,
-      maxW,
-    );
+    const solved = selected.byDiff;
+    const r = rankFor(solved, maxW);
+    // Per-difficulty catalog totals, so "more to next rank" never exceeds what's left.
+    const next = nextRank(solved, maxW, countByDiff(categories.flatMap((c) => c.items)));
     const diffStats = [
-      { label: "Easy", val: selected.byDiff.easy },
-      { label: "Medium", val: selected.byDiff.medium },
-      { label: "Hard", val: selected.byDiff.hard },
+      { label: "Easy", val: solved.easy },
+      { label: "Medium", val: solved.medium },
+      { label: "Hard", val: solved.hard },
     ];
-    const next = nextRank(
-      selected.byDiff.easy,
-      selected.byDiff.medium,
-      selected.byDiff.hard,
-      maxW,
-      diffTotals,
-    );
     return (
       <Modal
         title={selected.name}
@@ -177,18 +128,10 @@ export function LeaderboardModal({
     );
   }
 
-  const totals =
-    groupTotals.length > 0
-      ? groupTotals
-      : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
+  const totals = groupTotals.length > 0 ? groupTotals : friendsDifficulty.map((d) => ({ label: d.label, count: d.val }));
   const groupSolved = totals.reduce((sum, t) => sum + t.count, 0);
-
-  const ranked = rankMembers(members.filter(inScope), roadmap).filter(
-    ({ m }) =>
-      !q ||
-      m.name.toLowerCase().includes(q) ||
-      (m.username ?? "").toLowerCase().includes(q),
-  );
+  const roadmapTotal = listTotal(categories, roadmap);
+  const ranked = rankMembers(members.filter(inScope), roadmap).filter(({ m }) => matches(q, m.name, m.username));
 
   const footer = (
     <div className="flex flex-col gap-3">
@@ -198,7 +141,7 @@ export function LeaderboardModal({
       </div>
       <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-sm bg-border">
         {totals.map((t) => (
-          <div key={t.label} className={barColor[t.label] ?? "bg-easy"} style={{ flex: t.count }} />
+          <div key={t.label} className={DIFF_BAR[t.label] ?? "bg-easy"} style={{ flex: t.count }} />
         ))}
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-muted-foreground">
@@ -211,21 +154,10 @@ export function LeaderboardModal({
     </div>
   );
 
-  const boardLabel = [...ROADMAPS.map((r) => ({ id: r.key, label: r.label })), { id: "sd", label: "System Design" }, { id: "genai", label: "AI System Design" }];
-  const avatar = (name: string, initials: string) => (
-    <span
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-medium ${
-        name === userName ? "bg-ink text-ink-foreground" : "bg-border-strong text-foreground"
-      }`}
-    >
-      {initials}
-    </span>
-  );
-
   return (
     <Modal
       title="Leaderboard"
-      eyebrow={`Summer 2026 · ${members.length} member${members.length === 1 ? "" : "s"}`}
+      eyebrow={`Summer 2026 · ${members.length} ${plural(members.length, "member")}`}
       onClose={onClose}
       footer={showSd ? undefined : footer}
     >
@@ -265,12 +197,14 @@ export function LeaderboardModal({
               onChange={(e) => {
                 const v = e.target.value as Board;
                 setType(v);
-                if (v !== "sd" && v !== "genai") setRoadmap(v);
+                if (!isModuleBoard(v)) setRoadmap(v);
               }}
               className="min-h-9 appearance-none rounded-full border border-border-strong bg-transparent pl-3.5 pr-8 text-[13px] outline-none"
             >
-              {boardLabel.map((b) => (
-                <option key={b.id} value={b.id}>{b.label}</option>
+              {BOARDS.map((b) => (
+                <option key={b.key} value={b.key}>
+                  {b.label}
+                </option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -293,7 +227,7 @@ export function LeaderboardModal({
                 <td className="border-t border-border py-3.5 font-display text-xl text-muted-foreground">{i + 1}</td>
                 <td className="border-t border-border py-3.5">
                   <span className="flex items-center gap-3">
-                    {avatar(l.name, initialsOf(l.name))}
+                    <Avatar size="sm" me={l.name === userName} initials={initialsOf(l.name)} />
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate text-[15px] font-medium">{l.name}</span>
                       {l.username && <span className="truncate text-xs text-muted-foreground">@{l.username}</span>}
@@ -325,7 +259,7 @@ export function LeaderboardModal({
             </thead>
             <tbody>
               {ranked.map(({ m, rank, solved }) => {
-                const r = rankFor(m.byDiff.easy, m.byDiff.medium, m.byDiff.hard, maxW);
+                const r = rankFor(m.byDiff, maxW);
                 const cell = "border-t border-border py-3.5";
                 return (
                   <tr
@@ -336,20 +270,13 @@ export function LeaderboardModal({
                     <td className={`${cell} font-display text-xl text-muted-foreground`}>{rank}</td>
                     <td className={cell}>
                       <button type="button" className="flex w-full items-center gap-3 text-left" aria-label={`Open ${m.name}`}>
-                        {avatar(m.name, m.initials)}
+                        <Avatar size="sm" me={m.name === userName} initials={m.initials} />
                         <span className="flex min-w-0 flex-col">
                           <span className="truncate text-[15px] font-medium">{m.name}</span>
                           <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                             <span className={r.text}>{r.tier}</span>
                             <span aria-hidden>·</span>
-                            {m.streak != null ? (
-                              <>
-                                <Flame className="h-3 w-3 shrink-0 text-accent" />
-                                {m.streak}-day streak
-                              </>
-                            ) : (
-                              <span className="truncate">@{m.username}</span>
-                            )}
+                            <span className="truncate">@{m.username}</span>
                           </span>
                         </span>
                       </button>

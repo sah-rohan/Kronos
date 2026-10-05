@@ -3,7 +3,8 @@ import { Modal } from "../components/Modal";
 import { ArrowLink, DiffLabel, Tabs } from "../components/Controls";
 import { AvatarStack } from "../components/AvatarStack";
 import { PersonPicker } from "../components/PersonPicker";
-import { useData } from "../data/source";
+import { useData } from "../data/context";
+import { num } from "../lib/format";
 import { fmtShortDate } from "../lib/date";
 import type { Friend, ProblemRef } from "../types";
 
@@ -25,12 +26,9 @@ export function RecentActivityModal({
   const [friendId, setFriendId] = useState<string>(friends[0]?.id ?? "");
   const selectedFriend = friends.find((f) => f.id === friendId) ?? null;
 
-  const rows =
-    tab === "you"
-      ? recent.filter((r) => r.who.some((p) => p.name === userName))
-      : selectedFriend
-        ? recent.filter((r) => r.who.some((p) => p.name === selectedFriend.name))
-        : [];
+  // Whose solves to list: yours, or the picked friend's.
+  const subject = tab === "you" ? userName : selectedFriend?.name;
+  const rows = subject ? recent.filter((r) => r.who.some((p) => p.name === subject)) : [];
 
   return (
     <Modal title="Recent" eyebrow="Latest solves" onClose={onClose}>
@@ -48,7 +46,7 @@ export function RecentActivityModal({
           className="mt-5"
           value={friendId}
           onSelect={setFriendId}
-          options={friends.map((f) => ({ id: f.id, name: f.name, initials: f.initials, color: f.color, username: f.username }))}
+          options={friends}
         />
       )}
 
@@ -63,14 +61,11 @@ export function RecentActivityModal({
           </li>
         )}
         {rows.map((r, i) => {
-          const others =
-            tab === "you"
-              ? r.who.filter((p) => p.name !== userName)
-              : r.who.filter((p) => p.name !== selectedFriend?.name);
+          const others = r.who.filter((p) => p.name !== subject);
           const ref = { name: r.name, slug: r.slug, diff: r.diff };
           return (
             <li key={r.n} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border py-3.5">
-              <span className="w-8 font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+              <span className="w-8 font-mono text-xs text-muted-foreground">{num(i)}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[15px]">{r.name}</span>
                 <span className="block text-[13px] text-muted-foreground">

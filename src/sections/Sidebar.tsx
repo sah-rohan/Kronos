@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { AtSign, ChevronUp, LogOut, Moon, ShieldCheck, Sun, Zap } from "lucide-react";
 import { SignOutButton } from "@clerk/clerk-react";
+import { Avatar } from "../components/Controls";
 import { useClerk } from "../lib/env";
-
-type ThemeMode = "auto" | "light" | "dark";
+import type { ThemeMode } from "../lib/theme";
 
 export type NavItem = { label: string; onClick: () => void; active?: boolean };
 
-export function KronosMark({ className = "h-[22px] w-[22px]" }: { className?: string }) {
+function KronosMark({ className = "h-[22px] w-[22px]" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden className={className}>
       <circle cx="12" cy="12" r="9" />
@@ -31,20 +31,18 @@ function NavButton({ item }: { item: NavItem }) {
   );
 }
 
-function NavGroup({ items }: { items: NavItem[] }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      {items.map((i) => (
-        <NavButton key={i.label} item={i} />
-      ))}
-    </div>
-  );
-}
+const THEMES: { key: ThemeMode; label: string; icon: ReactNode; hint?: string }[] = [
+  { key: "auto", label: "Auto", icon: <Zap className="h-4 w-4" />, hint: "Day/Night" },
+  { key: "light", label: "Light", icon: <Sun className="h-4 w-4" /> },
+  { key: "dark", label: "Dark", icon: <Moon className="h-4 w-4" /> },
+];
+
+const MENU_ITEM =
+  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted";
 
 export function AccountMenu({
   name,
   initials,
-  subtitle,
   theme,
   onChangeTheme,
   onChangeUsername,
@@ -55,7 +53,6 @@ export function AccountMenu({
 }: {
   name: string;
   initials: string;
-  subtitle?: string;
   theme: ThemeMode;
   onChangeTheme: (t: ThemeMode) => void;
   onChangeUsername: () => void;
@@ -65,18 +62,10 @@ export function AccountMenu({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const item =
-    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted";
   const pick = (fn: () => void) => () => {
     fn();
     setOpen(false);
   };
-  const themes: { key: ThemeMode; label: string; icon: ReactNode; hint?: string }[] = [
-    { key: "auto", label: "Auto", icon: <Zap className="h-4 w-4" />, hint: "Day/Night" },
-    { key: "light", label: "Light", icon: <Sun className="h-4 w-4" /> },
-    { key: "dark", label: "Dark", icon: <Moon className="h-4 w-4" /> },
-  ];
-
   return (
     <div className="relative">
       <button
@@ -86,14 +75,11 @@ export function AccountMenu({
         aria-label={compact ? "Account" : undefined}
         className={`flex w-full items-center gap-2.5 rounded-lg text-left transition-colors hover:bg-muted ${compact ? "p-1.5" : "p-3"}`}
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-xs font-medium text-ink-foreground">
-          {initials}
-        </span>
+        <Avatar size="sm" me initials={initials} />
         {!compact && (
           <>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-medium">{name}</span>
-              {subtitle && <span className="truncate text-xs text-muted-foreground">{subtitle}</span>}
             </span>
             <ChevronUp className={`h-4 w-4 text-muted-foreground transition ${open ? "" : "rotate-180"}`} />
           </>
@@ -109,8 +95,8 @@ export function AccountMenu({
             }`}
           >
             <div className="eyebrow px-3 py-2">Theme</div>
-            {themes.map((t) => (
-              <button key={t.key} type="button" onClick={pick(() => onChangeTheme(t.key))} className={`${item} ${theme === t.key ? "bg-muted" : ""}`}>
+            {THEMES.map((t) => (
+              <button key={t.key} type="button" onClick={pick(() => onChangeTheme(t.key))} className={`${MENU_ITEM} ${theme === t.key ? "bg-muted" : ""}`}>
                 {t.icon}
                 <span className="flex-1 text-left">
                   {t.label}
@@ -120,12 +106,12 @@ export function AccountMenu({
               </button>
             ))}
             <div className="my-1 h-px bg-border" />
-            <button type="button" onClick={pick(onChangeUsername)} className={item}>
+            <button type="button" onClick={pick(onChangeUsername)} className={MENU_ITEM}>
               <AtSign className="h-4 w-4" />
               Change LeetCode username
             </button>
             {isAdmin && onAdmin && (
-              <button type="button" onClick={pick(onAdmin)} className={item}>
+              <button type="button" onClick={pick(onAdmin)} className={MENU_ITEM}>
                 <ShieldCheck className="h-4 w-4" />
                 Manage members
               </button>
@@ -133,13 +119,13 @@ export function AccountMenu({
             <div className="my-1 h-px bg-border" />
             {useClerk ? (
               <SignOutButton>
-                <button type="button" className={`${item} text-danger`}>
+                <button type="button" className={`${MENU_ITEM} text-danger`}>
                   <LogOut className="h-4 w-4" />
                   Sign out
                 </button>
               </SignOutButton>
             ) : (
-              <button type="button" className={`${item} text-danger`} onClick={() => setOpen(false)}>
+              <button type="button" className={`${MENU_ITEM} text-danger`} onClick={() => setOpen(false)}>
                 <LogOut className="h-4 w-4" />
                 Sign out
               </button>
@@ -158,8 +144,10 @@ export function Sidebar({ items, account }: { items: NavItem[]; account: ReactNo
         <KronosMark />
         <span className="font-display text-2xl">Kronos</span>
       </div>
-      <nav aria-label="Primary">
-        <NavGroup items={items} />
+      <nav aria-label="Primary" className="flex flex-col gap-0.5">
+        {items.map((i) => (
+          <NavButton key={i.label} item={i} />
+        ))}
       </nav>
       <div className="mt-auto border-t border-border pt-3">{account}</div>
     </aside>

@@ -1,6 +1,8 @@
 export type Diff = "Easy" | "Medium" | "Hard";
 export type Problem = { name: string; slug: string; diff: Diff; done: boolean; optimal: boolean; blind75: boolean; neetcode150: boolean; neetcode250: boolean };
 export type ProblemList = "blind75" | "neetcode150" | "neetcode250" | "all";
+// A leaderboard/progress board: a roadmap, or a design-module ranking.
+export type Board = ProblemList | "sd" | "genai";
 export type Friend = { id: string; name: string; initials: string; username: string; color: string };
 export type Solution = { lang: string; runtimeMs: number; runtimePct: number; optimal: boolean; code: string };
 export type Month = { year: number; month: number };
@@ -12,7 +14,6 @@ export type Member = {
   solved: number;
   solvedByList: Record<ProblemList, number>;
   byDiff: { easy: number; medium: number; hard: number };
-  streak?: number;
   username?: string;
 };
 export type RecentItem = { n: number; slug: string; name: string; diff: string; who: Person[]; at: string };

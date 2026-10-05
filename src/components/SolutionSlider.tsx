@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import hljs from "highlight.js/lib/common";
+import { StepButton } from "./Controls";
+import { OptimalTag } from "./OptimalTag";
 import type { Solution } from "../types";
 
 const HLJS_LANG: Record<string, string> = {
@@ -9,6 +11,8 @@ const HLJS_LANG: Record<string, string> = {
   golang: "go", go: "go", kotlin: "kotlin", swift: "swift", ruby: "ruby", rust: "rust",
   scala: "scala", php: "php", dart: "dart",
 };
+
+const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
 
 export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
   const [index, setIndex] = useState(0);
@@ -21,7 +25,7 @@ export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
         ? hljs.highlight(s.code, { language: lang }).value
         : hljs.highlightAuto(s.code).value;
     } catch {
-      return s.code.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+      return s.code.replace(/[&<>]/g, (c) => ESCAPES[c]);
     }
   }, [s]);
   if (!s) {
@@ -35,27 +39,19 @@ export function SolutionSlider({ solutions }: { solutions: Solution[] }) {
           <span className="shrink-0 whitespace-nowrap font-mono text-xs text-muted-foreground">
             {s.runtimeMs} ms · beats {s.runtimePct}%
           </span>
-          {s.optimal && <span className="eyebrow text-accent">Optimal</span>}
+          {s.optimal && <OptimalTag />}
         </div>
         {solutions.length > 1 && (
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              aria-label="Previous solution"
-              onClick={() => setIndex((index - 1 + solutions.length) % solutions.length)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border-strong transition-colors hover:bg-muted"
-            >
+            <StepButton label="Previous solution" onClick={() => setIndex((index - 1 + solutions.length) % solutions.length)}>
               <ChevronLeft className="h-4 w-4" />
-            </button>
+            </StepButton>
             <span className="w-12 shrink-0 whitespace-nowrap text-center font-mono text-xs text-muted-foreground">
               {index + 1} / {solutions.length}
             </span>
-            <button
-              aria-label="Next solution"
-              onClick={() => setIndex((index + 1) % solutions.length)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border-strong transition-colors hover:bg-muted"
-            >
+            <StepButton label="Next solution" onClick={() => setIndex((index + 1) % solutions.length)}>
               <ChevronRight className="h-4 w-4" />
-            </button>
+            </StepButton>
           </div>
         )}
       </div>

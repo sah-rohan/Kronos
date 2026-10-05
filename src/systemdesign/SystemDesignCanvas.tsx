@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import type { SDComponentType, SDProblem } from "./problems";
 import { validateDesign, type SDNode, type SDEdge, type SDResult } from "./validate";
+import { borderPoint } from "./geometry";
 
 const NODE_W = 150;
 const NODE_H = 62;
@@ -148,16 +149,7 @@ export function SystemDesignCanvas({
   const defOf = (t: SDComponentType) =>
     problem.palette.find((c) => c.type === t) ?? { type: t, name: t, blurb: "", explain: "" };
   const center = (n: SDNode) => ({ x: n.x + NODE_W / 2, y: n.y + NODE_H / 2 });
-  // Point on node n's border along the line from (fx,fy) - keeps arrowheads visible.
-  const border = (fx: number, fy: number, n: SDNode) => {
-    const cx = n.x + NODE_W / 2;
-    const cy = n.y + NODE_H / 2;
-    const dx = cx - fx;
-    const dy = cy - fy;
-    if (!dx && !dy) return { x: cx, y: cy };
-    const s = Math.min(NODE_W / 2 / Math.abs(dx || 1e-6), NODE_H / 2 / Math.abs(dy || 1e-6));
-    return { x: cx - dx * s, y: cy - dy * s };
-  };
+  const border = (fx: number, fy: number, n: SDNode) => borderPoint(fx, fy, n.x, n.y, NODE_W, NODE_H);
   const rel = (e: { clientX: number; clientY: number }) => {
     const r = areaRef.current!.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -252,7 +244,8 @@ export function SystemDesignCanvas({
     if (r.ok) onSolved();
   };
 
-  const selectedNode = nodes.find((n) => n.id === selected) ?? null;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const selectedNode = (selected && byId.get(selected)) || null;
   const selectedDef = selectedNode ? defOf(selectedNode.type) : null;
 
   return (
@@ -301,8 +294,8 @@ export function SystemDesignCanvas({
               </marker>
             </defs>
             {edges.map((e, i) => {
-              const a = nodes.find((n) => n.id === e.from);
-              const b = nodes.find((n) => n.id === e.to);
+              const a = byId.get(e.from);
+              const b = byId.get(e.to);
               if (!a || !b) return null;
               const ca = center(a);
               const cb = center(b);
@@ -311,7 +304,7 @@ export function SystemDesignCanvas({
               return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className="stroke-coral" strokeWidth={2} markerEnd="url(#sd-arrow)" />;
             })}
             {conn && (() => {
-              const a = nodes.find((n) => n.id === conn.from);
+              const a = byId.get(conn.from);
               if (!a) return null;
               const p = center(a);
               return <line x1={p.x} y1={p.y} x2={conn.x} y2={conn.y} className="stroke-coral" strokeWidth={2} strokeDasharray="5 4" />;

@@ -1,10 +1,12 @@
-import { useData } from "../data/source";
+import { useData } from "../data/context";
+import { plural } from "../lib/format";
 import { inList } from "../lib/roadmaps";
 import { rankMembers } from "../lib/rank";
-import { SD_PROBLEMS } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
+import { ALL_MODULES } from "../systemdesign/catalog";
 import { useSdSolved } from "../systemdesign/progress";
 import type { ProblemList } from "../types";
+
+const DASH = "–";
 
 function Stat({ label, value, unit, first }: { label: string; value: string | number; unit?: string; first?: boolean }) {
   return (
@@ -24,18 +26,17 @@ export function StatStrip({ userName, roadmap, locked }: { userName: string; roa
   const items = categories.flatMap((c) => c.items).filter((p) => inList(p, roadmap));
   const ranked = rankMembers(members, roadmap);
   const me = ranked.find((r) => r.m.name === userName);
-  const modules = [...SD_PROBLEMS, ...GENAI_PROBLEMS];
-  const dash = "–";
 
   return (
-    <section
-      aria-label="Summary"
-      className="grid grid-cols-2 border-t border-b border-t-foreground border-b-border sm:grid-cols-4"
-    >
-      <Stat first label="Solved" value={locked ? dash : items.filter((p) => p.done).length} unit={`/ ${items.length}`} />
-      <Stat label="Streak" value={locked ? dash : calendar.streak} unit={calendar.streak === 1 ? "day" : "days"} />
-      <Stat label="Rank" value={locked || !me ? dash : me.rank} unit={ranked.length ? `of ${ranked.length}` : undefined} />
-      <Stat label="Design modules" value={modules.filter((p) => sdSolved.has(p.slug)).length} unit={`/ ${modules.length}`} />
+    <section aria-label="Summary" className="grid grid-cols-2 border-t border-b border-t-foreground border-b-border sm:grid-cols-4">
+      <Stat first label="Solved" value={locked ? DASH : items.filter((p) => p.done).length} unit={`/ ${items.length}`} />
+      <Stat label="Streak" value={locked ? DASH : calendar.streak} unit={plural(calendar.streak, "day")} />
+      <Stat label="Rank" value={locked || !me ? DASH : me.rank} unit={ranked.length ? `of ${ranked.length}` : undefined} />
+      <Stat
+        label="Design modules"
+        value={ALL_MODULES.filter((p) => sdSolved.has(p.slug)).length}
+        unit={`/ ${ALL_MODULES.length}`}
+      />
     </section>
   );
 }

@@ -1,25 +1,24 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
-import { useData } from "../data/source";
-import { SD_PROBLEMS, type SDProblem } from "../systemdesign/problems";
-import { GENAI_PROBLEMS } from "../systemdesign/genai";
+import { useData } from "../data/context";
+import { num } from "../lib/format";
+import { TRACK_LABEL, modulesFor, moduleBySlug, stepCount, type ModuleTrack } from "../systemdesign/catalog";
 import { CLOUD_DOCS } from "../systemdesign/cloud";
 import { NETWORKING_DOCS } from "../systemdesign/networking";
 import { readLastPosition, useSdSolved } from "../systemdesign/progress";
 
-type Track = "sd" | "genai" | "cloud" | "networking";
+type Track = ModuleTrack | "cloud" | "networking";
 
 const TRACKS: { key: Track; label: string }[] = [
-  { key: "sd", label: "System Design" },
-  { key: "genai", label: "AI System Design" },
+  { key: "sd", label: TRACK_LABEL.sd },
+  { key: "genai", label: TRACK_LABEL.genai },
   { key: "cloud", label: "Cloud" },
   { key: "networking", label: "Networking" },
 ];
 
-const stepCount = (p: SDProblem) => p.slides.length + 1 + p.palette.length;
-const num = (i: number) => String(i + 1).padStart(2, "0");
+const isModuleTrack = (t: Track): t is ModuleTrack => t === "sd" || t === "genai";
 
-function Row({ index, title, sub, right, onClick }: { index: number; title: string; sub: string; right?: React.ReactNode; onClick: () => void }) {
+function Row({ index, title, sub, right, onClick }: { index: number; title: string; sub: string; right?: ReactNode; onClick: () => void }) {
   return (
     <li>
       <button
@@ -53,16 +52,17 @@ export function StudyPage({
   const solved = useSdSolved(getToken);
   const [track, setTrack] = useState<Track>("sd");
   const last = readLastPosition();
-  const all = [...SD_PROBLEMS, ...GENAI_PROBLEMS];
   const meta = TRACKS.find((t) => t.key === track)!;
-  const modules = track === "genai" ? GENAI_PROBLEMS : SD_PROBLEMS;
-  const resume = last && !solved.has(last.slug) ? all.find((p) => p.slug === last.slug) : undefined;
+  const modules = modulesFor(track === "genai" ? "genai" : "sd");
+  // Resume the module you were last in, else start the first unfinished one.
+  const resume = last && !solved.has(last.slug) ? moduleBySlug(last.slug) : undefined;
   const firstOpen = modules.find((p) => !solved.has(p.slug));
+  const feature = resume ?? firstOpen;
 
   const count = (t: Track) => {
     if (t === "cloud") return `${CLOUD_DOCS.length}`;
     if (t === "networking") return `${NETWORKING_DOCS.length}`;
-    const list = t === "genai" ? GENAI_PROBLEMS : SD_PROBLEMS;
+    const list = modulesFor(t);
     return `${list.filter((p) => solved.has(p.slug)).length}/${list.length}`;
   };
 
@@ -92,7 +92,7 @@ export function StudyPage({
         <section className="min-w-0 flex-[2]">
           <h2 className="m-0 mb-2 font-display text-[30px] font-normal">{meta.label}</h2>
           <ul className="m-0 list-none border-b border-border p-0">
-            {(track === "sd" || track === "genai") &&
+            {isModuleTrack(track) &&
               modules.map((p, i) => {
                 const complete = solved.has(p.slug);
                 const active = !complete && last?.slug === p.slug;
@@ -126,10 +126,10 @@ export function StudyPage({
         </section>
 
         <aside className="flex flex-1 flex-col gap-6 lg:sticky lg:top-6">
-          {(resume || firstOpen) && (
+          {feature && (
             <div className="flex flex-col gap-3.5 rounded-xl border border-border bg-card p-6">
               <span className="eyebrow">{resume ? "Continue" : "Start here"}</span>
-              <span className="font-display text-2xl leading-tight">{(resume ?? firstOpen)!.title}</span>
+              <span className="font-display text-2xl leading-tight">{feature.title}</span>
               {resume && last ? (
                 <>
                   <span className="text-sm text-muted-foreground">
@@ -140,11 +140,11 @@ export function StudyPage({
                   </span>
                 </>
               ) : (
-                <span className="text-sm text-muted-foreground">{stepCount(firstOpen!)} steps · {firstOpen!.difficulty}</span>
+                <span className="text-sm text-muted-foreground">{stepCount(feature)} steps · {feature.difficulty}</span>
               )}
               <button
                 type="button"
-                onClick={() => onOpenModule((resume ?? firstOpen)!.slug)}
+                onClick={() => onOpenModule(feature.slug)}
                 className="inline-flex min-h-11 items-center gap-2 self-start rounded-full bg-ink px-[18px] text-sm font-medium text-ink-foreground transition-opacity hover:opacity-90"
               >
                 {resume ? "Resume" : "Begin"} <ArrowRight className="h-4 w-4" />

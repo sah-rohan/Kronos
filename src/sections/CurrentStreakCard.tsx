@@ -1,7 +1,7 @@
 import { Card } from "../components/Card";
-import { useData } from "../data/source";
-
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+import { useData } from "../data/context";
+import { WEEKDAYS, heatTone, monthCounts } from "../lib/calendar";
+import { plural } from "../lib/format";
 
 export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
   const { calendar } = useData();
@@ -9,13 +9,8 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
   const year = today.getUTCFullYear();
   const month = today.getUTCMonth();
   const todayDate = today.getUTCDate();
-  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const leadPad = new Date(Date.UTC(year, month, 1)).getUTCDay();
-
-  const counts = Array.from({ length: daysInMonth }, (_, i) => {
-    const k = `${year}-${String(month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
-    return calendar.byDate[k] ?? 0;
-  });
+  const counts = monthCounts(calendar.byDate, year, month);
   const monthTotal = counts.reduce((a, b) => a + b, 0);
   const monthName = today.toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
 
@@ -30,7 +25,7 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
           <span className="eyebrow">Streak</span>
           <span className="font-display text-[34px] font-light leading-none">
             {calendar.streak}
-            <span className="text-base text-muted-foreground"> {calendar.streak === 1 ? "day" : "days"}</span>
+            <span className="text-base text-muted-foreground"> {plural(calendar.streak, "day")}</span>
           </span>
         </div>
         <div className="flex flex-col gap-1">
@@ -42,7 +37,7 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
         </div>
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {DAYS.map((d, i) => (
+        {WEEKDAYS.map((d, i) => (
           <span key={i} className="eyebrow grid aspect-square place-items-center text-[10px]">
             {d}
           </span>
@@ -52,16 +47,7 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
         ))}
         {counts.map((count, i) => {
           const day = i + 1;
-          const tone =
-            count >= 3
-              ? "bg-medium text-background"
-              : count === 2
-                ? "bg-easy text-hard"
-                : count === 1
-                  ? "bg-sky text-hard"
-                  : day > todayDate
-                    ? "text-border-strong"
-                    : "text-muted-foreground";
+          const tone = heatTone(count) ?? (day > todayDate ? "text-border-strong" : "text-muted-foreground");
           return (
             <span
               key={day}
