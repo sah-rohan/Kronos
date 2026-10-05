@@ -9,11 +9,11 @@ import { readLastPosition, useSdSolved } from "../systemdesign/progress";
 
 type Track = "sd" | "genai" | "cloud" | "networking";
 
-const TRACKS: { key: Track; label: string; blurb: string }[] = [
-  { key: "sd", label: "System Design", blurb: "Learn each piece, then drag the design together." },
-  { key: "genai", label: "AI System Design", blurb: "Design LLM and generative-AI systems, piece by piece." },
-  { key: "cloud", label: "Cloud", blurb: "AWS and Azure, side by side, in depth." },
-  { key: "networking", label: "Networking", blurb: "From packets to VPCs, security groups, and the edge." },
+const TRACKS: { key: Track; label: string }[] = [
+  { key: "sd", label: "System Design" },
+  { key: "genai", label: "AI System Design" },
+  { key: "cloud", label: "Cloud" },
+  { key: "networking", label: "Networking" },
 ];
 
 const stepCount = (p: SDProblem) => p.slides.length + 1 + p.palette.length;
@@ -74,9 +74,6 @@ export function StudyPage({
           {done} of {all.length} design modules complete · {CLOUD_DOCS.length + NETWORKING_DOCS.length} reference topics
         </span>
         <h1 className="m-0 font-display text-[clamp(40px,5vw,60px)] font-light leading-[1.02] tracking-[-0.02em]">Study</h1>
-        <p className="m-0 max-w-xl text-base leading-relaxed text-muted-foreground">
-          Pick a track and a topic. Design modules end with you building the system yourself.
-        </p>
       </header>
 
       <nav aria-label="Tracks" className="flex gap-7 overflow-x-auto border-b border-border">
@@ -97,10 +94,7 @@ export function StudyPage({
 
       <div className="flex flex-col gap-12 lg:flex-row lg:items-start">
         <section className="min-w-0 flex-[2]">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="m-0 font-display text-[30px] font-normal">{meta.label}</h2>
-            <span className="text-[13px] text-muted-foreground">{meta.blurb}</span>
-          </div>
+          <h2 className="m-0 mb-2 font-display text-[30px] font-normal">{meta.label}</h2>
           <ul className="m-0 list-none border-b border-border p-0">
             {(track === "sd" || track === "genai") &&
               modules.map((p, i) => {
@@ -168,9 +162,6 @@ export function StudyPage({
           >
             <span className="eyebrow">Reference</span>
             <span className="font-display text-[22px]">Main components</span>
-            <span className="text-sm leading-relaxed text-muted-foreground">
-              The reusable building blocks: the problem each solves, how it works, and when to use it.
-            </span>
           </button>
         </aside>
       </div>

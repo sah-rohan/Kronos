@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useData } from "../data/source";
 import { api } from "../lib/api";
 import { greeting } from "../lib/greeting";
 import { ROADMAP_LABEL, inList } from "../lib/roadmaps";
 import { rankMembers } from "../lib/rank";
-import { leetcodeUrl } from "../data/problems";
 import type { ProblemList } from "../types";
 
 function summary(total: number, remaining: number, label: string, standing: string) {
@@ -40,7 +39,6 @@ export function HomeHeader({
 
   const label = ROADMAP_LABEL[roadmap];
   const items = categories.flatMap((c) => c.items).filter((p) => inList(p, roadmap));
-  const next = items.find((p) => !p.done);
   const ranked = rankMembers(members, roadmap);
   const me = ranked.find((r) => r.m.name === userName);
   const top = ranked[0];
@@ -71,18 +69,6 @@ export function HomeHeader({
           <RefreshCw className={`h-[15px] w-[15px] ${syncing ? "animate-spin" : ""}`} />
           {syncing ? "Syncing…" : "Sync"}
         </button>
-        {next && !locked && (
-          <a
-            href={leetcodeUrl(next.slug)}
-            target="_blank"
-            rel="noreferrer"
-            title={next.name}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-[18px] text-sm font-medium text-ink-foreground transition-opacity hover:opacity-90"
-          >
-            Start next problem
-            <ArrowUpRight className="h-4 w-4" />
-          </a>
-        )}
       </div>
     </header>
   );
