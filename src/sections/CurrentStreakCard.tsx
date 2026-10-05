@@ -21,15 +21,12 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
     <Card className="flex h-full flex-col lg:col-span-1" onClick={onOpen}>
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Flame className="h-3.5 w-3.5 text-coral" /> Current Streak
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <div className="font-display text-[56px] leading-none tracking-tight">{calendar.streak}</div>
-            <div className="text-sm text-muted-foreground">day streak</div>
+          <h2 className="m-0 font-display text-[26px] leading-tight">This month</h2>
+          <div className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <Flame className="h-3.5 w-3.5 text-accent" /> {calendar.streak}-day streak
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" /> {todayLabel}
         </div>
       </div>
@@ -48,11 +45,11 @@ export function CurrentStreakCard({ onOpen }: { onOpen: () => void }) {
           {counts.map((count, i) => {
             const tone =
               count >= 3
-                ? "bg-coral text-white"
+                ? "bg-medium text-background"
                 : count === 2
-                ? "bg-coral/55 text-white"
+                ? "bg-easy text-hard"
                 : count === 1
-                ? "bg-coral/25 text-coral"
+                ? "bg-sky text-hard"
                 : "bg-muted text-muted-foreground";
             return (
               <div

@@ -212,7 +212,7 @@ export const flatProblems = categories.flatMap((c) => c.items);
 export const TOTAL = flatProblems.length;
 
 export const diffStyles: Record<string, string> = {
-  Easy: "bg-sky text-sky-foreground",
-  Medium: "bg-[#f5c26b] text-[#5a3a0a]",
-  Hard: "bg-coral text-white",
+  Easy: "bg-easy/20 text-hard",
+  Medium: "bg-medium/15 text-medium",
+  Hard: "bg-hard text-background",
 };

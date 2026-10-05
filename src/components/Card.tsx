@@ -12,10 +12,8 @@ export function Card({
   return (
     <div
       onClick={onClick}
-      className={`group rounded-[20px] bg-card border border-border p-6 shadow-[0_8px_30px_-12px_rgba(7,55,129,0.18)] backdrop-blur-md ${
-        onClick
-          ? "cursor-pointer transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-14px_rgba(7,55,129,0.28)]"
-          : ""
+      className={`group rounded-xl border border-border bg-card p-6 sm:p-7 ${
+        onClick ? "cursor-pointer transition-colors duration-200 hover:border-border-strong" : ""
       } ${className}`}
     >
       {children}

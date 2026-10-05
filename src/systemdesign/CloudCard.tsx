@@ -10,10 +10,10 @@ export function CloudCard({ onOpen }: { onOpen: (id: string) => void }) { // mak
       onOpen(CLOUD_DOCS[0].id) // otherwise, open the module at CLOUD_DOCS[0].id
     }}>
       <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">Cloud Engineering</div>
-        <Cloud className="h-4 w-4 text-coral" />
+        <h2 className="m-0 font-display text-[24px] leading-tight">Cloud Engineering</h2>
+        <Cloud className="h-4 w-4 text-accent" />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-[13px] text-muted-foreground">
         Learn AWS and Azure, side by side, in depth.
       </p>
       <div className="mt-3 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -23,7 +23,7 @@ export function CloudCard({ onOpen }: { onOpen: (id: string) => void }) { // mak
       <ul className="mt-3 h-72 space-y-2 overflow-y-auto pr-1">
         {CLOUD_DOCS.map((c) => (
           <li key={c.id}>
-            <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral">
+            <button type="button" onClick={() => onOpen(c.id)} className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{c.name}</div>
                 <div className="truncate text-[11px] text-muted-foreground">{c.tagline}</div>

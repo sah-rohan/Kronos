@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/Card";
 import { useData } from "../data/source";
 import { api, type SdActivity } from "../lib/api";
-import { diffStyles } from "../data/problems";
 import { fmtShortDate } from "../lib/date";
 import { SD_PROBLEMS } from "../systemdesign/problems";
 import { GENAI_PROBLEMS } from "../systemdesign/genai";
@@ -16,6 +15,8 @@ type Row =
       diff: "Easy" | "Medium" | "Hard";
     }
   | { key: string; kind: "sd"; label: string; at?: string; slug: string };
+
+const diffText = { Easy: "", Medium: "text-medium", Hard: "text-hard font-semibold" } as const;
 
 function isDiff(s: string): s is "Easy" | "Medium" | "Hard" {
   return s === "Easy" || s === "Medium" || s === "Hard";
@@ -74,11 +75,11 @@ export function RecentActivityCard({
 
   return (
     <Card className="lg:col-span-1 h-full" onClick={onOpen}>
-      <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">Recent Activity</div>
-        <span className="text-xs text-muted-foreground">See all</span>
+      <div className="flex items-baseline justify-between">
+        <h2 className="m-0 font-display text-[26px] leading-tight">Recent</h2>
+        <span className="text-[13px] text-muted-foreground">See all</span>
       </div>
-      <ul className="mt-4 divide-y divide-border">
+      <ul className="mt-2.5">
         {rows.length === 0 && (
           <li className="py-3 text-sm text-muted-foreground">
             No activity yet.
@@ -95,24 +96,24 @@ export function RecentActivityCard({
                   }
                 : undefined
             }
-            className={`flex items-center gap-4 py-3.5 ${r.kind === "sd" ? "cursor-pointer" : ""}`}
+            className={`flex items-center gap-4 border-t border-border py-3.5 ${r.kind === "sd" ? "cursor-pointer" : ""}`}
           >
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{r.label}</div>
+              <div className="truncate text-[15px]">{r.label}</div>
               {r.at && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-[13px] text-muted-foreground">
                   {fmtShortDate(r.at)}
                 </div>
               )}
             </div>
             {r.kind === "lc" ? (
               <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${diffStyles[r.diff]}`}
+                className={`eyebrow shrink-0 ${diffText[r.diff]}`}
               >
                 {r.diff}
               </span>
             ) : (
-              <span className="shrink-0 rounded-full bg-coral/15 px-2.5 py-1 text-[11px] font-medium text-coral">
+              <span className="eyebrow shrink-0">
                 Module
               </span>
             )}

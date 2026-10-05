@@ -22,10 +22,10 @@ export function GenAICard({ onOpen }: { onOpen: (slug: string) => void }) {
           onOpen(GENAI_PROBLEMS[0].slug) // otherwise, open the module at GENAI_PROBLEMS[0].slug
         }}>
       <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">GenAI System Design</div>
-        <Sparkles className="h-4 w-4 text-coral" />
+        <h2 className="m-0 font-display text-[24px] leading-tight">GenAI System Design</h2>
+        <Sparkles className="h-4 w-4 text-accent" />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-[13px] text-muted-foreground">
         Design LLM and generative-AI systems, piece by piece.
       </p>
       <div className="mt-3 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -39,14 +39,14 @@ export function GenAICard({ onOpen }: { onOpen: (slug: string) => void }) {
             <li key={p.slug}>
               <button
                 onClick={() => onOpen(p.slug)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
+                className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{p.title}</div>
                   <div className="text-[11px] text-muted-foreground">{p.difficulty}</div>
                 </div>
                 {done && (
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#3fae6a]/15 text-[#3fae6a]">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
                     <Check className="h-3.5 w-3.5" />
                   </span>
                 )}

@@ -29,10 +29,10 @@ export function SystemDesignCard({
           onOpen(SD_PROBLEMS[0].slug) // otherwise, open the module at SD_PROBLEMS[0].slug
         }}>
       <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">System Design</div>
-        <Network className="h-4 w-4 text-coral" />
+        <h2 className="m-0 font-display text-[24px] leading-tight">System Design</h2>
+        <Network className="h-4 w-4 text-accent" />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className="mt-1 text-[13px] text-muted-foreground">
         Learn each piece, then drag the design together.
       </p>
 
@@ -42,9 +42,9 @@ export function SystemDesignCard({
           e.stopPropagation(); // keep the card's own onClick from also opening the System Design module
           onOpenComponents();
         }}
-        className="mt-3 flex w-full items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-left text-sm font-medium transition cursor-pointer hover:bg-muted"
+        className="mt-3 flex w-full items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-left text-sm font-medium transition cursor-pointer hover:bg-muted"
       >
-        <BookOpen className="h-4 w-4 shrink-0 text-coral" />
+        <BookOpen className="h-4 w-4 shrink-0 text-accent" />
         Main components
         <span className="ml-auto text-[11px] text-muted-foreground">reference</span>
       </button>
@@ -60,14 +60,14 @@ export function SystemDesignCard({
             <li key={p.slug}>
               <button
                 onClick={() => onOpen(p.slug)}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
+                className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-3 text-left transition cursor-pointer hover:bg-muted"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{p.title}</div>
                   <div className="text-[11px] text-muted-foreground">{p.difficulty}</div>
                 </div>
                 {done && (
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#3fae6a]/15 text-[#3fae6a]">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
                     <Check className="h-3.5 w-3.5" />
                   </span>
                 )}

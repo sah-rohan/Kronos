@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { api, type TokenFn } from "../lib/api";
+
 // System Design completion is stored locally for now (standalone feature).
 const KEY = "kronos.sd.completed";
 
@@ -24,4 +27,12 @@ export function completedCount(): number {
 export function markCompleted(slug: string): void {
   const cur = read();
   if (!cur.includes(slug)) localStorage.setItem(KEY, JSON.stringify([...cur, slug]));
+}
+
+export function useSdSolved(getToken: TokenFn): Set<string> {
+  const [solved, setSolved] = useState<Set<string>>(() => completedSet());
+  useEffect(() => {
+    api.sdSolved(getToken).then((s) => setSolved(new Set([...completedSet(), ...(s ?? [])]))).catch(() => {});
+  }, [getToken]);
+  return solved;
 }

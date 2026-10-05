@@ -1,4 +1,4 @@
-import type { Category } from "../types";
+import type { Category, ProblemList } from "../types";
 
 export const DIFF_WEIGHTS = { easy: 1, medium: 4, hard: 7 } as const;
 
@@ -136,4 +136,18 @@ export function rankFor(
     Platinum: { text: "text-[#22d3ee]", badge: "bg-[#22d3ee]/15 text-[#22d3ee]", dot: "bg-[#22d3ee]" },
   };
   return { rating, tier, ...styles[tier] };
+}
+
+export function rankMembers<T extends { solvedByList: Record<ProblemList, number> }>(members: T[], list: ProblemList) {
+  let lastVal: number | null = null;
+  let lastRank = 0;
+  return [...members]
+    .sort((a, b) => (b.solvedByList[list] ?? 0) - (a.solvedByList[list] ?? 0))
+    .map((m, i) => {
+      const v = m.solvedByList[list] ?? 0;
+      const rank = i > 0 && v === lastVal ? lastRank : i + 1;
+      lastVal = v;
+      lastRank = rank;
+      return { m, rank, solved: v };
+    });
 }
