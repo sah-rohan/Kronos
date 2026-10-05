@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Monitor } from "lucide-react";
 import type { SDComponentType, SDProblem, SDSlide } from "./problems";
 import { SystemDesignCanvas } from "./SystemDesignCanvas";
 import { SystemDiagram } from "./SystemDiagram";
@@ -9,6 +9,7 @@ import { markCompleted, readLastPosition, saveLastPosition } from "./progress";
 import { ReaderNav, ReaderNavItem, ReaderPage } from "../components/Reader";
 import { useData } from "../data/source";
 import { api } from "../lib/api";
+import { useCanvasSupported } from "../lib/useCanvasSupported";
 
 type Stage = "learn" | "build" | "done";
 
@@ -20,6 +21,7 @@ export function SystemDesignModal({
   onClose: () => void;
 }) {
   const { getToken } = useData();
+  const canvasOk = useCanvasSupported();
   const track = GENAI_PROBLEMS.some((p) => p.slug === problem.slug) ? "AI System Design" : "System Design";
   const [stage, setStage] = useState<Stage>("learn");
   const [slide, setSlide] = useState(() => {
@@ -314,13 +316,32 @@ export function SystemDesignModal({
         <div className="flex h-full flex-col gap-4 px-5 py-6 sm:px-10">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h1 className="m-0 font-display text-[34px] font-light leading-tight">Build on the canvas</h1>
-            <p className="m-0 text-sm text-muted-foreground">
-              Drag every component onto the canvas and connect them into a working design, then check it.
-            </p>
+            {canvasOk && (
+              <p className="m-0 text-sm text-muted-foreground">
+                Drag every component onto the canvas and connect them into a working design, then check it.
+              </p>
+            )}
           </div>
-          <div className="min-h-[480px] flex-1">
-            <SystemDesignCanvas problem={problem} onSolved={onSolved} />
-          </div>
+          {canvasOk ? (
+            <div className="min-h-[480px] flex-1">
+              <SystemDesignCanvas problem={problem} onSolved={onSolved} />
+            </div>
+          ) : (
+            <div className="flex max-w-xl flex-col items-start gap-4 rounded-xl border border-border bg-card p-6">
+              <Monitor className="h-6 w-6 text-muted-foreground" />
+              <p className="m-0 text-[17px] leading-relaxed">The design canvas needs a desktop.</p>
+              <p className="m-0 text-sm text-muted-foreground">
+                Open this module on your computer to build and check your design. Your place in the lessons is saved.
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-ink-foreground transition-opacity hover:opacity-90"
+              >
+                Back to Study
+              </button>
+            </div>
+          )}
         </div>
       )}
 
