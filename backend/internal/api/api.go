@@ -18,7 +18,6 @@ import (
 	"kronos/internal/coach"
 	"kronos/internal/design"
 	"kronos/internal/interview"
-	"kronos/internal/pad"
 	"kronos/internal/platform/ai"
 	"kronos/internal/platform/httpx"
 	"kronos/internal/platform/jobs"
@@ -70,7 +69,6 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	careerRepo := career.NewRepo(pool)
 	coachRepo := coach.NewRepo(pool)
 	interviewRepo := interview.NewRepo(pool)
-	padRepo := pad.NewRepo(pool)
 
 	// Services - where the cross-feature dependencies are declared explicitly:
 	// social needs progress data, admin needs the user repo's username rules.
@@ -86,7 +84,6 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	coachSvc := coach.NewService(coachRepo, careerRepo,
 		ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, cfg.AzureEffort))
 	interviewSvc := NewInterviews(interviewRepo, careerRepo, cfg)
-	padSvc := NewPads(padRepo, cfg)
 
 	return &API{
 		users: userSvc,
@@ -99,7 +96,6 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 			career.NewController(careerSvc),
 			coach.NewController(coachSvc),
 			interview.NewController(interviewSvc),
-			pad.NewController(padSvc),
 		},
 		adminC: admin.NewController(adminSvc),
 	}
@@ -108,15 +104,9 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 // NewInterviews builds the interview service: a fast interviewer for live turns,
 // a stronger grader for the debrief.
 func NewInterviews(repo *interview.Repo, careerRepo *career.Repo, cfg Config) *interview.Service {
-	interviewer := ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, "medium")
+	interviewer := ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, "low")
 	svc := interview.NewService(repo, careerRepo, interviewer, grader(cfg))
 	svc.SetQueue(gradeQueue(cfg, jobs.TypeInterview, svc.Grade))
-	return svc
-}
-
-func NewPads(repo *pad.Repo, cfg Config) *pad.Service {
-	svc := pad.NewService(repo, grader(cfg))
-	svc.SetQueue(gradeQueue(cfg, jobs.TypePad, svc.Grade))
 	return svc
 }
 

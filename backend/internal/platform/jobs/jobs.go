@@ -9,10 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
-const (
-	TypeInterview = "interview"
-	TypePad       = "pad"
-)
+const TypeInterview = "interview"
 
 // Job is one message on the grade queue. An empty Type is an interview.
 type Job struct {

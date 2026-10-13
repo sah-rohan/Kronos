@@ -12,7 +12,6 @@ import (
 	"kronos/internal/career"
 	"kronos/internal/config"
 	"kronos/internal/interview"
-	"kronos/internal/pad"
 	"kronos/internal/platform/db"
 	"kronos/internal/platform/jobs"
 )
@@ -62,7 +61,6 @@ func main() {
 	}
 	graders = map[string]func(context.Context, string) error{
 		jobs.TypeInterview: api.NewInterviews(interview.NewRepo(pool), career.NewRepo(pool), cfg).Grade,
-		jobs.TypePad:       api.NewPads(pad.NewRepo(pool), cfg).Grade,
 	}
 	lambda.Start(handler)
 }

@@ -35,11 +35,11 @@ func TestFlowScratch(t *testing.T) {
 	pool.QueryRow(ctx, `select category from problems where slug=$1`, iv.Subject).Scan(&cat)
 	fmt.Println("category:", cat)
 
-	iv, err = svc.Reply(ctx, uid, iv.ID, "Quick clarifying question: can the input be empty?", "")
+	iv, err = svc.Reply(ctx, uid, iv.ID, "Quick clarifying question: can the input be empty?", "", 0)
 	if err != nil { t.Fatal(err) }
 	fmt.Printf("REPLY: %s\n\n", iv.Turns[len(iv.Turns)-1].Content)
 
-	iv, err = svc.Reply(ctx, uid, iv.ID, "Here is my code.", "def solve(nums):\n    return sorted(nums)")
+	iv, err = svc.Reply(ctx, uid, iv.ID, "Here is my code.", "def solve(nums):\n    return sorted(nums)", 0)
 	if err != nil { t.Fatal(err) }
 	fmt.Printf("AFTER CODE: %s (turns=%d, code kept=%v)\n\n", iv.Turns[len(iv.Turns)-1].Content, len(iv.Turns), iv.Turns[len(iv.Turns)-2].Code != "")
 
@@ -51,7 +51,7 @@ func TestFlowScratch(t *testing.T) {
 	fmt.Printf("ENDED in %s: status=%s verdict=%s\n%s\n\n", time.Since(start).Round(time.Second), iv.Status, iv.Verdict, iv.Debrief.Summary)
 
 	if _, err := svc.End(ctx, uid, iv.ID); err != ErrState { t.Fatalf("double end: %v", err) }
-	if _, err := svc.Reply(ctx, uid, iv.ID, "more", ""); err != ErrState { t.Fatalf("reply after end: %v", err) }
+	if _, err := svc.Reply(ctx, uid, iv.ID, "more", "", 0); err != ErrState { t.Fatalf("reply after end: %v", err) }
 	if _, err := svc.Get(ctx, "00000000-0000-0000-0000-000000000000", iv.ID); err != domain.ErrNotFound { t.Fatalf("other user: %v", err) }
 
 	iv, err = svc.Followup(ctx, uid, iv.ID, "My code was short. Why isn't that enough?")

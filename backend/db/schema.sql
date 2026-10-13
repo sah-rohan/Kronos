@@ -254,21 +254,14 @@ create table if not exists interview_turns (
 );
 create index if not exists idx_interview_turns on interview_turns(interview_id, created_at);
 
--- A scratchpad attempt at a catalog problem: ordered note and code blocks, graded on how it was reasoned.
-create table if not exists pads (
-  id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null references users(id) on delete cascade,
-  problem_id   integer not null references problems(id),
-  language     text not null check (language in ('python','java','cpp','javascript','go')),
-  blocks       jsonb not null default '[]',
-  version      integer not null default 1,
-  status       text not null default 'draft'
-               check (status in ('draft','grading','graded','failed')),
-  overall      text check (overall in ('weak','solid','strong')),
-  feedback     jsonb,
-  started_at   timestamptz not null default now(),
-  submitted_at timestamptz,
-  queued_at    timestamptz
-);
-create index if not exists idx_pads_user on pads(user_id, started_at desc);
-create unique index if not exists idx_pads_one_draft on pads(user_id, problem_id) where status = 'draft';
+-- The coding room: the problem as the interviewer stated it, the candidate's
+-- code (reasoning written as comments), and the live read of the six rubric areas.
+alter table interviews add column if not exists language text not null default '';
+alter table interviews add column if not exists problem jsonb;
+alter table interviews add column if not exists code text not null default '';
+alter table interviews add column if not exists code_version integer not null default 1;
+alter table interviews add column if not exists signals jsonb;
+alter table interviews add column if not exists observed_at timestamptz;
+alter table interviews add column if not exists observations integer not null default 0;
+alter table interview_turns add column if not exists signals jsonb;
+alter table interview_turns add column if not exists unprompted boolean not null default false;
