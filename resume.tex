@@ -1,0 +1,211 @@
+%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+% WRITING PHILOSOPHY: every bullet answers WHY it was built and, where it
+% applies, WHO it was built with or for. Mechanism detail is the first thing
+% cut to make room. "Deployed the ML Lambda from S3 past the 50MB cap" is
+% trivia; "so leaders read 5-10 themes instead of raw text" is the point.
+% Impact numbers ride inside the sentence rather than sitting at the end as a
+% tacked-on claim.
+%
+% FORMATTING SCHEME (keep consistent when editing): \textbf{} names the
+% system and marks metrics. \emph{} is reserved for cross-functional
+% partners - the people or teams the work was done with or for. Nothing
+% else is italicized in bullet text.
+%
+% SENTENCE STRUCTURE: one sentence, verb first, prepositions to attach detail.
+% No "Claim: a, b, c" colon lists. No em dashes, no arrows. Ranges read
+% "280MB to 33MB".
+%
+% LINE LENGTH: target 95 to 108 characters of visible text, 113 hard ceiling.
+% NOTE: roman is WIDER than italic in Charter. Removing emphasis widens lines.
+%------------------------
+\documentclass[11pt]{article}
+\usepackage{graphicx}
+\usepackage{fontawesome5}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+%----------FONT OPTIONS----------
+\usepackage[T1]{fontenc}
+\usepackage{charter}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+% Adjust margins
+\addtolength{\oddsidemargin}{-.5in}
+\addtolength{\evensidemargin}{-.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1in}
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-10pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-7pt}]
+\pdfgentounicode=1
+%-------------------------
+\newcommand{\resumeItem}[1]{
+  \item\small{{#1\vspace{0pt}}}
+}
+\newcommand{\resumeSubheading}[4]{
+  \item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\textbf{#1} $|$  #3} & \ifx\relax#4\relax #2\else #4 $|$ #2\fi \\
+    \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeCompany}[2]{
+  \item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+    \end{tabular*}\vspace{-8pt}
+}
+\newcommand{\resumeRole}[2]{
+  \item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      {\emph{#1}} & #2 \\
+    \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-10pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-5.5pt}
+}
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-10pt}}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=-0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=4pt, parsep=0pt, topsep=6pt]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+%-------------------------------------------
+\begin{document}
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge Rohan Sah} \\
+    \vspace{6pt}
+    \footnotesize
+    \faFlagUsa\ \textbf{U.S. Citizen} $|$
+    \faPhone\ \textbf{(650) 271-9163} $|$
+    \faEnvelope\ \href{mailto:rohan.k.sah@gmail.com}{\underline{\color{blue}rohan.k.sah@gmail.com}} $|$
+    \faGlobe\ \href{https://rohansah.dev}{\underline{\color{blue}rohansah.dev}} $|$
+    \faGithub\ \href{https://github.com/sah-rohan}{\underline{\color{blue}sah-rohan}}
+\end{center}
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {University of Illinois Urbana-Champaign}{Dec 2026 - May 2029}
+      {\emph{Master of Computer Science}}{}
+\vspace{2pt}
+    \resumeSubheading
+      {Iowa State University}{Expected Dec 2026}
+      {\emph{Bachelor of Science in Computer Science}}{}
+\vspace{2pt}
+  \resumeSubHeadingListEnd
+\section{Experience}
+\resumeSubHeadingListStart
+  \resumeCompany{John Deere}{}
+  \resumeRole{Incoming Software Engineer II, AI Solutions}{Moline, IL $|$ Starting Jan 2027}
+  \resumeRole{Part Time Student Software Engineer (Co-op)}{Ames, IA $|$ Jan 2025 - Present}
+    \resumeItemListStart
+        \resumeItem{Architected \textbf{AI/ML app} end-to-end via automated idempotent CSV ingest, saving \textbf{\$15K+}/yr; \emph{led cross-functional UAT}.}
+       \resumeItem{Shipped \textbf{customer page} and risk/assignment APIs via \emph{stakeholder demos}, so managers assessed \textbf{\$30M+} borrowers.}
+         \resumeItem{Engineered shared \textbf{RBAC authorizer} and \textbf{Redis cache} layers to optimize and secure team APIs for \textbf{45K+} users.}
+      \resumeItem{Built app's \textbf{idempotent email delivery}; enhanced file transfers and dashboard scoping, growing users by \textbf{270\%}.}
+      \resumeItem{Designed an adaptive multi-turn \textbf{AI mock interview app}, \emph{scoped rubrics with leadership} to boost internal mobility.}
+       \resumeItem{Provisioned networking and infra with least-privilege build-time and runtime IAM roles to deploy production apps.}
+    \resumeItemListEnd
+\vspace{0pt}
+\resumeSubHeadingListEnd
+%-----------RESEARCH-----------
+\section{Research}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {University of California, San Francisco}{Mar 2025 - Present}
+    {\emph{Undergraduate Research Assistant}}{}
+    \resumeItemListStart
+      \resumeItem{Developed a \textbf{clinical NLP pipeline} \emph{with researchers} so gastroenterologists queried \textbf{57k+} unstructured IBD notes.}
+      \resumeItem{Built a \emph{gastroenterologist-validated} RAG-powered \textbf{digital twins simulator} predicting IBD trajectories from \textbf{MIMIC-IV}.}
+    \resumeItemListEnd
+\vspace{0pt}
+  \resumeSubheading
+    {Ivy College of Business, Iowa State University}{Sep 2024 - Jan 2025}
+    {\emph{Undergraduate Research Assistant}}{}
+    \resumeItemListStart
+      \resumeItem{Engineered an internal \textbf{FDA inspection data app} so a \emph{professor} bulk-analyzed public health data.}
+    \resumeItemListEnd
+\vspace{0pt}
+  \resumeSubheading
+    {Iowa State University}{Sep 2023 - Oct 2024}
+    {\emph{Undergraduate Research Assistant}}{}
+    \resumeItemListStart
+      \resumeItem{Analyzed multiple deep learning defenses against LiDAR sensor spoofing attacks for autonomous systems.}
+    \resumeItemListEnd
+\vspace{0pt}
+\resumeSubHeadingListEnd
+%-----------PROJECTS-----------
+\section{Projects}
+  \resumeSubHeadingListStart
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/Indu-Sah-Foundation}{\textcolor{blue}{\underline{Indu Sah Foundation: Solo Founding Engineer (GitHub \& Website)}}}} $|$ \emph{Go, TypeScript, Azure}}{}
+    \resumeItemListStart
+      \resumeItem{Launched an AI-maintained \textbf{donation, CMS, gallery, and articles platform} with \emph{execs}, driving \textbf{60k+} hits, \textbf{\$25k} raised.}
+    \resumeItemListEnd
+\resumeProjectHeading
+  {\textbf{\href{https://medium.com/@rohan.k.sah/apollo-ai-music-collaborator-747705defb29}
+  {\textcolor{blue}{\underline{Apollo: Real-time AI music partner (Article)}}}}
+  $|$ \emph{Rust, Go, C++, Swift, CoreMIDI}}{}
+  \resumeItemListStart
+    \resumeItem{Engineered an \textbf{LED MIDI keyboard} giving musical suggestions via a \textbf{6}-color language across \textbf{7} latency-budgeted paths.}
+  \resumeItemListEnd
+\resumeProjectHeading
+  {\textbf{\href{https://github.com/sah-rohan/Federated-Learning-Platform} {\textcolor{blue}{\underline{Federated Learning Platform: Distributed Systems Project (GitHub)}}}}{} $|$ \emph{Rust, C++, Python}}{}
+  \resumeItemListStart
+    \resumeItem{Created a multi-service \textbf{ML pipeline} with differential privacy across nodes, capping per-node influence.}
+  \resumeItemListEnd
+\resumeProjectHeading
+  {\textbf{\href{https://github.com/sah-rohan/leetcode-dashboard}{\textcolor{blue}{\underline{Kronos: AI Career-Prep Ecosystem (GitHub)}}}} $|$ \emph{Go, TypeScript, AWS}}{}
+  \resumeItemListStart
+    \resumeItem{Built a leaderboard, interview agent, LeetCode/Job app sync and \textbf{52} system design modules with \textasciitilde{}\textbf{250} solves monthly.}
+  \resumeItemListEnd
+\resumeProjectHeading
+  {\textbf{\href{https://github.com/apple/foundationdb/pull/13241}{\textcolor{blue}{\underline{Open Source Contribution: Apple FoundationDB (GitHub)}}}} $|$ \emph{Python}}{}
+  \resumeItemListStart
+    \resumeItem{Authored \textbf{type annotations} and Protocols to make FoundationDB's Python module type-safe for consumers.}
+  \resumeItemListEnd
+  \resumeSubHeadingListEnd
+%-----------PROGRAMMING SKILLS-----------
+\vspace{-8pt}
+\section{Technical Skills}
+  \begin{itemize}[leftmargin=0in, label={}, topsep=0pt]
+    \small{\item{
+      \textbf{Languages}{: C++, Go, Java, Python, Rust, SQL, Swift, TypeScript} \\
+      \textbf{Cloud \& DevOps}{: AWS, Azure, Docker, GitHub Actions, Terraform, Kubernetes} \\
+      \textbf{Frameworks \& Libraries}{: Next.js, Node.js, PyTorch, React, Spring Boot} \\
+      \textbf{AI Dev Tools}{: Claude Code, GitHub Copilot, MCP}
+    }}
+  \end{itemize}
+\end{document}
