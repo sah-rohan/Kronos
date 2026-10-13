@@ -14,7 +14,7 @@ import { Sidebar, MobileBar, AccountMenu, type NavItem } from "./sections/Sideba
 import { HomeHeader } from "./sections/HomeHeader";
 import { StatStrip } from "./sections/StatStrip";
 import { StudyPage } from "./sections/StudyPage";
-import { PracticePage } from "./practice/PracticePage";
+import { InterviewPage } from "./interview/InterviewPage";
 import { MyProgressCard } from "./sections/MyProgressCard";
 import { LeaderboardCard } from "./sections/LeaderboardCard";
 import { MyFriendsCard } from "./sections/MyFriendsCard";
@@ -38,13 +38,13 @@ const CloudModal = lazy(() => import("./systemdesign/CloudModal").then((m) => ({
 const NetworkingModal = lazy(() => import("./systemdesign/NetworkingModal").then((m) => ({ default: m.NetworkingModal })));
 const SolutionModal = lazy(() => import("./modals/SolutionModal").then((m) => ({ default: m.SolutionModal })));
 const AdminModal = lazy(() => import("./modals/AdminModal").then((m) => ({ default: m.AdminModal })));
-const PadPage = lazy(() => import("./practice/PadPage"));
+const InterviewView = lazy(() => import("./interview/InterviewView"));
 
 // Each lazy screen gets its own boundary so loading one never blanks another.
 const Lazy = ({ children }: { children: ReactNode }) => <Suspense fallback={null}>{children}</Suspense>;
 
 type Panel = "me" | "calendar" | "leaderboard" | "recent" | "friends";
-type Page = "home" | "study" | "practice";
+type Page = "home" | "study" | "interview";
 // A solution being viewed: yours (with the panel's label), or a friend's.
 type SolutionView = { problem: ProblemRef; recent: boolean; label?: string; friend?: Friend };
 
@@ -77,7 +77,7 @@ function App({
   const [changeUsername, setChangeUsername] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [sdSlug, setSdSlug] = useState<string | null>(null);
-  const [padId, setPadId] = useState<string | null>(null);
+  const [interviewId, setInterviewId] = useState<string | null>(null);
   const [sdComponents, setSdComponents] = useState(false);
   const [cloudTopic, setCloudTopic] = useState<string | null>(null);
   const [networkingTopic, setNetworkingTopic] = useState<string | null>(null);
@@ -105,17 +105,17 @@ function App({
 
   const goTo = (next: Page) => {
     setPage(next);
-    setPadId(null);
+    setInterviewId(null);
     window.scrollTo({ top: 0 });
   };
-  const openPad = (id: string | null) => {
-    setPadId(id);
+  const openInterview = (id: string | null) => {
+    setInterviewId(id);
     window.scrollTo({ top: 0 });
   };
   const nav: NavItem[] = [
     { label: "Home", onClick: () => goTo("home"), active: page === "home" },
     { label: "Study", onClick: () => goTo("study"), active: page === "study" },
-    { label: "Practice", onClick: () => goTo("practice"), active: page === "practice" },
+    { label: "Interview", onClick: () => goTo("interview"), active: page === "interview" },
   ];
   const account = (compact: boolean) => (
     <AccountMenu
@@ -191,15 +191,15 @@ function App({
                 {lock(<MyFriendsCard onOpen={() => setPanel("friends")} />)}
               </div>
             </div>
-          ) : page === "practice" ? (
-            padId ? (
-              <ErrorBoundary label="Scratchpad" onReset={() => setPadId(null)}>
+          ) : page === "interview" ? (
+            interviewId ? (
+              <ErrorBoundary label="Interview" onReset={() => setInterviewId(null)}>
                 <Lazy>
-                  <PadPage key={padId} id={padId} onOpen={openPad} onBack={() => openPad(null)} />
+                  <InterviewView key={interviewId} id={interviewId} onBack={() => openInterview(null)} />
                 </Lazy>
               </ErrorBoundary>
             ) : (
-              <PracticePage onOpen={openPad} />
+              <InterviewPage onOpen={openInterview} />
             )
           ) : (
             <StudyPage

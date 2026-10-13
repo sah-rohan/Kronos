@@ -17,6 +17,7 @@ func NewController(svc *Service) *Controller { return &Controller{svc: svc} }
 type turnInput struct {
 	Message string `json:"message"`
 	Code    string `json:"code"`
+	Version int    `json:"version"`
 }
 
 func (c *Controller) Route(r *httpx.Request) (httpx.Response, bool, error) {
@@ -26,6 +27,9 @@ func (c *Controller) Route(r *httpx.Request) (httpx.Response, bool, error) {
 	switch {
 	case r.Is("GET", "/me/interviews"):
 		return httpx.Handled(httpx.Data(c.svc.List(ctx, uid)))
+
+	case r.Is("GET", "/me/interviews/progress"):
+		return httpx.Handled(httpx.Data(c.svc.Progress(ctx, uid)))
 
 	case r.Is("POST", "/me/interviews"):
 		var in StartInput
@@ -48,7 +52,21 @@ func (c *Controller) Route(r *httpx.Request) (httpx.Response, bool, error) {
 	case r.Match("POST", "me", "interviews", "*", "turns"):
 		var in turnInput
 		r.Decode(&in)
-		return httpx.Handled(respond(c.svc.Reply(ctx, uid, id, in.Message, in.Code)))
+		return httpx.Handled(respond(c.svc.Reply(ctx, uid, id, in.Message, in.Code, in.Version)))
+
+	case r.Match("PUT", "me", "interviews", "*", "code"):
+		var in CodeInput
+		r.Decode(&in)
+		v, err := c.svc.SaveCode(ctx, uid, id, in)
+		if err != nil {
+			return httpx.Handled(respond(Interview{}, err))
+		}
+		return httpx.Handled(httpx.Reply(200, map[string]int{"version": v}))
+
+	case r.Match("POST", "me", "interviews", "*", "observe"):
+		var in turnInput
+		r.Decode(&in)
+		return httpx.Handled(respond(c.svc.Observe(ctx, uid, id, in.Version)))
 
 	case r.Match("POST", "me", "interviews", "*", "end"):
 		return httpx.Handled(respond(c.svc.End(ctx, uid, id)))
@@ -74,6 +92,10 @@ func respond(iv Interview, err error) (httpx.Response, error) {
 		return httpx.Error(400, "add a resume before starting a resume interview")
 	case errors.Is(err, ErrLimit):
 		return httpx.Error(429, "limit reached, try again tomorrow")
+	case errors.Is(err, ErrStale):
+		return httpx.Error(409, "the code changed in another tab")
+	case errors.Is(err, ErrTooSoon):
+		return httpx.Error(429, "checked too recently")
 	case errors.Is(err, ErrState):
 		return httpx.Error(409, "interview is not in a state that allows this")
 	case errors.Is(err, ErrUnavailable):

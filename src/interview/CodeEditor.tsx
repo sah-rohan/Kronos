@@ -4,9 +4,9 @@ import { EditorView, keymap, lineNumbers, placeholder as hint } from "@codemirro
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting, type LanguageSupport } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import type { PadLanguage } from "../lib/api";
+import type { CodeLanguage } from "../lib/api";
 
-const MODES: Record<PadLanguage, () => Promise<LanguageSupport>> = {
+const MODES: Record<CodeLanguage, () => Promise<LanguageSupport>> = {
   python: () => import("@codemirror/lang-python").then((m) => m.python()),
   java: () => import("@codemirror/lang-java").then((m) => m.java()),
   cpp: () => import("@codemirror/lang-cpp").then((m) => m.cpp()),
@@ -15,7 +15,8 @@ const MODES: Record<PadLanguage, () => Promise<LanguageSupport>> = {
 };
 
 const paper = EditorView.theme({
-  "&": { fontSize: "13px", backgroundColor: "transparent", color: "var(--color-foreground)" },
+  "&": { height: "100%", fontSize: "13.5px", backgroundColor: "transparent", color: "var(--color-foreground)" },
+  ".cm-scroller": { overflow: "auto" },
   "&.cm-focused": { outline: "none" },
   ".cm-content": { fontFamily: "var(--font-mono)", lineHeight: "1.7", padding: "12px 0", caretColor: "var(--color-foreground)" },
   ".cm-gutters": { backgroundColor: "transparent", border: "none", color: "var(--color-muted-foreground)" },
@@ -40,12 +41,14 @@ export function CodeEditor({
   onChange,
   label,
   readOnly = false,
+  placeholder = "Write code…",
 }: {
   value: string;
-  language: PadLanguage;
+  language: CodeLanguage;
   onChange?: (v: string) => void;
   label: string;
   readOnly?: boolean;
+  placeholder?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -69,7 +72,7 @@ export function CodeEditor({
           mode.current.of([]),
           syntaxHighlighting(ink),
           paper,
-          hint("Write code…"),
+          hint(placeholder),
           EditorView.lineWrapping,
           EditorState.readOnly.of(readOnly),
           EditorView.editable.of(!readOnly),
@@ -94,5 +97,5 @@ export function CodeEditor({
     };
   }, [language]);
 
-  return <div ref={host} />;
+  return <div ref={host} className="h-full min-h-0" />;
 }
