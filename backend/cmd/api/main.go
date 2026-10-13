@@ -28,7 +28,16 @@ func main() {
 	handler := api.New(pool, api.Config{
 		AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID"),
 		Season:       season,
-		LeetCodeSess: config.Get(ctx, "LEETCODE_SESSION"),
+		LeetCodeSess: func(ctx context.Context) string { return config.Get(ctx, "LEETCODE_SESSION") },
+
+		AzureEndpoint:   config.Get(ctx, "AZURE_OPENAI_ENDPOINT"),
+		AzureDeployment: config.Get(ctx, "AZURE_OPENAI_DEPLOYMENT"),
+		AzureKey:        config.Get(ctx, "AZURE_OPENAI_KEY"),
+		AzureEffort:     config.Get(ctx, "AZURE_OPENAI_EFFORT"),
+
+		GraderDeployment: config.Get(ctx, "AZURE_OPENAI_GRADER_DEPLOYMENT"),
+		GraderEffort:     config.Get(ctx, "AZURE_OPENAI_GRADER_EFFORT"),
+		GradeQueueURL:    config.Get(ctx, "GRADE_QUEUE_URL"),
 	})
 	lambda.Start(handler.Handle)
 }

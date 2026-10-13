@@ -40,6 +40,17 @@ resource "aws_iam_role_policy" "ssm" {
   })
 }
 
+resource "aws_iam_role_policy" "extra" {
+  count = length(var.policy_statements) > 0 ? 1 : 0
+  name  = "${var.name}-extra"
+  role  = aws_iam_role.this.id
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = var.policy_statements
+  })
+}
+
 resource "aws_lambda_function" "this" {
   function_name    = var.name
   role             = aws_iam_role.this.arn

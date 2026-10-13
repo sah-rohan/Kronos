@@ -166,3 +166,109 @@ create index if not exists idx_submissions_pending on submissions(enriched) wher
 create index if not exists idx_solutions_user_problem on solutions(user_id, problem_id);
 create index if not exists idx_members_user on group_members(user_id);
 create index if not exists idx_sync_next_poll on sync_state(next_poll_at) where true;
+
+-- What a member actually built on a System Design canvas. Referenced by the
+-- design repo; doubles as context for AI critique.
+create table if not exists sd_attempts (
+  user_id    uuid not null references users(id) on delete cascade,
+  slug       text not null,
+  design     jsonb not null,
+  ok         boolean not null default false,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, slug)
+);
+
+-- Career context for the coach: the resumes a member keeps on file and the
+-- roles they are applying to. Both are plain text, because the model reads
+-- them and nothing else does.
+create table if not exists resumes (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references users(id) on delete cascade,
+  label      text not null,
+  content    text not null,
+  is_primary boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_resumes_user on resumes(user_id, updated_at desc);
+-- At most one primary resume per member; the coach reads that one by default.
+create unique index if not exists idx_resumes_primary on resumes(user_id) where is_primary;
+
+create table if not exists jobs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references users(id) on delete cascade,
+  company     text not null,
+  title       text not null,
+  location    text not null default '',
+  url         text not null default '',
+  description text not null default '',
+  status      text not null default 'saved'
+              check (status in ('saved','applied','interviewing','offer','rejected')),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists idx_jobs_user on jobs(user_id, updated_at desc);
+
+-- One row per turn of a coach conversation. A thread is (user, job): the role
+-- the advice is about, or null for general prep.
+create table if not exists coach_messages (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references users(id) on delete cascade,
+  job_id     uuid references jobs(id) on delete cascade,
+  role       text not null check (role in ('user','assistant')),
+  content    text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_coach_thread on coach_messages(user_id, job_id, created_at);
+
+-- A mock interview. briefing is frozen at start (resume text, problem, prompt)
+-- so the grader judges against exactly what the interviewer was given.
+create table if not exists interviews (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references users(id) on delete cascade,
+  kind        text not null check (kind in ('resume','coding','behavioral','design')),
+  bar         text not null default 'top' check (bar in ('top','standard')),
+  difficulty  text not null default 'Medium' check (difficulty in ('Easy','Medium','Hard')),
+  target      text not null default '',
+  subject     text not null default '',
+  title       text not null default '',
+  briefing    text not null default '',
+  minutes     integer not null,
+  status      text not null default 'active'
+              check (status in ('active','grading','graded','failed')),
+  verdict     text,
+  debrief     jsonb,
+  started_at  timestamptz not null default now(),
+  ended_at    timestamptz
+);
+create index if not exists idx_interviews_user on interviews(user_id, started_at desc);
+
+create table if not exists interview_turns (
+  id           uuid primary key default gen_random_uuid(),
+  interview_id uuid not null references interviews(id) on delete cascade,
+  phase        text not null default 'interview' check (phase in ('interview','followup')),
+  role         text not null check (role in ('user','assistant')),
+  content      text not null,
+  code         text not null default '',
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_interview_turns on interview_turns(interview_id, created_at);
+
+-- A scratchpad attempt at a catalog problem: ordered note and code blocks, graded on how it was reasoned.
+create table if not exists pads (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references users(id) on delete cascade,
+  problem_id   integer not null references problems(id),
+  language     text not null check (language in ('python','java','cpp','javascript','go')),
+  blocks       jsonb not null default '[]',
+  version      integer not null default 1,
+  status       text not null default 'draft'
+               check (status in ('draft','grading','graded','failed')),
+  overall      text check (overall in ('weak','solid','strong')),
+  feedback     jsonb,
+  started_at   timestamptz not null default now(),
+  submitted_at timestamptz,
+  queued_at    timestamptz
+);
+create index if not exists idx_pads_user on pads(user_id, started_at desc);
+create unique index if not exists idx_pads_one_draft on pads(user_id, problem_id) where status = 'draft';

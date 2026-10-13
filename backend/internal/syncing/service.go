@@ -14,13 +14,14 @@ import (
 // "sync now" button, so the two can't drift apart.
 type Service struct {
 	repo *Repo
-	// session is the LeetCode session cookie enrichment needs; without it,
-	// solves are still recorded but code detail can't be fetched.
-	session string
+	// session returns the LeetCode session cookie enrichment needs; without it,
+	// solves are still recorded but code detail can't be fetched. It is read on
+	// every pass so a cookie the admin rotates takes effect without a redeploy.
+	session func(context.Context) string
 	season  int64
 }
 
-func NewService(repo *Repo, session string, season int64) *Service {
+func NewService(repo *Repo, session func(context.Context) string, season int64) *Service {
 	return &Service{repo: repo, session: session, season: season}
 }
 
@@ -47,8 +48,8 @@ func (s *Service) engine(ctx context.Context) (*poller.Engine, error) {
 	}, nil
 }
 
-func (s *Service) enricher() *poller.Enricher {
-	return &poller.Enricher{Detailer: leetcode.New(), Store: s.repo, Session: s.session}
+func (s *Service) enricher(ctx context.Context) *poller.Enricher {
+	return &poller.Enricher{Detailer: leetcode.New(), Store: s.repo, Session: s.session(ctx)}
 }
 
 // SyncMember runs one member's sync on demand. Enrichment failure is logged
@@ -65,7 +66,7 @@ func (s *Service) SyncMember(ctx context.Context, userID, leetcodeUser string) e
 	if _, err := engine.SyncMember(ctx, poller.Member{UserID: userID, LeetCodeUser: leetcodeUser}); err != nil {
 		return err
 	}
-	if _, err := s.enricher().Run(ctx, enrichOnDemand); err != nil {
+	if _, err := s.enricher(ctx).Run(ctx, enrichOnDemand); err != nil {
 		log.Printf("on-demand enrich error: %v", err)
 	}
 	return nil
@@ -84,7 +85,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 	results := engine.SyncAll(ctx, members, syncWorkers)
 	log.Printf("polled %d due members", len(results))
 
-	enriched, err := s.enricher().Run(ctx, enrichBatch)
+	enriched, err := s.enricher(ctx).Run(ctx, enrichBatch)
 	if err != nil {
 		// A failed enrich pass is not a failed sync pass; the next run retries.
 		log.Printf("enrich pass error: %v", err)
@@ -96,5 +97,5 @@ func (s *Service) RunOnce(ctx context.Context) error {
 
 // Enrich runs a standalone enrichment pass, for the dedicated enrich Lambda.
 func (s *Service) Enrich(ctx context.Context) (int, error) {
-	return s.enricher().Run(ctx, enrichBatch)
+	return s.enricher(ctx).Run(ctx, enrichBatch)
 }

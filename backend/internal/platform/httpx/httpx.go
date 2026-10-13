@@ -61,6 +61,29 @@ func (r *Request) Match(method string, shape ...string) bool {
 // that follows rejects it.
 func (r *Request) Decode(v any) { _ = json.Unmarshal([]byte(r.Body), v) }
 
+// IsUUID reports whether s has the shape of a UUID. Ids reach the repositories
+// straight from a path segment or a query parameter, and Postgres raises on a
+// malformed uuid cast - which would surface as a 500 for what is really a bad
+// request. Controllers check the shape first.
+func IsUUID(s string) bool {
+	if len(s) != 36 {
+		return false
+	}
+	for i, c := range s {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if c != '-' {
+				return false
+			}
+			continue
+		}
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
+			return false
+		}
+	}
+	return true
+}
+
 // Segments splits a URL path into its non-empty components.
 func Segments(path string) []string {
 	return strings.FieldsFunc(path, func(c rune) bool { return c == '/' })
@@ -71,7 +94,7 @@ func corsHeaders() map[string]string {
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
 		"Access-Control-Allow-Headers": "authorization,content-type",
-		"Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+		"Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
 	}
 }
 

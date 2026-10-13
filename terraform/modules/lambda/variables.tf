@@ -40,3 +40,9 @@ variable "ssm_parameter_arns" {
   type    = list(string)
   default = []
 }
+
+# Extra IAM statements for this function alone, beyond logs and its secrets.
+variable "policy_statements" {
+  type    = list(any)
+  default = []
+}

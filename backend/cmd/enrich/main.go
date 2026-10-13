@@ -20,7 +20,7 @@ func handler(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	svc := syncing.NewService(syncing.NewRepo(pool), config.Get(ctx, "LEETCODE_SESSION"), 0)
+	svc := syncing.NewService(syncing.NewRepo(pool), func(ctx context.Context) string { return config.Get(ctx, "LEETCODE_SESSION") }, 0)
 
 	enriched, err := svc.Enrich(ctx)
 	if errors.Is(err, poller.ErrSessionExpired) {
