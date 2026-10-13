@@ -38,6 +38,7 @@ const post = (path: string, t: TokenFn, body?: object) =>
 const del = (path: string, t: TokenFn) => call(path, t, { method: "DELETE" });
 
 const recentQ = (recent: boolean) => (recent ? "?recent=1" : "");
+const jobQ = (jobId: string) => (jobId ? `?jobId=${jobId}` : "");
 const kindQ = (kind?: SdKind) => (kind ? `?kind=${kind}` : "");
 
 export type SdKind = "design" | "genai";
@@ -78,6 +79,24 @@ export const api = {
   friendCalendarProblems: (t: TokenFn, id: string) => get<ApiCalendarProblem[]>(`/friends/${id}/calendar/problems`, t),
   friendSolutions: (t: TokenFn, id: string, slug: string, recent = false) =>
     get<ApiSolution[]>(`/friends/${id}/problem/${slug}${recentQ(recent)}`, t),
+  resumes: (t: TokenFn) => get<ApiResume[]>("/me/resumes", t),
+  resume: (t: TokenFn, id: string) => get<ApiResume>(`/me/resumes/${id}`, t),
+  saveResume: (t: TokenFn, r: { id?: string; label: string; content: string }) =>
+    call<{ id: string }>("/me/resumes", t, { method: "POST", body: JSON.stringify(r) }),
+  setPrimaryResume: (t: TokenFn, id: string) => post(`/me/resumes/${id}/primary`, t),
+  deleteResume: (t: TokenFn, id: string) => del(`/me/resumes/${id}`, t),
+  jobs: (t: TokenFn) => get<ApiJob[]>("/me/jobs", t),
+  job: (t: TokenFn, id: string) => get<ApiJob>(`/me/jobs/${id}`, t),
+  saveJob: (t: TokenFn, j: Partial<ApiJob>) =>
+    call<{ id: string }>("/me/jobs", t, { method: "POST", body: JSON.stringify(j) }),
+  deleteJob: (t: TokenFn, id: string) => del(`/me/jobs/${id}`, t),
+  coachAvailable: (t: TokenFn) => get<{ available: boolean }>("/me/coach", t),
+  coachHistory: (t: TokenFn, jobId = "") => get<CoachTurn[]>(`/me/coach/history${jobQ(jobId)}`, t),
+  coachClear: (t: TokenFn, jobId = "") => del(`/me/coach/history${jobQ(jobId)}`, t),
+  coachChat: (t: TokenFn, message: string, jobId = "") =>
+    call<CoachReply>("/me/coach/chat", t, { method: "POST", body: JSON.stringify({ message, jobId }) }),
+  coachContext: (t: TokenFn, message: string, jobId = "") =>
+    call<CoachReply>("/me/coach/context", t, { method: "POST", body: JSON.stringify({ message, jobId }) }),
   adminPending: (t: TokenFn) => get<MeResponse[]>("/admin/pending", t),
   adminUsers: (t: TokenFn) => get<MeResponse[]>("/admin/users", t),
   adminAnalytics: (t: TokenFn) => get<Analytics>("/admin/analytics", t),
@@ -140,4 +159,35 @@ export type ApiSolution = {
   runtimeMs: number;
   runtimePct: number;
   optimal: boolean;
+};
+
+export type ApiResume = {
+  id: string;
+  label: string;
+  content?: string;
+  primary: boolean;
+  chars: number;
+  updatedAt: string;
+};
+export type JobStatus = "saved" | "applied" | "interviewing" | "offer" | "rejected";
+export const JOB_STATUSES: JobStatus[] = ["saved", "applied", "interviewing", "offer", "rejected"];
+export type ApiJob = {
+  id: string;
+  company: string;
+  title: string;
+  location: string;
+  url: string;
+  description?: string;
+  status: JobStatus;
+  updatedAt: string;
+};
+export type CoachTurn = { role: "user" | "assistant"; content: string; at: string };
+// The counts travel with the reply so the UI can say what the model was given:
+// how many solves, how many of the member's own solutions, which resume and role.
+export type CoachReply = {
+  reply: string;
+  solved: number;
+  code: number;
+  resume: string;
+  job: string;
 };

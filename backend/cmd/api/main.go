@@ -29,6 +29,11 @@ func main() {
 		AdminClerkID: config.Get(ctx, "ADMIN_CLERK_ID"),
 		Season:       season,
 		LeetCodeSess: config.Get(ctx, "LEETCODE_SESSION"),
+
+		AzureEndpoint:   config.Get(ctx, "AZURE_OPENAI_ENDPOINT"),
+		AzureDeployment: config.Get(ctx, "AZURE_OPENAI_DEPLOYMENT"),
+		AzureKey:        config.Get(ctx, "AZURE_OPENAI_KEY"),
+		AzureEffort:     config.Get(ctx, "AZURE_OPENAI_EFFORT"),
 	})
 	lambda.Start(handler.Handle)
 }

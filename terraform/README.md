@@ -46,3 +46,17 @@ aws cloudfront create-invalidation --distribution-id $(terraform -chdir=terrafor
 - Secrets are passed as Terraform variables -> lambda env. Move to AWS Secrets
   Manager if you want rotation.
 - `season_start` is a unix timestamp (default June 5 2026).
+
+## The coach's Azure key
+
+The Lambdas run on AWS, so there is no Azure managed identity to fall back to.
+Put the key where the other secrets live, once, before the first apply:
+
+```
+az cognitiveservices account keys list -n <resource> -g <group> --query key1 -o tsv |
+  xargs -I{} aws ssm put-parameter --name /kronos/AZURE_OPENAI_KEY \
+    --type SecureString --value {} --overwrite
+```
+
+The endpoint and deployment are not secret and are plain variables
+(`azure_openai_endpoint`, `azure_openai_deployment`, `azure_openai_effort`).

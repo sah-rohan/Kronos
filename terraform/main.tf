@@ -68,11 +68,18 @@ data "aws_ssm_parameter" "leetcode_session" {
   name = "/${var.project}/LEETCODE_SESSION"
 }
 
+# The Azure OpenAI key the coach authenticates with. The Lambdas run on AWS, so
+# there is no Azure managed identity to fall back to; forge takes the key.
+data "aws_ssm_parameter" "azure_openai_key" {
+  name = "/${var.project}/AZURE_OPENAI_KEY"
+}
+
 locals {
   secret_arns = [
     module.ssm.arn,
     data.aws_ssm_parameter.clerk_secret.arn,
     data.aws_ssm_parameter.leetcode_session.arn,
+    data.aws_ssm_parameter.azure_openai_key.arn,
   ]
 }
 
@@ -87,6 +94,11 @@ module "api" {
     ADMIN_CLERK_ID       = var.admin_clerk_id
     SEASON_START         = var.season_start
     LEETCODE_SESSION_SSM = data.aws_ssm_parameter.leetcode_session.name
+
+    AZURE_OPENAI_ENDPOINT   = var.azure_openai_endpoint
+    AZURE_OPENAI_DEPLOYMENT = var.azure_openai_deployment
+    AZURE_OPENAI_EFFORT     = var.azure_openai_effort
+    AZURE_OPENAI_KEY_SSM    = data.aws_ssm_parameter.azure_openai_key.name
   }
 }
 

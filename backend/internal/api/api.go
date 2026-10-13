@@ -13,7 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"kronos/internal/admin"
+	"kronos/internal/career"
+	"kronos/internal/coach"
 	"kronos/internal/design"
+	"kronos/internal/platform/ai"
 	"kronos/internal/platform/httpx"
 	"kronos/internal/progress"
 	"kronos/internal/social"
@@ -27,6 +30,14 @@ type Config struct {
 	AdminClerkID string
 	Season       int64
 	LeetCodeSess string
+
+	// Azure OpenAI, for the coach. Endpoint and Deployment empty means no
+	// deployment is wired and the coach answers 503; the rest of the API is
+	// unaffected.
+	AzureEndpoint   string
+	AzureDeployment string
+	AzureKey        string
+	AzureEffort     string
 }
 
 // API dispatches authenticated requests across the feature controllers.
@@ -49,6 +60,8 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	socialRepo := social.NewRepo(pool)
 	designRepo := design.NewRepo(pool)
 	syncRepo := syncing.NewRepo(pool)
+	careerRepo := career.NewRepo(pool)
+	coachRepo := coach.NewRepo(pool)
 
 	// Services - where the cross-feature dependencies are declared explicitly:
 	// social needs progress data, admin needs the user repo's username rules.
@@ -58,6 +71,11 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	designSvc := design.NewService(designRepo)
 	syncSvc := syncing.NewService(syncRepo, cfg.LeetCodeSess, cfg.Season)
 	adminSvc := admin.NewService(adminRepo, userRepo)
+	careerSvc := career.NewService(careerRepo)
+	// The coach is the only feature that reaches outside the database: it reads
+	// progress and career documents, then asks Azure OpenAI about them.
+	coachSvc := coach.NewService(coachRepo, careerRepo,
+		ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, cfg.AzureEffort))
 
 	return &API{
 		users: userSvc,
@@ -67,6 +85,8 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 			social.NewController(socialSvc),
 			design.NewController(designSvc),
 			syncing.NewController(syncSvc),
+			career.NewController(careerSvc),
+			coach.NewController(coachSvc),
 		},
 		adminC: admin.NewController(adminSvc),
 	}
