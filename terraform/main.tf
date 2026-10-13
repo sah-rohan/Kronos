@@ -99,7 +99,54 @@ module "api" {
     AZURE_OPENAI_DEPLOYMENT = var.azure_openai_deployment
     AZURE_OPENAI_EFFORT     = var.azure_openai_effort
     AZURE_OPENAI_KEY_SSM    = data.aws_ssm_parameter.azure_openai_key.name
+
+    AZURE_OPENAI_GRADER_DEPLOYMENT = var.azure_openai_grader_deployment
+    AZURE_OPENAI_GRADER_EFFORT     = var.azure_openai_grader_effort
+    GRADE_QUEUE_URL                = module.grading.queue_url
   }
+  policy_statements = [{
+    Effect   = "Allow"
+    Action   = ["sqs:SendMessage"]
+    Resource = module.grading.queue_arn
+  }]
+}
+
+module "grading" {
+  source = "./modules/queue"
+  name   = "${var.project}-grade"
+  # Six times the grader's timeout, so a message is never redelivered mid-grade.
+  visibility_timeout = 6 * 240
+}
+
+module "grade" {
+  source             = "./modules/lambda"
+  name               = "${var.project}-grade"
+  zip_path           = var.grade_zip
+  timeout            = 240
+  ssm_parameter_arns = [module.ssm.arn, data.aws_ssm_parameter.azure_openai_key.arn]
+  environment = {
+    DATABASE_URL_SSM               = module.ssm.name
+    AZURE_OPENAI_ENDPOINT          = var.azure_openai_endpoint
+    AZURE_OPENAI_DEPLOYMENT        = var.azure_openai_deployment
+    AZURE_OPENAI_KEY_SSM           = data.aws_ssm_parameter.azure_openai_key.name
+    AZURE_OPENAI_GRADER_DEPLOYMENT = var.azure_openai_grader_deployment
+    AZURE_OPENAI_GRADER_EFFORT     = var.azure_openai_grader_effort
+  }
+  policy_statements = [{
+    Effect   = "Allow"
+    Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    Resource = module.grading.queue_arn
+  }]
+}
+
+resource "aws_lambda_event_source_mapping" "grade" {
+  event_source_arn        = module.grading.queue_arn
+  function_name           = module.grade.arn
+  batch_size              = 1
+  function_response_types = ["ReportBatchItemFailures"]
+
+  # The role's SQS policy has to exist before the mapping is created.
+  depends_on = [module.grade]
 }
 
 module "sync" {

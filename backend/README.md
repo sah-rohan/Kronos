@@ -8,11 +8,15 @@ Fast, concurrent polling sync of LeetCode progress for a seasonal group leaderbo
 internal/leetcode   public + authenticated LeetCode GraphQL client
 internal/career      resumes + the roles a member is applying to
 internal/coach       the AI coach: assembles a member's record into a prompt
+internal/interview   mock interviews: live turns, then an SQS-graded debrief
+internal/pad         scratchpad practice: note + code blocks, graded on reasoning
+internal/platform/jobs  the shared grade queue (SQS), typed by feature
 internal/platform/ai Azure OpenAI client (auth via the forge library)
 internal/poller      sync engine (delta guard, concurrent fan-out) + enricher
 internal/store       Postgres (pgx) implementation of the engine's interfaces
 cmd/sync             Lambda: poll due members every minute
 cmd/enrich           Lambda: fill runtime/code/optimal via one authed session
+cmd/grade            Lambda: grade queued interviews and pads
 cmd/verify           local CLI: deterministic demo + live sync + auth detail
 cmd/genseed          regenerate db/seed_problems.sql (NeetCode 150)
 db/schema.sql        schema

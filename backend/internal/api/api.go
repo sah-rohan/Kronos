@@ -8,6 +8,7 @@ package api
 
 import (
 	"context"
+	"log"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,8 +17,11 @@ import (
 	"kronos/internal/career"
 	"kronos/internal/coach"
 	"kronos/internal/design"
+	"kronos/internal/interview"
+	"kronos/internal/pad"
 	"kronos/internal/platform/ai"
 	"kronos/internal/platform/httpx"
+	"kronos/internal/platform/jobs"
 	"kronos/internal/progress"
 	"kronos/internal/social"
 	"kronos/internal/syncing"
@@ -29,15 +33,18 @@ import (
 type Config struct {
 	AdminClerkID string
 	Season       int64
-	LeetCodeSess string
+	LeetCodeSess func(context.Context) string
 
-	// Azure OpenAI, for the coach. Endpoint and Deployment empty means no
-	// deployment is wired and the coach answers 503; the rest of the API is
-	// unaffected.
+	// Azure OpenAI, for the coach and interviews. Endpoint and Deployment empty
+	// means no deployment is wired and those routes answer 503.
 	AzureEndpoint   string
 	AzureDeployment string
 	AzureKey        string
 	AzureEffort     string
+	// The interview grader: a stronger deployment, fed by an SQS queue.
+	GraderDeployment string
+	GraderEffort     string
+	GradeQueueURL    string
 }
 
 // API dispatches authenticated requests across the feature controllers.
@@ -62,6 +69,8 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	syncRepo := syncing.NewRepo(pool)
 	careerRepo := career.NewRepo(pool)
 	coachRepo := coach.NewRepo(pool)
+	interviewRepo := interview.NewRepo(pool)
+	padRepo := pad.NewRepo(pool)
 
 	// Services - where the cross-feature dependencies are declared explicitly:
 	// social needs progress data, admin needs the user repo's username rules.
@@ -76,6 +85,8 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 	// progress and career documents, then asks Azure OpenAI about them.
 	coachSvc := coach.NewService(coachRepo, careerRepo,
 		ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, cfg.AzureEffort))
+	interviewSvc := NewInterviews(interviewRepo, careerRepo, cfg)
+	padSvc := NewPads(padRepo, cfg)
 
 	return &API{
 		users: userSvc,
@@ -87,9 +98,50 @@ func New(pool *pgxpool.Pool, cfg Config) *API {
 			syncing.NewController(syncSvc),
 			career.NewController(careerSvc),
 			coach.NewController(coachSvc),
+			interview.NewController(interviewSvc),
+			pad.NewController(padSvc),
 		},
 		adminC: admin.NewController(adminSvc),
 	}
+}
+
+// NewInterviews builds the interview service: a fast interviewer for live turns,
+// a stronger grader for the debrief.
+func NewInterviews(repo *interview.Repo, careerRepo *career.Repo, cfg Config) *interview.Service {
+	interviewer := ai.New(cfg.AzureEndpoint, cfg.AzureDeployment, cfg.AzureKey, "medium")
+	svc := interview.NewService(repo, careerRepo, interviewer, grader(cfg))
+	svc.SetQueue(gradeQueue(cfg, jobs.TypeInterview, svc.Grade))
+	return svc
+}
+
+func NewPads(repo *pad.Repo, cfg Config) *pad.Service {
+	svc := pad.NewService(repo, grader(cfg))
+	svc.SetQueue(gradeQueue(cfg, jobs.TypePad, svc.Grade))
+	return svc
+}
+
+func grader(cfg Config) *ai.Client {
+	return ai.New(cfg.AzureEndpoint, or(cfg.GraderDeployment, cfg.AzureDeployment), cfg.AzureKey, or(cfg.GraderEffort, "high"))
+}
+
+// gradeQueue grades inline when no queue is configured, which only suits local runs.
+func gradeQueue(cfg Config, typ string, inline jobs.Func) jobs.Queue {
+	if cfg.GradeQueueURL == "" {
+		return inline
+	}
+	q, err := jobs.NewSQS(context.Background(), cfg.GradeQueueURL, typ)
+	if err != nil {
+		log.Printf("grade queue: %v", err)
+		return nil
+	}
+	return q
+}
+
+func or(v, fallback string) string {
+	if v != "" {
+		return v
+	}
+	return fallback
 }
 
 // preApproval are the only routes a member may reach before an admin approves

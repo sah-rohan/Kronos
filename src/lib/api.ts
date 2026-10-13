@@ -36,6 +36,8 @@ const get = <T>(path: string, t: TokenFn) => call<T>(path, t);
 const post = (path: string, t: TokenFn, body?: object) =>
   call(path, t, { method: "POST", body: body && JSON.stringify(body) });
 const del = (path: string, t: TokenFn) => call(path, t, { method: "DELETE" });
+const send = <T>(method: string, path: string, t: TokenFn, body?: object) =>
+  call<T>(path, t, { method, body: body && JSON.stringify(body) });
 
 const recentQ = (recent: boolean) => (recent ? "?recent=1" : "");
 const jobQ = (jobId: string) => (jobId ? `?jobId=${jobId}` : "");
@@ -97,6 +99,14 @@ export const api = {
     call<CoachReply>("/me/coach/chat", t, { method: "POST", body: JSON.stringify({ message, jobId }) }),
   coachContext: (t: TokenFn, message: string, jobId = "") =>
     call<CoachReply>("/me/coach/context", t, { method: "POST", body: JSON.stringify({ message, jobId }) }),
+  pads: (t: TokenFn) => get<PadList>("/me/pads", t),
+  pad: (t: TokenFn, id: string) => get<Pad>(`/me/pads/${id}`, t),
+  padProgress: (t: TokenFn) => get<PadProgress>("/me/pads/progress", t),
+  startPad: (t: TokenFn, slug: string, language: PadLanguage) => send<Pad>("POST", "/me/pads", t, { slug, language }),
+  savePad: (t: TokenFn, id: string, body: { blocks: PadBlock[]; language: PadLanguage; version: number }) =>
+    send<{ version: number }>("PUT", `/me/pads/${id}`, t, body),
+  submitPad: (t: TokenFn, id: string) => send<Pad>("POST", `/me/pads/${id}/submit`, t),
+  deletePad: (t: TokenFn, id: string) => del(`/me/pads/${id}`, t),
   adminPending: (t: TokenFn) => get<MeResponse[]>("/admin/pending", t),
   adminUsers: (t: TokenFn) => get<MeResponse[]>("/admin/users", t),
   adminAnalytics: (t: TokenFn) => get<Analytics>("/admin/analytics", t),
@@ -190,4 +200,37 @@ export type CoachReply = {
   code: number;
   resume: string;
   job: string;
+};
+
+export type PadLanguage = "python" | "java" | "cpp" | "javascript" | "go";
+export type PadMark = "weak" | "solid" | "strong";
+export type PadStatus = "draft" | "grading" | "graded" | "failed";
+export type PadBlock = { kind: "note" | "code"; text: string; at: string };
+export type PadSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  difficulty: string;
+  category: string;
+  language: PadLanguage;
+  status: PadStatus;
+  overall?: PadMark;
+  startedAt: string;
+  submittedAt?: string;
+};
+export type PadFeedback = {
+  overall: PadMark;
+  summary: string;
+  rubric: { area: string; mark: PadMark; evidence: string; block: number }[];
+  correctness: { verdict: "likely_correct" | "likely_wrong" | "unclear"; issues: string[] };
+  complexity: { stated: string; actual: string; agrees: boolean };
+  rewrite: { block: number; stronger: string };
+  change: string;
+  next: string[];
+};
+export type Pad = PadSummary & { blocks: PadBlock[]; version: number; attempt: number; feedback?: PadFeedback };
+export type PadList = { available: boolean; pads: PadSummary[] };
+export type PadProgress = {
+  focus: string;
+  areas: { area: string; trend: "" | "improving" | "steady" | "slipping"; points: { padId: string; title: string; mark: PadMark; at: string }[] }[];
 };

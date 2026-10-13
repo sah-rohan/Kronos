@@ -66,3 +66,19 @@ variable "azure_openai_effort" {
   type    = string
   default = "medium"
 }
+
+# The interview grader runs on a stronger deployment than the interviewer.
+variable "azure_openai_grader_deployment" {
+  type    = string
+  default = "deep"
+}
+
+variable "azure_openai_grader_effort" {
+  type    = string
+  default = "high"
+}
+
+variable "grade_zip" {
+  type    = string
+  default = "../backend/dist/grade.zip"
+}

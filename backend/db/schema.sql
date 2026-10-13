@@ -220,3 +220,55 @@ create table if not exists coach_messages (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_coach_thread on coach_messages(user_id, job_id, created_at);
+
+-- A mock interview. briefing is frozen at start (resume text, problem, prompt)
+-- so the grader judges against exactly what the interviewer was given.
+create table if not exists interviews (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references users(id) on delete cascade,
+  kind        text not null check (kind in ('resume','coding','behavioral','design')),
+  bar         text not null default 'top' check (bar in ('top','standard')),
+  difficulty  text not null default 'Medium' check (difficulty in ('Easy','Medium','Hard')),
+  target      text not null default '',
+  subject     text not null default '',
+  title       text not null default '',
+  briefing    text not null default '',
+  minutes     integer not null,
+  status      text not null default 'active'
+              check (status in ('active','grading','graded','failed')),
+  verdict     text,
+  debrief     jsonb,
+  started_at  timestamptz not null default now(),
+  ended_at    timestamptz
+);
+create index if not exists idx_interviews_user on interviews(user_id, started_at desc);
+
+create table if not exists interview_turns (
+  id           uuid primary key default gen_random_uuid(),
+  interview_id uuid not null references interviews(id) on delete cascade,
+  phase        text not null default 'interview' check (phase in ('interview','followup')),
+  role         text not null check (role in ('user','assistant')),
+  content      text not null,
+  code         text not null default '',
+  created_at   timestamptz not null default now()
+);
+create index if not exists idx_interview_turns on interview_turns(interview_id, created_at);
+
+-- A scratchpad attempt at a catalog problem: ordered note and code blocks, graded on how it was reasoned.
+create table if not exists pads (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references users(id) on delete cascade,
+  problem_id   integer not null references problems(id),
+  language     text not null check (language in ('python','java','cpp','javascript','go')),
+  blocks       jsonb not null default '[]',
+  version      integer not null default 1,
+  status       text not null default 'draft'
+               check (status in ('draft','grading','graded','failed')),
+  overall      text check (overall in ('weak','solid','strong')),
+  feedback     jsonb,
+  started_at   timestamptz not null default now(),
+  submitted_at timestamptz,
+  queued_at    timestamptz
+);
+create index if not exists idx_pads_user on pads(user_id, started_at desc);
+create unique index if not exists idx_pads_one_draft on pads(user_id, problem_id) where status = 'draft';

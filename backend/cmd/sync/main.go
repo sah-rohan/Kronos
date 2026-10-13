@@ -13,9 +13,9 @@ import (
 	"kronos/internal/syncing"
 )
 
-// The DB pool, secrets, and season are resolved once at cold start and reused
-// across invocations, so the per-minute cron doesn't re-decrypt SSM secrets
-// (KMS) or reopen the pool on every run.
+// The DB pool and season are resolved once at cold start and reused across
+// invocations. The LeetCode session is re-read each pass (cached by config) so
+// a rotated cookie is picked up without a redeploy.
 func main() {
 	ctx := context.Background()
 
@@ -27,7 +27,7 @@ func main() {
 	season, _ := strconv.ParseInt(os.Getenv("SEASON_START"), 10, 64)
 	svc := syncing.NewService(
 		syncing.NewRepo(pool),
-		config.Get(ctx, "LEETCODE_SESSION"),
+		func(ctx context.Context) string { return config.Get(ctx, "LEETCODE_SESSION") },
 		season,
 	)
 

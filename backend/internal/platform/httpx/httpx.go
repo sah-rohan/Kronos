@@ -94,7 +94,7 @@ func corsHeaders() map[string]string {
 		"Content-Type":                 "application/json",
 		"Access-Control-Allow-Origin":  "*",
 		"Access-Control-Allow-Headers": "authorization,content-type",
-		"Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+		"Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
 	}
 }
 

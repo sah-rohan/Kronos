@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -15,8 +16,17 @@ import (
 var (
 	once   sync.Once
 	client *ssm.Client
-	cache  sync.Map // resolved key -> value, so each secret is decrypted once per container
+	cache  sync.Map // resolved key -> cached, so a warm container rarely decrypts
 )
+
+// ttl bounds how stale a secret can be: a value rotated in SSM reaches every
+// warm container within this window, with no redeploy.
+const ttl = 5 * time.Minute
+
+type cached struct {
+	value string
+	at    time.Time
+}
 
 func ssmClient(ctx context.Context) *ssm.Client {
 	once.Do(func() {
@@ -32,10 +42,14 @@ func Get(ctx context.Context, key string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	// Cache decrypted secrets per warm container to avoid a KMS Decrypt on every
-	// call (the sync Lambda runs once a minute).
-	if v, ok := cache.Load(key); ok {
-		return v.(string)
+	prev, hit := cache.Load(key)
+	if hit && time.Since(prev.(cached).at) < ttl {
+		return prev.(cached).value
+	}
+	// On a failed refresh, keep serving the last value rather than nothing.
+	stale := ""
+	if hit {
+		stale = prev.(cached).value
 	}
 	name := os.Getenv(key + "_SSM")
 	if name == "" {
@@ -43,17 +57,17 @@ func Get(ctx context.Context, key string) string {
 	}
 	c := ssmClient(ctx)
 	if c == nil {
-		return ""
+		return stale
 	}
 	out, err := c.GetParameter(ctx, &ssm.GetParameterInput{
 		Name:           aws.String(name),
 		WithDecryption: aws.Bool(true),
 	})
 	if err != nil {
-		return ""
+		return stale
 	}
 	val := aws.ToString(out.Parameter.Value)
-	cache.Store(key, val)
+	cache.Store(key, cached{val, time.Now()})
 	return val
 }
 
@@ -78,6 +92,6 @@ func Put(ctx context.Context, key, value string) error {
 	if err != nil {
 		return err
 	}
-	cache.Store(key, value)
+	cache.Store(key, cached{value, time.Now()})
 	return nil
 }
