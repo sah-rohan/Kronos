@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useData } from "../data/context";
-import { api, type CodeLanguage, type CodingProgress, type InterviewKind, type InterviewList } from "../lib/api";
+import { api, type ApiResume, type CodeLanguage, type CodingProgress, type InterviewKind, type InterviewList } from "../lib/api";
 import { DIFFS } from "../lib/difficulty";
 import { useStoredChoice } from "../lib/storage";
 import { DiffLabel, SearchField, SectionHead } from "../components/Controls";
 import { MarkLegend, ProgressTable } from "./Marks";
 import { KINDS, LANGUAGES, kindName, verdictLabel, verdictTone } from "./labels";
+import { ResumeShelf } from "./ResumeShelf";
 
 const RESULTS = 8;
 const KIND_KEYS = KINDS.map((k) => k.key);
@@ -39,6 +40,7 @@ export function InterviewPage({ onOpen }: { onOpen: (id: string) => void }) {
   const { categories, getToken } = useData();
   const [list, setList] = useState<InterviewList | null>(null);
   const [progress, setProgress] = useState<CodingProgress | null>(null);
+  const [resumes, setResumes] = useState<ApiResume[] | null>(null);
   const [kind, setKind] = useStoredChoice<InterviewKind>("kronos:interview:kind", KIND_KEYS, "coding");
   const [language, setLanguage] = useStoredChoice<CodeLanguage>("kronos:interview:language", LANG_KEYS, "python");
   const [bar, setBar] = useStoredChoice("kronos:interview:bar", ["top", "standard"] as const, "top");
@@ -54,6 +56,11 @@ export function InterviewPage({ onOpen }: { onOpen: (id: string) => void }) {
     api.interviews(getToken).then(setList).catch(() => setList({ available: false, interviews: [] }));
     api.interviewProgress(getToken).then(setProgress).catch(() => {});
   }, [getToken]);
+
+  const loadResumes = useCallback(() => {
+    api.resumes(getToken).then(setResumes).catch(() => setResumes([]));
+  }, [getToken]);
+  useEffect(loadResumes, [loadResumes]);
 
   const problems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -92,7 +99,8 @@ export function InterviewPage({ onOpen }: { onOpen: (id: string) => void }) {
   };
 
   const meta = KINDS.find((k) => k.key === kind)!;
-  const canStart = !starting && !(kind === "coding" && choose && !slug) && list?.available !== false;
+  const canStart =
+    !starting && !(kind === "coding" && choose && !slug) && !(kind === "resume" && !resumes?.length) && list?.available !== false;
   const graded = progress?.areas.some((a) => a.points.length > 0);
 
   return (
@@ -131,6 +139,8 @@ export function InterviewPage({ onOpen }: { onOpen: (id: string) => void }) {
               </button>
             ))}
           </div>
+
+          {kind === "resume" && <ResumeShelf token={getToken} resumes={resumes} onChanged={loadResumes} />}
 
           {kind === "coding" && (
             <div className="flex flex-col gap-4">

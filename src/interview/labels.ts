@@ -15,25 +15,25 @@ export const KINDS: { key: InterviewKind; name: string; minutes: number; blurb: 
     key: "coding",
     name: "Coding",
     minutes: 45,
-    blurb: "One problem, an editor and a live interviewer who watches you work and asks why.",
+    blurb: "A LeetCode-style problem in a live editor. Explain your approach, write working code, and get scored on correctness, complexity and testing.",
   },
   {
     key: "resume",
     name: "From your resume",
     minutes: 40,
-    blurb: "It reads your primary resume and drills into what you claim: why that design, how you measured it.",
+    blurb: "Questions built from your primary resume. Expect follow-ups on the decisions, tradeoffs and numbers behind each project you list.",
   },
   {
     key: "behavioral",
     name: "Behavioral",
     minutes: 30,
-    blurb: "Conflict, failure, ownership, ambiguity. It pushes back until you give a real story with a real result.",
+    blurb: "Questions on conflict, failure and ownership. Answer with a specific situation, what you did and the outcome. Vague answers get follow-ups.",
   },
   {
     key: "design",
     name: "System design",
     minutes: 45,
-    blurb: "Scope it, size it, design it, then defend it when a node dies or traffic spikes.",
+    blurb: "Take a large-scale system from requirements to architecture, then handle follow-ups on bottlenecks, failures and scaling.",
   },
 ];
 
