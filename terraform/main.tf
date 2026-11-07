@@ -41,6 +41,13 @@ data "aws_subnets" "default" {
   }
 }
 
+module "networking" {
+  source              = "./modules/networking"
+  name                = var.project
+  cidr                = "10.20.0.0/16"
+  interface_endpoints = ["sqs", "ssm"]
+}
+
 module "database" {
   source     = "./modules/database"
   name       = "${var.project}-db"
